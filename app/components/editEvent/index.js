@@ -37,8 +37,7 @@ import {
   asyncDeleteExchangeEvent,
   asyncGetAllExchangeEvents,
   asyncGetRecurrAndSingleExchangeEvents,
-  asyncGetExchangeRecurrMasterEvents,
-  parseEwsRecurringPatterns
+  asyncGetExchangeRecurrMasterEvents
 } from '../../utils/client/exchange';
 import './index.css';
 /* global google */
@@ -89,7 +88,12 @@ export default class EditEvent extends React.Component {
       recurringMasterId: '',
       recurrStartDate: '',
       recurrEndDate: '',
-      recurrPatternId: ''
+      recurrPatternId: '',
+
+      recurrByMonth: '',
+      recurrByMonthDay: '',
+      recurrByWeekDay: '',
+      recurrByWeekNo: ''
     };
   }
 
@@ -170,6 +174,8 @@ export default class EditEvent extends React.Component {
     console.log(e.target.name, state);
     console.log(this.createDbRecurrenceObj());
 
+    // debugger;
+
     if (e.target.name === 'return') {
       props.history.push('/');
     }
@@ -244,7 +250,11 @@ export default class EditEvent extends React.Component {
               untilType: state.thirdRecurrOptions,
               untilDate: state.recurrEndDate,
               untilAfter: state.thirdOptionAfter,
-              iCalUID: state.iCalUID
+              iCalUID: state.iCalUID,
+              byMonth: state.recurrByMonth,
+              byMonthDay: state.recurrByMonthDay,
+              byWeekDay: state.recurrByWeekDay,
+              byWeekNo: state.recurrByWeekNo
             };
             props.editEwsAllEventBegin(eventObject);
             break;
@@ -322,7 +332,7 @@ export default class EditEvent extends React.Component {
         .eq(dbEventJSON.recurringEventId)
         .exec();
 
-      console.log(dbEventRecurrence.toJSON(), dbEventRecurrence.numberOfRepeats);
+      console.log(dbEventRecurrence.toJSON());
 
       const thirdRecurrChoice = recurrenceOptions.parseThirdRecurrOption(
         dbEventRecurrence.until,
@@ -332,10 +342,28 @@ export default class EditEvent extends React.Component {
       const firstSelected = recurrenceOptions.parseFreq(dbEventRecurrence.freq);
       const secondSelected = recurrenceOptions.parseFreqNumber(firstSelected);
 
+      console.log(secondRecurrOptions, secondSelected, firstSelected);
+      let monthlySelected = 0;
+      if (secondSelected === 'month') {
+        if (dbEventRecurrence.byMonthDay === '()') {
+          console.log('MonthlyPattern');
+          monthlySelected = 1;
+        } else {
+          console.log('RelativeMonthlyPattern');
+          monthlySelected = 0;
+        }
+      } else if (secondSelected === 'year') {
+        // yet to do, figure out later!!
+      }
+
       const selectedSecondRecurrOptions = [];
       if (firstSelected === 1) {
         this.setState({
           selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, 0]
+        });
+      } else if (firstSelected === 2) {
+        this.setState({
+          selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, monthlySelected, 0]
         });
       }
 
@@ -350,7 +378,12 @@ export default class EditEvent extends React.Component {
         recurrEndDate: moment(dbEventRecurrence.until).format('YYYY-MM-DDTHH:mm:ssZ'),
         recurringMasterId: dbEventRecurrence.originalId,
         recurrPatternId: dbEventRecurrence.id,
-        thirdOptionAfter: dbEventRecurrence.numberOfRepeats
+        thirdOptionAfter: dbEventRecurrence.numberOfRepeats,
+
+        recurrByMonth: dbEventRecurrence.byMonth,
+        recurrByMonthDay: dbEventRecurrence.byMonthDay,
+        recurrByWeekDay: dbEventRecurrence.byWeekDay,
+        recurrByWeekNo: dbEventRecurrence.byWeekNo
       });
     }
 
@@ -437,10 +470,11 @@ export default class EditEvent extends React.Component {
     let parseEnd = '';
 
     const { props, state } = this;
+    console.log(state);
 
     // ----------------------------------- HACKING OUT RECURRENCE UI FIRST ----------------------------------- //
-    const text = recurrenceOptions.parseString(Math.ceil(moment(state.start.dateTime).date() / 7));
-    const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(state.start, text);
+    // const text = recurrenceOptions.parseString(Math.ceil(moment(state.start.dateTime).date() / 7));
+    // const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(state.start, text);
 
     if (state.start.dateTime !== undefined) {
       parseStart = state.start.dateTime.substring(0, 16);
@@ -475,6 +509,7 @@ export default class EditEvent extends React.Component {
 
     // Ensures week or month only.
     if (state.secondRecurrOptions.length === 2) {
+      console.log(state.selectedSecondRecurrOption, state.firstSelectedOption);
       recurrence.push(
         <div key={state.thirdRecurrOptions}>
           Repeat on
@@ -626,9 +661,6 @@ export default class EditEvent extends React.Component {
           name="updateFuture"
           value="Update this and future events"
         />
-      );
-      endMenu.push(
-        <input type="button" onClick={this.handleSubmit} name="testrecurr" value="TESTING RECURR" />
       );
     }
 

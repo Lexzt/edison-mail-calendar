@@ -42,6 +42,18 @@ export default {
     },
     iCalUid: {
       type: 'string'
+    },
+    byWeekNo: {
+      type: 'string'
+    },
+    byWeekDay: {
+      type: 'string'
+    },
+    byMonth: {
+      type: 'string'
+    },
+    byMonthDay: {
+      type: 'string'
     }
   }
 };

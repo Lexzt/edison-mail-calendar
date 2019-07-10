@@ -203,7 +203,7 @@ export default class View extends React.Component {
     props.editEventsBeginCaldav(state.currentEvent);
     props.history.push(`/${state.currentEvent.id}`);
 
-    debugger;
+    // debugger;
     // props.history.push(`/${state.currentEvent.originalId}`);
     // const payload = {
     //   id: state.currentEvent.originalId

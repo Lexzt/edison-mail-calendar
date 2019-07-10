@@ -25,7 +25,10 @@ import {
   ItemView,
   Recurrence,
   DailyPattern,
-  DayOfTheWeekCollection
+  DayOfTheWeekCollection,
+  DayOfTheWeek,
+  Month,
+  DayOfTheWeekIndex
 } from 'ews-javascript-api';
 import moment from 'moment';
 import uuidv4 from 'uuid';
@@ -339,7 +342,7 @@ export const parseEwsRecurringPatterns = (
   id: uuidv4(),
   originalId: id,
   freq: parseEwsFreq(ews.XmlElementName),
-  interval: parseInt(ews.Interval, 10),
+  interval: ews.Interval === undefined || ews.Interval === null ? 0 : parseInt(ews.Interval, 10),
   recurringTypeId: ews.StartDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
   until: ews.EndDate === null ? '' : ews.EndDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
   iCalUid,
@@ -369,13 +372,122 @@ export const parseEwsRecurringPatterns = (
   modifiedThenDeleted: false,
   weeklyPattern:
     ews.XmlElementName === 'WeeklyRecurrence' ? convertDaysToArray(ews.DaysOfTheWeek.items) : [],
-  numberOfRepeats: ews.NumberOfOccurrences === null ? 0 : ews.NumberOfOccurrences
+  numberOfRepeats: ews.NumberOfOccurrences === null ? 0 : ews.NumberOfOccurrences,
+  byWeekNo:
+    ews.DayOfTheWeekIndex === undefined || ews.DayOfTheWeekIndex === null
+      ? '()'
+      : parseEwsWeekDayIndex(ews.DayOfTheWeekIndex),
+  byWeekDay:
+    ews.DayOfTheWeek === undefined || ews.DayOfTheWeek === null
+      ? '()'
+      : parseEwsWeekDay(ews.DayOfTheWeek),
+  byMonth: ews.Month === undefined || ews.Month === null ? '()' : parseEwsMonth(ews.Month),
+  byMonthDay: ews.DayOfMonth === undefined || ews.DayOfMonth === null ? '()' : `(${ews.DayOfMonth})`
 });
 
 const convertDaysToArray = (arrayVals) => {
   const arr = [0, 0, 0, 0, 0, 0, 0];
   arrayVals.forEach((val) => (arr[val] = 1));
   return arr;
+};
+
+const parseEwsWeekDayIndex = (ewsEnumDayOfTheWeekIndex) => {
+  let val = '';
+  switch (ewsEnumDayOfTheWeekIndex) {
+    case DayOfTheWeekIndex.First:
+      val = '0';
+      break;
+    case DayOfTheWeekIndex.Second:
+      val = '1';
+      break;
+    case DayOfTheWeekIndex.Third:
+      val = '2';
+      break;
+    case DayOfTheWeekIndex.Fourth:
+      val = '3';
+      break;
+    case DayOfTheWeekIndex.Last:
+      val = '-1';
+      break;
+    default:
+      break;
+  }
+  return `(${val})`;
+};
+
+const parseEwsWeekDay = (ewsEnumDayOfTheWeek) => {
+  let val = '';
+  switch (ewsEnumDayOfTheWeek) {
+    case DayOfTheWeek.Monday:
+      val = 'MO';
+      break;
+    case DayOfTheWeek.Tuesday:
+      val = 'TU';
+      break;
+    case DayOfTheWeek.Wednesday:
+      val = 'WE';
+      break;
+    case DayOfTheWeek.Thursday:
+      val = 'TH';
+      break;
+    case DayOfTheWeek.Friday:
+      val = 'FR';
+      break;
+    case DayOfTheWeek.Saturday:
+      val = 'SA';
+      break;
+    case DayOfTheWeek.Sunday:
+      val = 'SU';
+      break;
+    default:
+      break;
+  }
+  return `(${val})`;
+};
+
+const parseEwsMonth = (ewsEnumMonth) => {
+  let val = '';
+  switch (ewsEnumMonth) {
+    case Month.January:
+      val = '1';
+      break;
+    case Month.February:
+      val = '2';
+      break;
+    case Month.March:
+      val = '3';
+      break;
+    case Month.April:
+      val = '4';
+      break;
+    case Month.May:
+      val = '5';
+      break;
+    case Month.June:
+      val = '6';
+      break;
+    case Month.July:
+      val = '7';
+      break;
+    case Month.August:
+      val = '8';
+      break;
+    case Month.September:
+      val = '9';
+      break;
+    case Month.October:
+      val = '10';
+      break;
+    case Month.November:
+      val = '11';
+      break;
+    case Month.December:
+      val = '12';
+      break;
+    default:
+      break;
+  }
+  return `(${val})`;
 };
 
 export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
@@ -420,6 +532,7 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
         recurrence[0].Responses.filter((resp) => resp.errorCode === 0)
           .map((resp) => resp.Item)
           .map(async (event) => {
+            console.log(event.Recurrence);
             const dbRecurrencePattern = parseEwsRecurringPatterns(
               event.Id.UniqueId,
               event.Recurrence,
@@ -427,6 +540,7 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
               event.DeletedOccurrences,
               event.ModifiedOccurrences
             );
+            console.log(dbRecurrencePattern);
             exchangeEvents.set(event.ICalUid, event);
 
             promiseArr.push(
@@ -518,16 +632,45 @@ const parseEwsFreq = (ewsAppointmentPattern) => {
   }
 };
 
+const parseStringToEwsWeekDay = (stringEwsWeekDay) => {
+  stringEwsWeekDay = stringEwsWeekDay.slice(1, -1);
+  switch (stringEwsWeekDay) {
+    case 'MO':
+      return DayOfTheWeek.Monday;
+    case 'TU':
+      return DayOfTheWeek.Tuesday;
+    case 'WE':
+      return DayOfTheWeek.Wednesday;
+    case 'TH':
+      return DayOfTheWeek.Thursday;
+    case 'FR':
+      return DayOfTheWeek.Friday;
+    case 'SA':
+      return DayOfTheWeek.Saturday;
+    case 'SU':
+      return DayOfTheWeek.Sunday;
+    default:
+      break;
+  }
+};
+
 export const createEwsRecurrenceObj = (
-  firstOption,
-  secondOption,
-  recurrInterval,
-  ewsRecurr,
-  untilType,
-  untilDate,
-  untilAfter
+  firstOption, // Daily, Weekly, Monthly or Yearly.
+  secondOption, // Weekly, which dates.
+  recurrInterval, // Recurring Intervals.
+  ewsRecurr, // Origianl Recurring interval.
+  untilType, // End Type, Never, On, or After x amount.
+  untilDate, // End Type, On Value, String, Date time.
+  untilAfter, // End Type, After Value, String, but number parsed.
+  byMonth,
+  byMonthDay,
+  byWeekDay,
+  byWeekNo
 ) => {
   let recurrObj;
+  console.log(DayOfTheWeek[1]);
+  console.log(DayOfTheWeek[DayOfTheWeek[1]]);
+  debugger;
   switch (firstOption) {
     case 0:
       recurrObj = new Recurrence.DailyPattern();
@@ -543,7 +686,19 @@ export const createEwsRecurrenceObj = (
       }
       break;
     case 2:
-      recurrObj = new Recurrence.MonthlyPattern();
+      debugger;
+      if (secondOption[2] === 0) {
+        recurrObj = new Recurrence.MonthlyPattern();
+        recurrObj.DayOfMonth = byMonthDay === '()' ? 0 : parseInt(byMonthDay.slice(1, -1), 10);
+      } else {
+        const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
+        // const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
+
+        recurrObj = new Recurrence.RelativeMonthlyPattern();
+        // recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        recurrObj.DayOfTheWeek = 1;
+        recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
+      }
       break;
     case 3:
       recurrObj = new Recurrence.YearlyPattern();

@@ -525,7 +525,11 @@ const editEwsAllRecurrenceEvents = async (payload) => {
       singleAppointment.Recurrence,
       payload.untilType,
       payload.untilDate,
-      payload.untilAfter
+      payload.untilAfter,
+      payload.byMonth,
+      payload.byMonthDay,
+      payload.byWeekDay,
+      payload.byWeekNo
     );
 
     console.log(newRecurrence);
@@ -584,7 +588,11 @@ const editEwsAllRecurrenceEvents = async (payload) => {
           modifiedThenDeleted: dbRecurrencePattern.modifiedThenDeleted,
           weeklyPattern: dbRecurrencePattern.weeklyPattern,
           numberOfRepeats: dbRecurrencePattern.numberOfRepeats,
-          iCalUid: dbRecurrencePattern.iCalUid
+          iCalUid: dbRecurrencePattern.iCalUid,
+          byWeekNo: dbRecurrencePattern.byWeekNo,
+          byWeekDay: dbRecurrencePattern.byWeekDay,
+          byMonth: dbRecurrencePattern.byMonth,
+          byMonthDay: dbRecurrencePattern.byMonthDay
         }
       });
 

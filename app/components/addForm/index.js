@@ -21,7 +21,7 @@ export default class AddEvent extends Component {
     // need to write validation method
     e.preventDefault();
     const { props } = this;
-    debugger;
+    // debugger;
     props.beginCreateCalendarObject({
       summary: 'New Event',
       description: 'Event Description',
