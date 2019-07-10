@@ -722,8 +722,8 @@ export const createEwsRecurrenceObj = (
         // recurrObj.DayOfTheWeek = 1;
         // recurrObj.DayOfTheWeekIndex = 2;
       }
-      // recurrObj.Month = parsedMonth;
-      recurrObj.Month = Month.September;
+      recurrObj.Month = parsedMonth;
+      // recurrObj.Month = Month.September;
       break;
     default:
       console.log('(createEwsRecurrenceObj) Default 1');
