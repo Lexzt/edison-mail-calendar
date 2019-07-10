@@ -689,7 +689,14 @@ const editEwsAllFutureRecurrenceEvents = async (payload) => {
       payload.firstOption,
       payload.secondOption,
       payload.recurrInterval,
-      recurrMasterAppointment.Recurrence
+      recurrMasterAppointment.Recurrence,
+      payload.untilType,
+      payload.untilDate,
+      payload.untilAfter,
+      payload.byMonth,
+      payload.byMonthDay,
+      payload.byWeekDay,
+      payload.byWeekNo
     );
     console.log(newRecurr);
     const db = await getDb();
@@ -912,17 +919,17 @@ const editEwsAllFutureRecurrenceEvents = async (payload) => {
         checkStart.AddDays(-1).MomentDate
       );
       console.log(
-        recurrMasterAppointment.Recurrence.EndDate.MomentDate.isAfter(
-          checkStart.AddDays(-1).MomentDate
-        )
+        checkStart
+          .AddDays(-1)
+          .MomentDate.isAfter(recurrMasterAppointment.Recurrence.EndDate.MomentDate)
       );
     }
 
     // Start is after last event, Deleting entire series.
     if (
-      recurrMasterAppointment.Recurrence.EndDate.MomentDate.isAfter(
-        checkStart.AddDays(-1).MomentDate
-      )
+      checkStart
+        .AddDays(-1)
+        .MomentDate.isAfter(recurrMasterAppointment.Recurrence.EndDate.MomentDate)
     ) {
       await asyncDeleteExchangeEvent(recurrMasterAppointment, payload.user, () => {
         console.log('Remote delete?');

@@ -82,7 +82,7 @@ export default class EditEvent extends React.Component {
       thirdOptionAfter: 5,
       recurrInterval: 1, // for repeated interval
       firstSelectedOption: 1, // for selecting day, week, monthly, year, default = week
-      selectedSecondRecurrOption: recurrenceOptions.selectedSecondRecurrOption, // for storing what has been selected, only indexes 1,2 are used as 1 = week, 2 = month.
+      selectedSecondRecurrOption: recurrenceOptions.selectedSecondRecurrOption[1], // for storing what has been selected, only indexes 1,2 are used as 1 = week, 2 = month.
       secondRecurrOptions: recurrenceOptions.weekRecurrOptions,
       thirdRecurrOptions: 'n',
       recurringMasterId: '',
@@ -280,7 +280,16 @@ export default class EditEvent extends React.Component {
               props,
               firstOption: state.firstSelectedOption,
               secondOption: state.selectedSecondRecurrOption,
-              recurrInterval: state.recurrInterval
+              recurrInterval: state.recurrInterval,
+              recurrPatternId: state.recurrPatternId,
+              untilType: state.thirdRecurrOptions,
+              untilDate: state.recurrEndDate,
+              untilAfter: state.thirdOptionAfter,
+              iCalUID: state.iCalUID,
+              byMonth: state.recurrByMonth,
+              byMonthDay: state.recurrByMonthDay,
+              byWeekDay: state.recurrByWeekDay,
+              byWeekNo: state.recurrByWeekNo
             };
             props.editEwsFutureEventBegin(eventObject);
             break;
@@ -342,24 +351,20 @@ export default class EditEvent extends React.Component {
       const firstSelected = recurrenceOptions.parseFreq(dbEventRecurrence.freq);
       const secondSelected = recurrenceOptions.parseFreqNumber(firstSelected);
 
-      console.log(secondRecurrOptions, secondSelected, firstSelected);
+      // console.log(secondRecurrOptions, secondSelected, firstSelected, secondRecurrOptions[secondSelected]);
       let monthlySelected = 0;
       let yearlySelected = 0;
       if (secondSelected === 'month') {
         if (dbEventRecurrence.byMonthDay === '()') {
-          console.log('MonthlyPattern');
           monthlySelected = 1;
         } else {
-          console.log('RelativeMonthlyPattern');
           monthlySelected = 0;
         }
       } else if (secondSelected === 'year') {
         // yet to do, figure out later!!
         if (dbEventRecurrence.byMonthDay === '()') {
-          console.log('YearlyPattern');
           yearlySelected = 1;
         } else {
-          console.log('RelativeYearlyPattern');
           yearlySelected = 0;
         }
       }
@@ -378,6 +383,8 @@ export default class EditEvent extends React.Component {
           selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]
         });
       }
+
+      console.log(secondRecurrOptions[secondSelected]);
 
       this.setState({
         isRecurring: true,
@@ -482,7 +489,7 @@ export default class EditEvent extends React.Component {
     let parseEnd = '';
 
     const { props, state } = this;
-    console.log(state);
+    // console.log(state);
 
     // ----------------------------------- HACKING OUT RECURRENCE UI FIRST ----------------------------------- //
     // const text = recurrenceOptions.parseString(Math.ceil(moment(state.start.dateTime).date() / 7));
@@ -521,7 +528,7 @@ export default class EditEvent extends React.Component {
 
     // Ensures week or month only.
     if (state.secondRecurrOptions.length === 2) {
-      console.log(state.selectedSecondRecurrOption, state.firstSelectedOption);
+      // console.log(state.selectedSecondRecurrOption, state.firstSelectedOption);
       recurrence.push(
         <div key={state.thirdRecurrOptions}>
           Repeat on
@@ -537,68 +544,69 @@ export default class EditEvent extends React.Component {
         </div>
       );
     } else if (state.secondRecurrOptions.length === 7) {
-      console.log(state.selectedSecondRecurrOption[1]);
-      recurrence.push(
-        <div key={state.thirdRecurrOptions}>
-          Repeat on
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][0]}
-              name={0}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Sun</span>
-          </label>
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][1]}
-              name={1}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Mon</span>
-          </label>
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][2]}
-              name={2}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Tue</span>
-          </label>
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][3]}
-              name={3}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Wed</span>
-          </label>
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][4]}
-              name={4}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Thu</span>
-          </label>
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][5]}
-              name={5}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Fri</span>
-          </label>
-          <label>
-            <Checkbox
-              checked={state.selectedSecondRecurrOption[1][6]}
-              name={6}
-              onChange={this.handleWeekChangeRecurr}
-            />
-            <span style={{ marginLeft: 8 }}>Sat</span>
-          </label>
-        </div>
-      );
+      if (state.selectedSecondRecurrOption[1] !== []) {
+        recurrence.push(
+          <div key={state.thirdRecurrOptions}>
+            Repeat on
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][0]}
+                name={0}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Sun</span>
+            </label>
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][1]}
+                name={1}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Mon</span>
+            </label>
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][2]}
+                name={2}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Tue</span>
+            </label>
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][3]}
+                name={3}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Wed</span>
+            </label>
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][4]}
+                name={4}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Thu</span>
+            </label>
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][5]}
+                name={5}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Fri</span>
+            </label>
+            <label>
+              <Checkbox
+                checked={state.selectedSecondRecurrOption[1][6]}
+                name={6}
+                onChange={this.handleWeekChangeRecurr}
+              />
+              <span style={{ marginLeft: 8 }}>Sat</span>
+            </label>
+          </div>
+        );
+      }
     }
 
     recurrence.push(
@@ -650,16 +658,29 @@ export default class EditEvent extends React.Component {
 
     const endMenu = [];
     endMenu.push(
-      <input type="button" onClick={this.handleSubmit} name="updateOne" value="Update this event" />
+      <input
+        key="uppdateOne"
+        type="button"
+        onClick={this.handleSubmit}
+        name="updateOne"
+        value="Update this event"
+      />
     );
 
     endMenu.push(
-      <input type="button" onClick={this.handleSubmit} name="return" value="Back to Calendar" />
+      <input
+        key="return"
+        type="button"
+        onClick={this.handleSubmit}
+        name="return"
+        value="Back to Calendar"
+      />
     );
 
     if (state.isRecurring) {
       endMenu.push(
         <input
+          key="updateAll"
           type="button"
           onClick={this.handleSubmit}
           name="updateAll"
@@ -668,6 +689,7 @@ export default class EditEvent extends React.Component {
       );
       endMenu.push(
         <input
+          key="updateFuture"
           type="button"
           onClick={this.handleSubmit}
           name="updateFuture"
