@@ -344,6 +344,7 @@ export default class EditEvent extends React.Component {
 
       console.log(secondRecurrOptions, secondSelected, firstSelected);
       let monthlySelected = 0;
+      let yearlySelected = 0;
       if (secondSelected === 'month') {
         if (dbEventRecurrence.byMonthDay === '()') {
           console.log('MonthlyPattern');
@@ -354,6 +355,13 @@ export default class EditEvent extends React.Component {
         }
       } else if (secondSelected === 'year') {
         // yet to do, figure out later!!
+        if (dbEventRecurrence.byMonthDay === '()') {
+          console.log('YearlyPattern');
+          yearlySelected = 1;
+        } else {
+          console.log('RelativeYearlyPattern');
+          yearlySelected = 0;
+        }
       }
 
       const selectedSecondRecurrOptions = [];
@@ -364,6 +372,10 @@ export default class EditEvent extends React.Component {
       } else if (firstSelected === 2) {
         this.setState({
           selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, monthlySelected, 0]
+        });
+      } else if (firstSelected === 3) {
+        this.setState({
+          selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]
         });
       }
 

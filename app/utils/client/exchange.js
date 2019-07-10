@@ -586,7 +586,12 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
                   recurrenceIds: recurrencePattern.recurrenceIds,
                   modifiedThenDeleted: recurrencePattern.modifiedThenDeleted,
                   weeklyPattern: recurrencePattern.weeklyPattern,
-                  numberOfRepeats: recurrencePattern.numberOfRepeats
+                  numberOfRepeats: recurrencePattern.numberOfRepeats,
+                  iCalUid: recurrencePattern.iCalUid,
+                  byWeekNo: recurrencePattern.byWeekNo,
+                  byWeekDay: recurrencePattern.byWeekDay,
+                  byMonth: recurrencePattern.byMonth,
+                  byMonthDay: recurrencePattern.byMonthDay
                 }
               })
             );
@@ -662,14 +667,14 @@ export const createEwsRecurrenceObj = (
   untilType, // End Type, Never, On, or After x amount.
   untilDate, // End Type, On Value, String, Date time.
   untilAfter, // End Type, After Value, String, but number parsed.
-  byMonth,
-  byMonthDay,
-  byWeekDay,
-  byWeekNo
+  byMonth, // Used for Monthly/Yearly, Repeat on which month.
+  byMonthDay, // Used for Monthly/Yearly, Repeat on which day of a month
+  byWeekDay, // Used for Weekly/Monthly/Yearly, Repeat on which week day, E.g. Mon, tues
+  byWeekNo // Used for Weekly/Monthly/Yearly, Repeat on a specified week number. E.g. 1-4, or last.
 ) => {
   let recurrObj;
-  console.log(DayOfTheWeek[1]);
-  console.log(DayOfTheWeek[DayOfTheWeek[1]]);
+  // console.log(DayOfTheWeek[1]);
+  // console.log(DayOfTheWeek[DayOfTheWeek[1]]);
   debugger;
   switch (firstOption) {
     case 0:
@@ -687,24 +692,41 @@ export const createEwsRecurrenceObj = (
       break;
     case 2:
       debugger;
+      // We assume EWS only allows one month day due to its API limitation.
       if (secondOption[2] === 0) {
         recurrObj = new Recurrence.MonthlyPattern();
+        // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
         recurrObj.DayOfMonth = byMonthDay === '()' ? 0 : parseInt(byMonthDay.slice(1, -1), 10);
+        // Hard code to test stuff first.
+        // recurrObj.DayOfMonth = 21;
       } else {
         const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
-        // const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
-
         recurrObj = new Recurrence.RelativeMonthlyPattern();
-        // recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
-        recurrObj.DayOfTheWeek = 1;
+        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        // recurrObj.DayOfTheWeek = 1
         recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
       }
       break;
     case 3:
-      recurrObj = new Recurrence.YearlyPattern();
+      const parsedMonth = byMonth === '()' ? 0 : parseInt(byMonth.slice(1, -1), 10);
+      if (secondOption[3] === 0) {
+        recurrObj = new Recurrence.YearlyPattern();
+        // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
+        recurrObj.DayOfMonth = byMonthDay === '()' ? 0 : parseInt(byMonthDay.slice(1, -1), 10);
+        // recurrObj.DayOfMonth = 21;
+      } else {
+        const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
+        recurrObj = new Recurrence.RelativeYearlyPattern();
+        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
+        // recurrObj.DayOfTheWeek = 1;
+        // recurrObj.DayOfTheWeekIndex = 2;
+      }
+      // recurrObj.Month = parsedMonth;
+      recurrObj.Month = Month.September;
       break;
     default:
-      console.log('What, how.');
+      console.log('(createEwsRecurrenceObj) Default 1');
       return -1;
   }
 
@@ -724,11 +746,10 @@ export const createEwsRecurrenceObj = (
       recurrObj.HasEnd = false;
       break;
     default:
-      console.log('What, how.');
+      console.log('(createEwsRecurrenceObj) Default 2');
       return -1;
   }
 
-  // recurrObj.EndDate = ewsRecurr.EndDate;
   recurrObj.Interval = recurrInterval.toString();
   return recurrObj;
 };

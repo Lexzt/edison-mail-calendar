@@ -24,7 +24,20 @@ export const monthRecurrOptions = (start, text) => [
     index: 1
   }
 ];
-export const yearRecurrOptions = [];
+
+export const yearRecurrOptions = (start, text) => [
+  {
+    value: 'day',
+    label: `Yearly on day ${moment(start.dateTime).date()}`,
+    index: 0
+  },
+  {
+    value: 'weekandday',
+    label: `Yearly on the ${text} ${moment(start.dateTime).format('dddd')}`,
+    index: 1
+  }
+];
+// export const yearRecurrOptions = [];
 // -- For UI purposes -- //
 
 export const firstRecurrOptions = [
@@ -39,7 +52,7 @@ export const secondRecurrOptions = (start, text) => ({
   day: dayRecurrOptions,
   week: weekRecurrOptions,
   month: monthRecurrOptions(start, text),
-  year: yearRecurrOptions
+  year: yearRecurrOptions(start, text)
 });
 
 export const thirdRecurrOptions = [
