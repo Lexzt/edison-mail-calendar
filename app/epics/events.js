@@ -1078,7 +1078,12 @@ export const pollingEventsEpics = (action$) => {
 
 const syncEvents = async (action) => {
   // Based off which user it is supposed to sync
-  const { user } = action.payload;
+  // const { user } = action.payload;
+  const user = {
+    email: 'e0176993@u.nus.edu',
+    password: 'Ggrfw4406@nus41',
+    providerType: Providers.EXCHANGE
+  };
 
   // Check which provider
   switch (user.providerType) {
@@ -1104,6 +1109,8 @@ const syncEvents = async (action) => {
         const updatedEvents = [];
         const listOfPriomises = [];
 
+        console.log(appts);
+
         for (const appt of appts) {
           const dbObj = dbEvents.filter((dbEvent) => dbEvent.originalId === appt.Id.UniqueId);
           const filteredEvent = Providers.filterIntoSchema(
@@ -1126,8 +1133,29 @@ const syncEvents = async (action) => {
               appt.Id.UniqueId === dbEvent.originalId &&
               appt.LastModifiedTime.getMomentDate() > lastUpdatedTime
             ) {
+              console.log(
+                appt.LastModifiedTime.getMomentDate(),
+                lastUpdatedTime,
+                appt.LastModifiedTime.getMomentDate() > lastUpdatedTime
+              );
+
               updatedEvents.push({ event: filteredEvent, type: 'update' });
-              listOfPriomises.push(db.events.upsert(filteredEvent));
+              // Problem here now is due to upsert changing its behavior.
+              // Upsert is based on the primary key, and as our UUID is now not relying on originalId,
+              // We got an issue.
+              // This means we have to write a query to update based off the filteredEvent data
+              // but keep the primary key.
+
+              filteredEvent.id = dbEvent.id;
+              const query = db.events
+                .findOne()
+                .where('originalId')
+                .eq(filteredEvent.originalId);
+              listOfPriomises.push(
+                query.update({
+                  $set: filteredEvent
+                })
+              );
             }
           }
         }
@@ -1155,6 +1183,7 @@ const syncEvents = async (action) => {
           listOfPriomises.push(query.remove());
         }
         await Promise.all(listOfPriomises);
+        console.log(updatedEvents);
         return updatedEvents;
       } catch (error) {
         // Return empty array, let next loop handle syncing.

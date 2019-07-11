@@ -234,7 +234,7 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
             defaultValue: '',
             type: 'neededFunc',
             func() {
-              debugger;
+              // debugger;
               return dbEvent.LastModifiedTime.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ');
             }
           }
@@ -299,7 +299,7 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
               objMightHaveNothing[key].defaultValue
             );
           } else if (objMightHaveNothing[key].type === 'neededFunc') {
-            debugger;
+            // debugger;
             exchangeTryCatchCannotBeNullFunc(
               schemaCastedDbObject,
               key,
