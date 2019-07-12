@@ -57,8 +57,8 @@
   },
   "main": "./app/main.prod.js",
   "build": {
-    "productName": "ElectronReact",
-    "appId": "org.develar.ElectronReact",
+    "productName": "EdisonMailCalendar",
+    "appId": "org.edison.EdisonMailCalendar",
     "files": [
       "app/dist/",
       "app/app.html",
@@ -101,35 +101,35 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "electron-react-boilerplate",
-      "repo": "electron-react-boilerplate",
+      "owner": "Lexzt",
+      "repo": "edison-mail-calendar",
       "private": false
     }
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/electron-react-boilerplate/electron-react-boilerplate.git"
+    "url": "git+https://github.com/Lexzt/edison-mail-calendar.git"
   },
   "author": {
-    "name": "Electron React Boilerplte Maintainers",
-    "email": "electronreactboilerplate@gmail.com",
-    "url": "https://electron-react-boilerplate.js.org"
+    "name": "Edison",
+    "email": "keith@edison.tech",
+    "url": "https://www.edison.tech/"
   },
   "contributors": [
     {
-      "name": "Vikram Rangaraj",
-      "email": "vikr01@icloud.com",
-      "url": "https://github.com/vikr01"
+      "name": "Keith Fong",
+      "email": "fongzhizhong@gmail.com",
+      "url": "https://github.com/Lexzt"
     },
     {
-      "name": "Amila Welihinda",
-      "email": "amilajack@gmail.com",
-      "url": "https://github.com/amilajack"
+      "name": "Sham Sheer",
+      "email": "shamsheer619@gmail.com",
+      "url": "https://github.com/sham-sheer"
     }
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/electron-react-boilerplate/electron-react-boilerplate/issues"
+    "url": "https://github.com/Lexzt/edison-mail-calendar/issues"
   },
   "keywords": [
     "electron",
@@ -142,7 +142,7 @@
     "hot",
     "reload"
   ],
-  "homepage": "https://github.com/electron-react-boilerplate/electron-react-boilerplate#readme",
+  "homepage": "https://github.com/Lexzt/edison-mail-calendar#readme",
   "jest": {
     "testURL": "http://localhost/",
     "moduleNameMapper": {
@@ -261,12 +261,8 @@
     "@fortawesome/fontawesome-free": "^5.5.0",
     "@material-ui/core": "^3.6.0",
     "@microsoft/microsoft-graph-client": "^1.3.0",
-    "acorn": "^6.1.0",
-    "acorn-jsx": "^5.0.1",
     "antd": "^3.20.1",
-    "axios": "^0.18.0",
     "bootstrap": "^4.3.1",
-    "concurrently": "^4.1.0",
     "core-js": "2",
     "dav": "^1.8.0",
     "devtron": "^1.4.0",
@@ -289,24 +285,17 @@
     "react": "^16.6.3",
     "react-big-calendar": "^0.20.2",
     "react-bootstrap": "^1.0.0-beta.8",
-    "react-dates": "^18.2.2",
     "react-day-picker": "^7.3.0",
-    "react-dnd": "^7.0.0",
-    "react-dnd-html5-backend": "^7.0.0",
     "react-dom": "^16.6.3",
     "react-hot-loader": "^4.3.12",
-    "react-load-script": "0.0.6",
     "react-modal": "^3.6.1",
     "react-places-autocomplete": "^7.2.1",
     "react-redux": "^5.1.1",
     "react-router": "^4.3.1",
     "react-router-dom": "^4.3.1",
     "react-router-redux": "^4.0.8",
-    "react-scripts": "2.1.8",
     "react-select": "^2.4.2",
-    "react-toastify": "^4.5.2",
     "redux": "^4.0.1",
-    "redux-logger": "^3.0.6",
     "redux-observable": "^1.0.0",
     "redux-thunk": "^2.3.0",
     "reselect": "^4.0.0",
@@ -314,11 +303,8 @@
     "rxdb": "^8.0.4",
     "rxjs": "^6.5.1",
     "rxjs-compat": "^6.3.3",
-    "serve": "^10.1.1",
     "source-map-support": "^0.5.9",
     "styled-components": "^4.1.3",
-    "superagent": "^4.1.0",
-    "uniqid": "^5.0.3",
     "uuid": "^3.3.2"
   },
   "devEngines": {

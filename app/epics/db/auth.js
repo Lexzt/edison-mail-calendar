@@ -56,7 +56,7 @@ const storeUser = async (user) => {
   const db = await getDb();
   let userDb = '';
   try {
-    userDb = await db.persons.upsert(user);
+    userDb = await db.users.upsert(user);
   } catch (e) {
     console.log('Store User err: ', e);
     return e;

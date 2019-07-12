@@ -1,22 +1,12 @@
 import { map, mergeMap, catchError } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
-import { from, forkJoin } from 'rxjs';
-import { fromPromise } from 'rxjs/internal-compatibility';
-// import uniqid from 'uniqid';
+import { from } from 'rxjs';
 import uuidv4 from 'uuid';
-import {
-  WellKnownFolderName,
-  SendInvitationsMode,
-  ConflictResolutionMode,
-  DateTime,
-  Recurrence
-} from 'ews-javascript-api';
+import { SendInvitationsMode, ConflictResolutionMode, Recurrence } from 'ews-javascript-api';
 import moment from 'moment';
-import { a } from 'bowser';
 import {
   RETRIEVE_STORED_EVENTS,
   BEGIN_STORE_EVENTS,
-  duplicateAction,
   updateStoredEvents,
   successStoringEvents,
   failStoringEvents,
@@ -24,11 +14,9 @@ import {
   retrieveStoreEvents
 } from '../../actions/db/events';
 import {
-  deleteEventSuccess,
   POST_EVENT_SUCCESS,
   GET_EVENTS_SUCCESS,
   DELETE_EVENT_BEGIN,
-  DELETE_EVENT_SUCCESS,
   DELETE_RECURRENCE_SERIES_BEGIN,
   DELETE_RECURRENCE_SERIES_SUCCESS,
   DELETE_FUTURE_RECURRENCE_SERIES_BEGIN
@@ -207,7 +195,7 @@ const deleteEvent = async (id) => {
   console.log(data);
 
   // Find the proper user on database
-  const users = await db.persons
+  const users = await db.users
     .find()
     .where('providerType')
     .eq(datas[0].providerType)
@@ -369,7 +357,7 @@ const deleteReccurenceEvent = async (id) => {
   console.log(data);
 
   // Find the proper user on database
-  const users = await db.persons
+  const users = await db.users
     .find()
     .where('providerType')
     .eq(datas[0].providerType)
@@ -522,7 +510,7 @@ const deleteFutureReccurenceEvent = async (id) => {
   console.log(data);
 
   // Find the proper user on database
-  const users = await db.persons
+  const users = await db.users
     .find()
     .where('providerType')
     .eq(datas[0].providerType)

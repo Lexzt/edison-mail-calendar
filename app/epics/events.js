@@ -3,11 +3,7 @@ import {
   mergeMap,
   catchError,
   takeUntil,
-  distinctUntilChanged,
-  combineLatest,
-  startWith,
   switchMap,
-  delay,
   concatMap,
   exhaustMap
 } from 'rxjs/operators';
@@ -17,32 +13,22 @@ import { normalize, schema } from 'normalizr';
 import { Client } from '@microsoft/microsoft-graph-client';
 import * as RxDB from 'rxdb';
 import {
-  ExchangeService,
-  Uri,
-  ExchangeCredentials,
   Appointment,
-  MessageBody,
-  DateTime,
-  WellKnownFolderName,
-  SendInvitationsMode,
-  Item,
-  PropertySet,
-  ItemSchema,
   ConflictResolutionMode,
-  SendInvitationsOrCancellationsMode
+  DateTime,
+  ExchangeService,
+  ExchangeCredentials,
+  Item,
+  MessageBody,
+  Uri,
+  SendInvitationsMode,
+  SendInvitationsOrCancellationsMode,
+  WellKnownFolderName
 } from 'ews-javascript-api';
 import moment from 'moment';
 import _ from 'lodash';
-import { fromPromise } from 'rxjs/internal-compatibility';
-// import uniqid from 'uniqid';
 import uuidv4 from 'uuid';
-import { take } from 'rxjs-compat/operator/take';
-import {
-  duplicateAction,
-  syncStoredEvents,
-  UPDATE_STORED_EVENTS,
-  retrieveStoreEvents
-} from '../actions/db/events';
+import { syncStoredEvents, retrieveStoreEvents, UPDATE_STORED_EVENTS } from '../actions/db/events';
 import {
   loadClient,
   loadFullCalendar,
@@ -55,15 +41,15 @@ import {
 import * as Providers from '../utils/constants';
 import { getUserEvents, getAccessToken, filterEventToOutlook } from '../utils/client/outlook';
 import {
+  asyncCreateExchangeEvent,
+  asyncDeleteExchangeEvent,
   asyncGetRecurrAndSingleExchangeEvents,
   asyncGetSingleExchangeEvent,
+  asyncGetAllExchangeEvents,
   asyncUpdateExchangeEvent,
-  asyncDeleteExchangeEvent,
-  asyncCreateExchangeEvent,
   asyncUpdateRecurrExchangeSeries,
-  parseEwsRecurringPatterns,
   createEwsRecurrenceObj,
-  asyncGetAllExchangeEvents
+  parseEwsRecurringPatterns
 } from '../utils/client/exchange';
 import {
   GET_EVENTS_BEGIN,
@@ -1078,12 +1064,12 @@ export const pollingEventsEpics = (action$) => {
 
 const syncEvents = async (action) => {
   // Based off which user it is supposed to sync
-  // const { user } = action.payload;
-  const user = {
-    email: 'e0176993@u.nus.edu',
-    password: 'Ggrfw4406@nus41',
-    providerType: Providers.EXCHANGE
-  };
+  const { user } = action.payload;
+  // const user = {
+  //   email: 'e0176993@u.nus.edu',
+  //   password: 'Ggrfw4406@nus41',
+  //   providerType: Providers.EXCHANGE
+  // };
 
   // Check which provider
   switch (user.providerType) {

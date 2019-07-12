@@ -1,5 +1,3 @@
-// @flow
-
 import * as CalDavActions from '../actions/caldav';
 import * as DbCalDavActions from '../actions/db/caldav';
 
@@ -16,7 +14,7 @@ const initialState = {
 
 const processObjects = (objects, colName) => {
   const results = [];
-  objects.forEach(object => {
+  objects.forEach((object) => {
     if (object.collection.name === colName) {
       results.push(object.toJSON());
     }

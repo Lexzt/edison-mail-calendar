@@ -1,7 +1,6 @@
 import React from 'react';
 import ICAL from 'ical.js';
 import moment from 'moment';
-// import uniqid from 'uniqid';
 import uuidv4 from 'uuid';
 import { RRule, RRuleSet, rrulestr } from 'rrule';
 import getDb from '../db';

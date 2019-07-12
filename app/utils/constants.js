@@ -1,7 +1,6 @@
 import moment from 'moment';
 import md5 from 'md5';
 import { ExtendedPropertyDefinition, StringHelper } from 'ews-javascript-api';
-// import uniqid from 'uniqid';
 import uuidv4 from 'uuid';
 import db from '../db';
 

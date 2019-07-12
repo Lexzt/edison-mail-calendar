@@ -18,7 +18,6 @@ import {
   DailyPattern,
   DayOfTheWeekCollection
 } from 'ews-javascript-api';
-// import uniqid from 'uniqid';
 import uuidv4 from 'uuid';
 import Select from 'react-select';
 

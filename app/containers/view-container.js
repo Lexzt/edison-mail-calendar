@@ -45,44 +45,51 @@ const mapStateToProps = (state) => ({
 });
 
 const mapDispatchToProps = (dispatch) => ({
+  // Google
   beginGetGoogleEvents: (user) => dispatch(beginGetGoogleEvents(user)),
   beginGoogleAuth: () => dispatch(beginGoogleAuth()),
 
+  // Outlook
   beginGetOutlookEvents: (resp) => dispatch(beginGetOutlookEvents(resp)),
   beginOutlookAuth: () => dispatch(beginOutlookAuth()),
 
+  // Exchange
   beginGetExchangeEvents: (resp) => dispatch(beginGetExchangeEvents(resp)),
   beginExchangeAuth: (user) => dispatch(beginExchangeAuth(user)),
 
+  // Get from database List of Events
   retrieveStoreEvents: (providerType, user) => dispatch(retrieveStoreEvents(providerType, user)),
 
+  // CRUD - Delete Operations
   beginDeleteEvent: (id) => dispatch(beginDeleteEvent(id)),
   beginDeleteRecurrenceSeries: (id) => dispatch(beginDeleteRecurrenceSeries(id)),
   beginDeleteFutureRecurrenceSeries: (id) => dispatch(beginDeleteFutureRecurrenceSeries(id)),
 
+  // Removes all events from local database only.
   clearAllEvents: () => dispatch(clearAllEvents()),
 
+  // On Start, automatic login users if not expired.
   onStartGetGoogleAuth: (user) => dispatch(successGoogleAuth(user)),
   onStartGetOutlookAuth: (user) => dispatch(successOutlookAuth(user)),
   onStartGetExchangeAuth: (user) => dispatch(successExchangeAuth(user)),
 
+  // On Start, if user is expired for some reason.
   onExpiredOutlook: (user) => dispatch(expiredOutlookAuth(user)),
   onExpiredGoogle: (user) => dispatch(expiredGoogleAuth(user)),
 
+  // Start/End Polling actions for sync
   beginPollingEvents: () => dispatch(beginPollingEvents()),
   endPollingEvents: () => dispatch(endPollingEvents()),
 
+  // Start/End Pending actions for offline actions
   beginPendingActions: (providers) => dispatch(beginPendingActions(providers)),
   endPendingActions: () => dispatch(endPendingActions()),
 
-  // beginPollingEvents: () => dispatch(beginPollingEvents()),
-  // endPollingEvents: () => dispatch(endPollingEvents()),
-  //
-  // beginPendingActions: providers => dispatch(beginPendingActions(providers)),
-  // endPendingActions: () => dispatch(endPendingActions()),
-
+  // CalDav Accounts
   beginRetrieveCalDavEvents: () => dispatch(beginRetrieveCaldavEvents()),
   resetCaldavAccount: () => dispatch(resetCaldavAccount()),
+
+  // CalDav CRUD Operations
   beginDeleteCalendarObject: (eventId) => dispatch(beginDeleteCalendarObject(eventId)),
   beginUpdateCalendarObject: (event) => dispatch(beginUpdateCalendarObject(event)),
   editEventsBeginCaldav: (currentEvent) => dispatch(editEventsBeginCaldav(currentEvent)),

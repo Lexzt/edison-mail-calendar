@@ -23,7 +23,6 @@ import {
 } from 'ews-javascript-api';
 
 import RRule from 'rrule';
-import uniqid from 'uniqid';
 import ICAL from 'ical.js';
 import getDb from '../db';
 import * as ProviderTypes from '../utils/constants';
@@ -31,8 +30,6 @@ import SignupSyncLink from './SignupSyncLink';
 import { asyncGetRecurrAndSingleExchangeEvents } from '../utils/client/exchange';
 
 const dav = require('dav');
-// import { FASTMAIL_USERNAME, FASTMAIL_PASSWORD } from '../utils/Credentials';
-// const dav = require('dav');
 
 const localizer = BigCalendar.momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(BigCalendar);
@@ -87,7 +84,7 @@ export default class View extends React.Component {
     const allRP = await db.recurrencepatterns.find().exec();
     console.log(allRP.map((rp) => rp.toJSON()));
 
-    db.persons
+    db.users
       .find()
       .exec()
       .then((providerUserData) => {

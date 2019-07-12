@@ -1,7 +1,6 @@
 import { map, mergeMap, switchMap, catchError } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
 import { from, of } from 'rxjs';
-// import uniqid from 'uniqid';
 import uuidv4 from 'uuid';
 import { successStoreEventPerson, failureStoreEventPerson } from '../../actions/db/eventPerson';
 import { SUCCESS_STORED_EVENTS } from '../../actions/db/events';
