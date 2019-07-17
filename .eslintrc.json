@@ -1,5 +1,5 @@
 {
-  "extends": "erb",
+  "extends": ["erb", "plugin:prettier/recommended"],
   "settings": {
     "import/resolver": {
       "webpack": {

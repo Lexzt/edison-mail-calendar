@@ -152,8 +152,6 @@ const storeEvents = async (payload) => {
   // Wait for all the promises to complete
   const results = await Promise.all(dbFindPromises);
 
-  console.log('here?');
-
   // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
   // dbFindPromises must have same length as results, as its just an array of same size.
   // This ensure the index of data is the same with find query index.
@@ -164,7 +162,6 @@ const storeEvents = async (payload) => {
       payload.owner,
       false
     );
-    console.log('here?1');
 
     // Means it is a new object, we upsert coz filtered event already is new.
     if (results[i] === null) {
@@ -174,15 +171,30 @@ const storeEvents = async (payload) => {
       filteredEvent.id = results[i].id;
 
       // Push an update query instead of a upsert. Ensure ID is the same.
-      dbUpsertPromises.push(
-        db.events
-          .findOne()
-          .where('originalId')
-          .eq(filteredEvent.originalId)
-          .update({
-            $set: filteredEvent
-          })
-      );
+      // dbUpsertPromises.push(
+      //   db.events
+      //     .findOne()
+      //     .where('originalId')
+      //     .eq(filteredEvent.originalId)
+      //     .update({
+      //       $set: filteredEvent
+      //     })
+      // );
+
+      // dbUpsertPromises.push(
+      //   db.events
+      //     .findOne()
+      //     .where('originalId')
+      //     .eq(filteredEvent.originalId)
+      //     .atomicUpdate(changeFunc)
+      // );
+
+      // eslint-disable-next-line no-await-in-loop
+      await db.events
+        .findOne()
+        .where('originalId')
+        .eq(filteredEvent.originalId)
+        .update({ $set: filteredEvent });
     }
 
     // This is for all the events, for UI.

@@ -82,6 +82,7 @@ import ServerUrls from '../utils/serverUrls';
 import PARSER from '../utils/parser';
 // import { storeCaldav } from './db/caldav';
 import { processObjects } from '../reducers/caldav';
+import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
 
 const dav = require('dav');
 
@@ -1059,103 +1060,116 @@ export const beginGetCaldavEventsEpics = (action$) =>
             reject(getEventsFailure('Caldav user undefined!!'));
           }
           console.log(action);
-          // debugger;
-          const resp = await dav.createAccount({
-            server: action.payload.url,
-            xhr: new dav.transport.Basic(
-              new dav.Credentials({
-                username: action.payload.email,
-                password: action.payload.password
-              })
-            ),
-            loadObjects: true
-          });
 
-          const db = await getDb();
-          // This breaks due to how our database works, with id being a uniqid.
-          // so we need find it first then upsert. Yay, no checks again.
           try {
-            const calendars = PARSER.parseCal(resp.calendars);
-            const events = PARSER.parseCalEvents(resp.calendars);
-            const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
-            const filteredEvents = flatEvents.filter((event) => event !== '');
-            const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
-
-            const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
-            const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
-
-            const promises = [];
-            // This is broke, upsert makes no sense atm.
-            calendars.forEach((calendar) => {
-              promises.push(db.calendars.upsert(calendar));
-            });
-            // Do not upsert here, let the get event success upsert. But handle the rest.
-            // flatFilteredEvents.forEach((calEvent) => {
-            //   promises.push(db.events.upsert(calEvent.eventData));
-            // });
-
-            // This has no use atm, upsert makes no sense atm.
-            eventPersons.forEach((eventPerson) => {
-              promises.push(db.eventpersons.upsert(eventPerson));
-            });
-
-            debugger;
-
-            const prevRPs = await Promise.all(
-              recurrenceEvents.map((recurrenceEvent) =>
-                db.recurrencepatterns
-                  .findOne()
-                  .where('originalId')
-                  .eq(recurrenceEvent.originalId)
-                  .exec()
-              )
+            const events = await asyncGetAllCalDavEvents(
+              action.payload.email,
+              action.payload.password,
+              action.payload.url
             );
-
-            let i = 0;
-            prevRPs.forEach((prevRP) => {
-              const newRP = recurrenceEvents[i];
-              if (prevRP === null) {
-                promises.push(db.recurrencepatterns.upsert(newRP));
-              } else {
-                console.log(prevRP, newRP);
-                promises.push(
-                  db.recurrencepatterns
-                    .findOne()
-                    .where('originalId')
-                    .eq(prevRP.originalId)
-                    .update({
-                      $set: {
-                        id: prevRP.id,
-                        originalId: newRP.originalId,
-                        freq: newRP.freq,
-                        interval: newRP.interval,
-                        until: newRP.until,
-                        exDates: newRP.exDates,
-                        recurrenceIds: newRP.recurrenceIds,
-                        modifiedThenDeleted: newRP.modifiedThenDeleted,
-                        numberOfRepeats: newRP.numberOfRepeats
-                      }
-                    })
-                );
-              }
-              i += 1;
-            });
-
-            console.log(prevRPs);
-            debugger;
-            // console.log(promises);
-            const results = await Promise.all(promises);
-            console.log(results, events, flatFilteredEvents);
-            const expanded = await PARSER.expandRecurEvents(
-              flatFilteredEvents.map((calEvent) => calEvent.eventData)
-            );
-            console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
-            debugger;
-            resolve(expanded);
-            // resolve(flatFilteredEvents.map((calEvent) => calEvent.eventData));
+            console.log(events);
+            resolve(events);
           } catch (e) {
+            console.log(e);
             throw e;
           }
+          // // debugger;
+          // const resp = await dav.createAccount({
+          //   server: action.payload.url,
+          //   xhr: new dav.transport.Basic(
+          //     new dav.Credentials({
+          //       username: action.payload.email,
+          //       password: action.payload.password
+          //     })
+          //   ),
+          //   loadObjects: true
+          // });
+
+          // const db = await getDb();
+          // // This breaks due to how our database works, with id being a uniqid.
+          // // so we need find it first then upsert. Yay, no checks again.
+          // try {
+          //   const calendars = PARSER.parseCal(resp.calendars);
+          //   const events = PARSER.parseCalEvents(resp.calendars);
+          //   const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
+          //   const filteredEvents = flatEvents.filter((event) => event !== '');
+          //   const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
+
+          //   const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
+          //   const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
+
+          //   const promises = [];
+          //   // This is broke, upsert makes no sense atm.
+          //   calendars.forEach((calendar) => {
+          //     promises.push(db.calendars.upsert(calendar));
+          //   });
+          //   // Do not upsert here, let the get event success upsert. But handle the rest.
+          //   // flatFilteredEvents.forEach((calEvent) => {
+          //   //   promises.push(db.events.upsert(calEvent.eventData));
+          //   // });
+
+          //   // This has no use atm, upsert makes no sense atm.
+          //   eventPersons.forEach((eventPerson) => {
+          //     promises.push(db.eventpersons.upsert(eventPerson));
+          //   });
+
+          //   // debugger;
+
+          //   const prevRPs = await Promise.all(
+          //     recurrenceEvents.map((recurrenceEvent) =>
+          //       db.recurrencepatterns
+          //         .findOne()
+          //         .where('originalId')
+          //         .eq(recurrenceEvent.originalId)
+          //         .exec()
+          //     )
+          //   );
+
+          //   let i = 0;
+          //   prevRPs.forEach((prevRP) => {
+          //     const newRP = recurrenceEvents[i];
+          //     if (prevRP === null) {
+          //       promises.push(db.recurrencepatterns.upsert(newRP));
+          //     } else {
+          //       console.log(prevRP, newRP);
+          //       promises.push(
+          //         db.recurrencepatterns
+          //           .findOne()
+          //           .where('originalId')
+          //           .eq(prevRP.originalId)
+          //           .update({
+          //             $set: {
+          //               id: prevRP.id,
+          //               originalId: newRP.originalId,
+          //               freq: newRP.freq,
+          //               interval: newRP.interval,
+          //               until: newRP.until,
+          //               exDates: newRP.exDates,
+          //               recurrenceIds: newRP.recurrenceIds,
+          //               modifiedThenDeleted: newRP.modifiedThenDeleted,
+          //               numberOfRepeats: newRP.numberOfRepeats
+          //             }
+          //           })
+          //       );
+          //     }
+          //     i += 1;
+          //   });
+
+          //   console.log(prevRPs);
+          //   // debugger;
+          //   // console.log(promises);
+          //   const results = await Promise.all(promises);
+          //   console.log(results, events, flatFilteredEvents);
+          //   const expanded = await PARSER.expandRecurEvents(
+          //     flatFilteredEvents.map((calEvent) => calEvent.eventData)
+          //   );
+          //   console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
+          //   // debugger;
+          //   resolve(expanded);
+          //   // resolve(flatFilteredEvents.map((calEvent) => calEvent.eventData));
+          // } catch (e) {
+          //   throw e;
+          // }
         })
       ).pipe(
         map((resp) => getEventsSuccess(resp, Providers.CALDAV, action.payload.email)),
@@ -1172,7 +1186,7 @@ export const pollingEventsEpics = (action$) => {
     // ofType(BEGIN_POLLING_EVENTS, UPDATE_STORED_EVENTS),
     ofType(BEGIN_POLLING_EVENTS),
     switchMap((action) =>
-      interval(10 * 1000).pipe(
+      interval(20 * 1000).pipe(
         takeUntil(stopPolling$),
         switchMap(() => from(syncEvents(action))),
         map((results) => syncStoredEvents(results))
@@ -1187,6 +1201,7 @@ const syncEvents = async (action) => {
   const user = {
     username: Credentials.FASTMAIL_USERNAME,
     password: Credentials.FASTMAIL_PASSWORD,
+    url: 'https://caldav.fastmail.com/dav/',
     providerType: Providers.CALDAV
   };
 
@@ -1296,19 +1311,88 @@ const syncEvents = async (action) => {
       }
     case Providers.CALDAV:
       try {
-        const xhrObject = new dav.transport.Basic(
-          new dav.Credentials({
-            username: user.username,
-            password: user.password
-          })
-        );
-        return CalDavActionCreators.beginCreateAccount({
-          server: ServerUrls.FASTMAIL,
-          xhr: xhrObject,
-          loadObjects: true
-        });
-      } catch (error) {
-        console.log('Caldav error: ', error);
+        const events = await asyncGetAllCalDavEvents(user.username, user.password, user.url);
+
+        const db = await getDb();
+        const dbEvents = await db.events.find().exec();
+        const updatedEvents = [];
+        const listOfPriomises = [];
+
+        for (const event of events) {
+          const dbObj = dbEvents.filter(
+            (dbEvent) =>
+              dbEvent.start.dateTime === event.start.dateTime &&
+              dbEvent.originalId === event.originalId
+          );
+          const filteredEvent = Providers.filterIntoSchema(
+            event,
+            Providers.CALDAV,
+            user.email,
+            false
+          );
+
+          debugger;
+
+          if (dbObj.length === 0) {
+            // New object from server, add and move on to next one.
+            updatedEvents.push({ event: filteredEvent, type: 'create' });
+            listOfPriomises.push(db.events.upsert(filteredEvent));
+          } else {
+            // Sync old objects and compare in case.
+            const dbEvent = dbObj[0];
+
+            // Just update, coz caldav, server is always truth, no matter what
+            // Also, the damn updated field is never updated. Wtf.
+            updatedEvents.push({ event: filteredEvent, type: 'update' });
+            filteredEvent.id = dbEvent.id;
+
+            const query = db.events
+              .findOne()
+              .where('originalId')
+              .eq(filteredEvent.originalId)
+              .where('start.dateTime')
+              .eq(event.start.dateTime);
+
+            listOfPriomises.push(
+              query.update({
+                $set: filteredEvent
+              })
+            );
+          }
+        }
+
+        // Check for deleted events, as if it not in the set, it means that it could be deleted.
+        // In database, but not on server, as we are taking server, we just assume delete.
+        for (const dbEvent of dbEvents) {
+          const result = events.find(
+            (event) =>
+              dbEvent.start.dateTime === event.start.dateTime &&
+              dbEvent.originalId === event.originalId
+          );
+          // Means we found something, move on to next object or it has not been uploaded to the server yet.
+          if (result !== undefined || dbEvent.createdOffline === true) {
+            continue;
+          }
+          console.log('Found a event not on server, but is local', dbEvent);
+
+          // Means not found, delete it if it is not a new object.
+          updatedEvents.push({
+            event: Providers.filterEventIntoSchema(dbEvent),
+            type: 'delete'
+          });
+
+          const query = db.events
+            .find()
+            .where('originalId')
+            .eq(dbEvent.originalId);
+          listOfPriomises.push(query.remove());
+        }
+        await Promise.all(listOfPriomises);
+        console.log(updatedEvents);
+        debugger;
+        return updatedEvents;
+      } catch (e) {
+        console.log(e);
         return [];
       }
     default:

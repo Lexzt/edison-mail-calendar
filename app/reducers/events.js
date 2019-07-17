@@ -29,8 +29,11 @@ const mergeEvents = (oldEvents, newItems) => {
 
 const syncEvents = (oldEvents, newEvents) => {
   const newPayload = [...oldEvents];
+  // console.log(oldEvents, newEvents);
+  debugger;
   for (const newEvent of newEvents) {
-    const pos = newPayload.map((object) => object.originalId).indexOf(newEvent.event.originalId);
+    const pos = newPayload.map((object) => object.id).indexOf(newEvent.event.id);
+    // console.log(pos);
     switch (newEvent.type) {
       case 'create':
         newPayload.push(newEvent.event);

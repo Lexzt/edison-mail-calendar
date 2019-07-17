@@ -323,6 +323,6 @@ const updateFutureRecurEvent = async (oldEvent, payload, db) => {
     xhr: xhrObject
   };
   const resp = await dav.createCalendarObject(calendar, calendarObject);
-  debugger;
+  // debugger;
   return oldEvent;
 };

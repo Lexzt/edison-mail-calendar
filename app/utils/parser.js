@@ -173,6 +173,8 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
 
 const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
   const masterEvent = component.getFirstSubcomponent('vevent');
+  console.log(masterEvent, masterEvent.getFirstPropertyValue('last-modified'));
+  // debugger;
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
       ? ''
@@ -321,13 +323,13 @@ const expandSeries = async (recurringEvents, db) => {
 };
 
 const parseRecurrence = (pattern, recurMasterEvent) => {
-  debugger;
+  // debugger;
   const recurEvents = [];
   const ruleSet = buildRuleSet(pattern, recurMasterEvent);
   const recurDates = ruleSet.all().map((date) => date.toJSON());
   const duration = getDuration(recurMasterEvent);
 
-  debugger;
+  // debugger;
 
   recurDates.forEach((recurDateTime) => {
     recurEvents.push({

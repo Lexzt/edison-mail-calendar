@@ -9,5 +9,6 @@
   ],
   "singleQuote": true,
   "printWidth": 100,
-  "arrowParens": "always"
+  "arrowParens": "always",
+  "editor.formatOnSave": true
 }
