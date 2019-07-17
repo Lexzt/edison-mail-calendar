@@ -81,7 +81,7 @@ export default class EditEvent extends React.Component {
       thirdOptionAfter: 5,
       recurrInterval: 1, // for repeated interval
       firstSelectedOption: 1, // for selecting day, week, monthly, year, default = week
-      selectedSecondRecurrOption: recurrenceOptions.selectedSecondRecurrOption[1], // for storing what has been selected, only indexes 1,2 are used as 1 = week, 2 = month.
+      selectedSecondRecurrOption: recurrenceOptions.selectedSecondRecurrOption, // for storing what has been selected, only indexes 1,2 are used as 1 = week, 2 = month.
       secondRecurrOptions: recurrenceOptions.weekRecurrOptions,
       thirdRecurrOptions: 'n',
       recurringMasterId: '',
@@ -340,6 +340,7 @@ export default class EditEvent extends React.Component {
         .eq(dbEventJSON.recurringEventId)
         .exec();
 
+      console.log(dbEventJSON.recurringEventId);
       console.log(dbEventRecurrence.toJSON());
 
       const thirdRecurrChoice = recurrenceOptions.parseThirdRecurrOption(
@@ -373,17 +374,20 @@ export default class EditEvent extends React.Component {
         this.setState({
           selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, 0]
         });
+        // console.log([0, dbEventRecurrence.weeklyPattern, 0, 0])
       } else if (firstSelected === 2) {
         this.setState({
           selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, monthlySelected, 0]
         });
+        // console.log([0, dbEventRecurrence.weeklyPattern, monthlySelected, 0])
       } else if (firstSelected === 3) {
         this.setState({
           selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]
         });
+        // console.log([0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]);
       }
 
-      console.log(secondRecurrOptions[secondSelected]);
+      // console.log(this.state);
 
       this.setState({
         isRecurring: true,
@@ -440,6 +444,7 @@ export default class EditEvent extends React.Component {
     const newVal = state.selectedSecondRecurrOption[event.index];
     const newArr = state.selectedSecondRecurrOption;
     newArr[event.index] = newVal;
+    // console.log(newVal, newArr, event.index, state);
 
     this.setState({
       firstSelectedOption: event.index,
@@ -454,6 +459,7 @@ export default class EditEvent extends React.Component {
     const newVal = state.selectedSecondRecurrOption[state.firstSelectedOption];
     const newArr = state.selectedSecondRecurrOption;
     newArr[state.firstSelectedOption] = event.index;
+    console.log(newVal, newArr, state);
 
     this.setState({
       selectedSecondRecurrOption: newArr
@@ -472,10 +478,13 @@ export default class EditEvent extends React.Component {
     // 1 coz, day week, month, year, week = index 1.
     const newVal = state.selectedSecondRecurrOption[1];
 
+    const intParsed = parseInt(event.target.name, 10);
+    // console.log(state, newVal, intParsed, newVal[intParsed]);
     // This alternates it between 1/0.
-    newVal[event.target.name] = newVal[event.target.name] === 1 ? 0 : 1;
+    newVal[intParsed] = newVal[intParsed] === 1 ? 0 : 1;
     const newArr = state.selectedSecondRecurrOption;
     newArr[1] = newVal;
+    // console.log(state, newVal, newArr, event.target.name);
 
     this.setState({
       selectedSecondRecurrOption: newArr
@@ -549,6 +558,7 @@ export default class EditEvent extends React.Component {
             Repeat on
             <label>
               <Checkbox
+                // checked={state.selectedSecondRecurrOption[1][0]}
                 checked={state.selectedSecondRecurrOption[1][0]}
                 name={0}
                 onChange={this.handleWeekChangeRecurr}

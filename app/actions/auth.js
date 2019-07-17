@@ -52,3 +52,20 @@ export const successExchangeAuth = (user) => ({
   payload: user
 });
 // --------------------- EXCHANGE AUTH -------------------- //
+
+// --------------------- CALDAV AUTH -------------------- //
+export const BEGIN_CALDAV_AUTH = 'BEGIN_CALDAV_AUTH';
+export const SUCCESS_CALDAV_AUTH = 'SUCCESS_CALDAV_AUTH';
+export const FAIL_CALDAV_AUTH = 'FAIL_CALDAV_AUTH';
+export const RETRY_CALDAV_AUTH = 'RETRY_CALDAV_AUTH';
+
+export const beginCaldavAuth = (user) => ({
+  type: BEGIN_CALDAV_AUTH,
+  payload: user
+});
+export const failCaldavAuth = () => ({ type: FAIL_CALDAV_AUTH });
+export const successCaldavAuth = (user) => ({
+  type: SUCCESS_CALDAV_AUTH,
+  payload: user
+});
+// --------------------- CALDAV AUTH -------------------- //

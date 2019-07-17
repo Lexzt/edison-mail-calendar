@@ -238,3 +238,26 @@ export const beginDeleteFutureRecurrenceSeries = (id) => ({
   payload: id
 });
 // --------------- DELETE RECURR SERIES ---------------- //
+
+// ---------------------- CALDAV ---------------------- //
+export const GET_CALDAV_EVENTS_BEGIN = 'GET_CALDAV_EVENTS_BEGIN';
+export const GET_CALDAV_EVENTS_SUCCESS = 'GET_CALDAV_EVENTS_SUCCESS';
+export const GET_CALDAV_EVENTS_FAILURE = 'GET_CALDAV_EVENTS_FAILURE';
+
+export const beginGetCaldavEvents = (resp) => ({
+  type: GET_CALDAV_EVENTS_BEGIN,
+  payload: resp
+});
+
+export const postCaldavEventBegin = (calEvent) => ({
+  type: GET_CALDAV_EVENTS_FAILURE,
+  payload: calEvent
+});
+
+export const getCaldavEventsSuccess = (response) => ({
+  type: GET_CALDAV_EVENTS_SUCCESS,
+  payload: {
+    data: response
+  }
+});
+// ---------------------- CALDAV ---------------------- //

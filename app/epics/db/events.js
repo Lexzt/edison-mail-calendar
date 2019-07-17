@@ -25,6 +25,7 @@ import { deleteGoogleEvent, loadClient } from '../../utils/client/google';
 import { asyncGetSingleExchangeEvent, asyncDeleteExchangeEvent } from '../../utils/client/exchange';
 import getDb from '../../db';
 import * as Providers from '../../utils/constants';
+import parser from '../../utils/parser';
 
 export const retrieveEventsEpic = (action$) =>
   action$.pipe(
@@ -33,13 +34,15 @@ export const retrieveEventsEpic = (action$) =>
       from(getDb()).pipe(
         mergeMap((db) =>
           from(db.events.find().exec()).pipe(
-            map((events) =>
-              events.filter(
+            map((events) => {
+              console.log(action);
+              return events.filter(
                 (singleEvent) => singleEvent.providerType === action.payload.providerType
-              )
-            ),
-            map((events) =>
-              events.map((singleEvent) => ({
+              );
+            }),
+            map((events) => {
+              console.log(events.map((e) => e.toJSON()));
+              return events.map((singleEvent) => ({
                 id: singleEvent.id,
                 end: singleEvent.end,
                 start: singleEvent.start,
@@ -50,10 +53,19 @@ export const retrieveEventsEpic = (action$) =>
                 attendees: singleEvent.attendees,
                 originalId: singleEvent.originalId,
                 owner: singleEvent.owner,
-                hide: singleEvent.hide
-              }))
-            ),
-            map((results) => updateStoredEvents(results, action.payload.user))
+                hide: singleEvent.hide,
+                isRecurring: singleEvent.isRecurring,
+                isModifiedThenDeleted: singleEvent.isModifiedThenDeleted,
+                calendarId: singleEvent.calendarId,
+                providerType: singleEvent.providerType,
+                isMaster: singleEvent.isMaster
+              }));
+            }),
+            mergeMap((nonExpandedRecurr) => parser.expandRecurEvents(nonExpandedRecurr)),
+            map((results) => {
+              console.log(results);
+              return updateStoredEvents(results, action.payload.user);
+            })
           )
         )
       )
@@ -114,6 +126,8 @@ const storeEvents = async (payload) => {
   const dbUpsertPromises = [];
   const { data } = payload;
 
+  console.log(data);
+
   // Create a list of promises to retrieve previous event from db first if it does not exist.
   for (const dbEvent of data) {
     // Filter into our schema object as we need to know how to deal with it for originalId.
@@ -138,6 +152,8 @@ const storeEvents = async (payload) => {
   // Wait for all the promises to complete
   const results = await Promise.all(dbFindPromises);
 
+  console.log('here?');
+
   // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
   // dbFindPromises must have same length as results, as its just an array of same size.
   // This ensure the index of data is the same with find query index.
@@ -148,6 +164,7 @@ const storeEvents = async (payload) => {
       payload.owner,
       false
     );
+    console.log('here?1');
 
     // Means it is a new object, we upsert coz filtered event already is new.
     if (results[i] === null) {
@@ -171,8 +188,10 @@ const storeEvents = async (payload) => {
     // This is for all the events, for UI.
     addedEvents.push(filteredEvent);
   }
+  console.log('here?2', dbUpsertPromises);
 
   await Promise.all(dbUpsertPromises);
+  console.log(addedEvents);
   return addedEvents;
 };
 

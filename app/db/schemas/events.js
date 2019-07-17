@@ -194,6 +194,9 @@ export default {
     },
     ICALString: {
       type: 'string'
+    },
+    isMaster: {
+      type: 'boolean'
     }
   },
   required: ['end', 'start']

@@ -72,12 +72,16 @@ import {
   editEventSuccess,
   getEventsFailure,
   clearAllEventsSuccess,
-  endPollingEvents
+  endPollingEvents,
+  GET_CALDAV_EVENTS_BEGIN
 } from '../actions/events';
 import getDb from '../db';
 import * as Credentials from '../utils/Credentials';
 import * as CalDavActionCreators from '../actions/caldav';
 import ServerUrls from '../utils/serverUrls';
+import PARSER from '../utils/parser';
+// import { storeCaldav } from './db/caldav';
+import { processObjects } from '../reducers/caldav';
 
 const dav = require('dav');
 
@@ -1044,6 +1048,121 @@ export const createCaldavAccountEpics = (action$) =>
       });
     })
   );
+
+export const beginGetCaldavEventsEpics = (action$) =>
+  action$.pipe(
+    ofType(GET_CALDAV_EVENTS_BEGIN),
+    mergeMap((action) =>
+      from(
+        new Promise(async (resolve, reject) => {
+          if (action.payload === undefined) {
+            reject(getEventsFailure('Caldav user undefined!!'));
+          }
+          console.log(action);
+          // debugger;
+          const resp = await dav.createAccount({
+            server: action.payload.url,
+            xhr: new dav.transport.Basic(
+              new dav.Credentials({
+                username: action.payload.email,
+                password: action.payload.password
+              })
+            ),
+            loadObjects: true
+          });
+
+          const db = await getDb();
+          // This breaks due to how our database works, with id being a uniqid.
+          // so we need find it first then upsert. Yay, no checks again.
+          try {
+            const calendars = PARSER.parseCal(resp.calendars);
+            const events = PARSER.parseCalEvents(resp.calendars);
+            const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
+            const filteredEvents = flatEvents.filter((event) => event !== '');
+            const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
+
+            const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
+            const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
+
+            const promises = [];
+            // This is broke, upsert makes no sense atm.
+            calendars.forEach((calendar) => {
+              promises.push(db.calendars.upsert(calendar));
+            });
+            // Do not upsert here, let the get event success upsert. But handle the rest.
+            // flatFilteredEvents.forEach((calEvent) => {
+            //   promises.push(db.events.upsert(calEvent.eventData));
+            // });
+
+            // This has no use atm, upsert makes no sense atm.
+            eventPersons.forEach((eventPerson) => {
+              promises.push(db.eventpersons.upsert(eventPerson));
+            });
+
+            debugger;
+
+            const prevRPs = await Promise.all(
+              recurrenceEvents.map((recurrenceEvent) =>
+                db.recurrencepatterns
+                  .findOne()
+                  .where('originalId')
+                  .eq(recurrenceEvent.originalId)
+                  .exec()
+              )
+            );
+
+            let i = 0;
+            prevRPs.forEach((prevRP) => {
+              const newRP = recurrenceEvents[i];
+              if (prevRP === null) {
+                promises.push(db.recurrencepatterns.upsert(newRP));
+              } else {
+                console.log(prevRP, newRP);
+                promises.push(
+                  db.recurrencepatterns
+                    .findOne()
+                    .where('originalId')
+                    .eq(prevRP.originalId)
+                    .update({
+                      $set: {
+                        id: prevRP.id,
+                        originalId: newRP.originalId,
+                        freq: newRP.freq,
+                        interval: newRP.interval,
+                        until: newRP.until,
+                        exDates: newRP.exDates,
+                        recurrenceIds: newRP.recurrenceIds,
+                        modifiedThenDeleted: newRP.modifiedThenDeleted,
+                        numberOfRepeats: newRP.numberOfRepeats
+                      }
+                    })
+                );
+              }
+              i += 1;
+            });
+
+            console.log(prevRPs);
+            debugger;
+            // console.log(promises);
+            const results = await Promise.all(promises);
+            console.log(results, events, flatFilteredEvents);
+            const expanded = await PARSER.expandRecurEvents(
+              flatFilteredEvents.map((calEvent) => calEvent.eventData)
+            );
+            console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
+            debugger;
+            resolve(expanded);
+            // resolve(flatFilteredEvents.map((calEvent) => calEvent.eventData));
+          } catch (e) {
+            throw e;
+          }
+        })
+      ).pipe(
+        map((resp) => getEventsSuccess(resp, Providers.CALDAV, action.payload.email)),
+        catchError((error) => of(error))
+      )
+    )
+  );
 // ------------------------------------ CALDAV ------------------------------------ //
 
 // ------------------------------------ POLLING ------------------------------------ //
@@ -1064,12 +1183,12 @@ export const pollingEventsEpics = (action$) => {
 
 const syncEvents = async (action) => {
   // Based off which user it is supposed to sync
-  const { user } = action.payload;
-  // const user = {
-  //   email: 'e0176993@u.nus.edu',
-  //   password: 'Ggrfw4406@nus41',
-  //   providerType: Providers.EXCHANGE
-  // };
+  // const { user } = action.payload;
+  const user = {
+    username: Credentials.FASTMAIL_USERNAME,
+    password: Credentials.FASTMAIL_PASSWORD,
+    providerType: Providers.CALDAV
+  };
 
   // Check which provider
   switch (user.providerType) {
@@ -1173,6 +1292,23 @@ const syncEvents = async (action) => {
         return updatedEvents;
       } catch (error) {
         // Return empty array, let next loop handle syncing.
+        return [];
+      }
+    case Providers.CALDAV:
+      try {
+        const xhrObject = new dav.transport.Basic(
+          new dav.Credentials({
+            username: user.username,
+            password: user.password
+          })
+        );
+        return CalDavActionCreators.beginCreateAccount({
+          server: ServerUrls.FASTMAIL,
+          xhr: xhrObject,
+          loadObjects: true
+        });
+      } catch (error) {
+        console.log('Caldav error: ', error);
         return [];
       }
     default:

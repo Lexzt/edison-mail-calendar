@@ -2,20 +2,23 @@ import { withRouter } from 'react-router-dom';
 import { connect } from 'react-redux';
 import View from '../components/view';
 import {
+  beginGoogleAuth,
   successGoogleAuth,
+  expiredGoogleAuth,
+  beginOutlookAuth,
   successOutlookAuth,
   expiredOutlookAuth,
-  expiredGoogleAuth,
-  beginGoogleAuth,
-  beginOutlookAuth,
   beginExchangeAuth,
-  successExchangeAuth
+  successExchangeAuth,
+  beginCaldavAuth,
+  successCaldavAuth
 } from '../actions/auth';
 import { retrieveStoreEvents } from '../actions/db/events';
 import {
   beginGetGoogleEvents,
   beginGetOutlookEvents,
   beginGetExchangeEvents,
+  beginGetCaldavEvents,
   beginDeleteEvent,
   clearAllEvents,
   beginPollingEvents,
@@ -57,6 +60,10 @@ const mapDispatchToProps = (dispatch) => ({
   beginGetExchangeEvents: (resp) => dispatch(beginGetExchangeEvents(resp)),
   beginExchangeAuth: (user) => dispatch(beginExchangeAuth(user)),
 
+  // Caldav
+  beginGetCaldavEvents: (resp) => dispatch(beginGetCaldavEvents(resp)),
+  beginCaldavAuth: (user) => dispatch(beginCaldavAuth(user)),
+
   // Get from database List of Events
   retrieveStoreEvents: (providerType, user) => dispatch(retrieveStoreEvents(providerType, user)),
 
@@ -72,6 +79,7 @@ const mapDispatchToProps = (dispatch) => ({
   onStartGetGoogleAuth: (user) => dispatch(successGoogleAuth(user)),
   onStartGetOutlookAuth: (user) => dispatch(successOutlookAuth(user)),
   onStartGetExchangeAuth: (user) => dispatch(successExchangeAuth(user)),
+  onStartGetCaldavAuth: (user) => dispatch(successCaldavAuth(user)),
 
   // On Start, if user is expired for some reason.
   onExpiredOutlook: (user) => dispatch(expiredOutlookAuth(user)),

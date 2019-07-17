@@ -5,12 +5,14 @@ const initialState = {
   providers: {
     [ProviderTypes.GOOGLE]: [],
     [ProviderTypes.OUTLOOK]: [],
-    [ProviderTypes.EXCHANGE]: []
+    [ProviderTypes.EXCHANGE]: [],
+    [ProviderTypes.CALDAV]: []
   },
   expiredProviders: {
     [ProviderTypes.GOOGLE]: [],
     [ProviderTypes.OUTLOOK]: [],
-    [ProviderTypes.EXCHANGE]: [] // Unsure if needed, as no time limit on exchange providers.
+    [ProviderTypes.EXCHANGE]: [], // Unsure if needed, as no time limit on exchange providers.
+    [ProviderTypes.CALDAV]: [] // Unsure if needed, as no time limit on some caldav providers.
   },
   isAuth: false,
   currentUser: null // currentUser is here bcuz of google auth. Not sure how to append it over yet.
@@ -129,6 +131,33 @@ export default function authReducer(state = initialState, action) {
     case AuthActionTypes.FAIL_EXCHANGE_AUTH:
       return Object.assign({}, state, { isAuth: false, currentUser: null });
     // ----------------------------------------------- EXCHANGE ----------------------------------------------- //
+
+    // ----------------------------------------------- CALDAV ----------------------------------------------- //
+    case AuthActionTypes.BEGIN_CALDAV_AUTH:
+      return Object.assign({}, state, { isAuth: true, currentUser: null });
+    case AuthActionTypes.SUCCESS_CALDAV_AUTH:
+      return Object.assign({}, state, {
+        isAuth: false,
+        providers: {
+          ...state.providers,
+          [ProviderTypes.CALDAV]:
+            state.providers[ProviderTypes.CALDAV].filter(
+              (e) => e.personId === action.payload.user.personId
+            ).length > 0
+              ? state.providers[ProviderTypes.CALDAV].map((e) =>
+                  e.personId === action.payload.user.personId ? action.payload.user : e
+                )
+              : state.providers[ProviderTypes.CALDAV].concat(action.payload.user)
+        },
+        expiredProviders: {
+          ...state.expiredProviders,
+          [ProviderTypes.CALDAV]: state.expiredProviders[ProviderTypes.CALDAV]
+          // [ProviderTypes.EXCHANGE]: state.expiredProviders[ProviderTypes.EXCHANGE].filter(user => user.originalId !== action.payload.user.originalId)  // Don't need this as exchange users never expire due to no oauth yet
+        }
+      });
+    case AuthActionTypes.FAIL_CALDAV_AUTH:
+      return Object.assign({}, state, { isAuth: false, currentUser: null });
+    // ----------------------------------------------- CALDAV ----------------------------------------------- //
     default:
       return state;
   }

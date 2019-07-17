@@ -12,7 +12,7 @@ const initialState = {
   storingCalDavObjectsError: ''
 };
 
-const processObjects = (objects, colName) => {
+export const processObjects = (objects, colName) => {
   const results = [];
   objects.forEach((object) => {
     if (object.collection.name === colName) {

@@ -28,6 +28,8 @@ import getDb from '../db';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
 import { asyncGetRecurrAndSingleExchangeEvents } from '../utils/client/exchange';
+import serverUrls from '../utils/serverUrls';
+import { FASTMAIL_USERNAME, FASTMAIL_PASSWORD } from '../utils/Credentials';
 
 const dav = require('dav');
 
@@ -93,6 +95,10 @@ export default class View extends React.Component {
             props.onStartGetExchangeAuth(
               this.filterUserOnStart(singleProviderUserData, ProviderTypes.EXCHANGE)
             );
+          } else if (singleProviderUserData.providerType === ProviderTypes.CALDAV) {
+            props.onStartGetCaldavAuth(
+              this.filterUserOnStart(singleProviderUserData, ProviderTypes.CALDAV)
+            );
           } else {
             const now = new Date().getTime();
             const isExpired = now > parseInt(singleProviderUserData.accessTokenExpiry, 10);
@@ -151,6 +157,37 @@ export default class View extends React.Component {
   authorizeExchangeCodeRequest = (user, pwd) => {
     const { props } = this;
     props.beginExchangeAuth(user, pwd);
+  };
+
+  authorizeCaldavCodeRequest = (user, pwd, type) => {
+    const { props } = this;
+    console.log(user, pwd, type);
+    let url = '';
+    switch (type) {
+      case 'ICLOUD':
+        url = serverUrls.ICLOUD;
+        break;
+      case 'FASTMAIL':
+        url = serverUrls.FASTMAIL;
+        break;
+      case 'YAHOO':
+        url = serverUrls.YAHOO;
+        break;
+      case 'GOOGLE':
+        url = serverUrls.GOOGLE;
+        break;
+      case 'GMX':
+        url = serverUrls.GMX;
+        break;
+      default:
+        break;
+    }
+
+    props.beginCaldavAuth({
+      username: user,
+      password: pwd,
+      url
+    });
   };
 
   // Calendar Event Functions
@@ -228,6 +265,8 @@ export default class View extends React.Component {
       username: state.exchangeEmail,
       password: state.exchangePwd
     });
+
+    // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
   };
 
   // This filter user is used when the outlook first creates the object.
@@ -240,7 +279,8 @@ export default class View extends React.Component {
       providerType,
       accessToken: rxDoc.accessToken,
       accessTokenExpiry: rxDoc.accessTokenExpiry,
-      password: rxDoc.password
+      password: rxDoc.password,
+      url: rxDoc.url
     }
   });
 
@@ -363,6 +403,10 @@ export default class View extends React.Component {
           // Exchange provider does not expire, I think, so here is empty.
           // If it does expire, write some code here to handle it.
           break;
+        case ProviderTypes.CALDAV:
+          // Yet to test which caldav providers expire, based on their own login system.
+          // For now, we assume its BASIC auth, and no expiry.
+          break;
         default:
           console.log('Provider not accounted for!!');
           break;
@@ -479,6 +523,14 @@ export default class View extends React.Component {
           onClick={() => props.beginGetExchangeEvents(props.providers.EXCHANGE[0])}
         >
           <i className="material-icons left">cloud_download</i>Get Exchange Events
+        </a>
+        <a
+          role="button"
+          tabIndex="0"
+          className="waves-effect waves-light btn"
+          onClick={() => props.beginGetCaldavEvents(props.providers.CALDAV[0])}
+        >
+          <i className="material-icons left">cloud_download</i>Get Caldav Events
         </a>
         <a
           role="button"

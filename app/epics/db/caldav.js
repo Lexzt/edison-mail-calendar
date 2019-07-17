@@ -37,6 +37,7 @@ const retrieveRecurEvents = async (events) => {
 const retrieveEvents = async () => {
   const db = await getDb();
   const events = await db.events.find().exec();
+  console.log(events.map((e) => e.toJSON()));
   return events.map((event) => ({
     id: event.id,
     end: event.end,
@@ -52,7 +53,8 @@ const retrieveEvents = async () => {
     isModifiedThenDeleted: event.isModifiedThenDeleted,
     hide: event.hide,
     providerType: event.providerType,
-    calendarId: event.calendarId
+    calendarId: event.calendarId,
+    isMaster: event.isMaster
   }));
 };
 
@@ -75,8 +77,10 @@ const storeCaldav = async (payload) => {
     const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
     const filteredEvents = flatEvents.filter((event) => event !== '');
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
+
     const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
+
     const promises = [];
     calendars.forEach((calendar) => {
       promises.push(db.calendars.upsert(calendar));

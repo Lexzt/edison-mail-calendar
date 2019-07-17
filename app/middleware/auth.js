@@ -16,6 +16,9 @@ import * as Providers from '../utils/constants';
 
 import * as AuthActionTypes from '../actions/auth';
 import * as DbActionTypes from '../actions/db/events';
+import { filterCaldavUser } from '../utils/client/caldav';
+
+const dav = require('dav');
 
 let GoogleAuth = '';
 
@@ -152,6 +155,7 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
     // console.log("here");
     // testFunc();
   } else if (action.type === AuthActionTypes.BEGIN_EXCHANGE_AUTH) {
+    console.log(action);
     const exch = new ExchangeService();
     exch.Credentials = new WebCredentials(action.payload.username, action.payload.password);
     exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
@@ -181,6 +185,37 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
           });
         }
       );
+  } else if (action.type === AuthActionTypes.BEGIN_CALDAV_AUTH) {
+    console.log(action.payload);
+    const caldavPayload = {
+      server: action.payload.url,
+      xhr: new dav.transport.Basic(
+        new dav.Credentials({
+          username: action.payload.username,
+          password: action.payload.password
+        })
+      ),
+      loadObjects: true
+    };
+
+    dav.createAccount(caldavPayload).then(
+      (caldavData) => {
+        console.log(caldavData);
+        next({
+          type: AuthActionTypes.SUCCESS_CALDAV_AUTH,
+          payload: {
+            user: filterCaldavUser(caldavData.credentials, action.payload.url),
+            data: caldavData
+          }
+        });
+      },
+      (error) => {
+        console.log(error);
+        next({
+          type: AuthActionTypes.FAIL_CALDAV_AUTH
+        });
+      }
+    );
   }
   return next(action);
 };
@@ -219,6 +254,18 @@ export const authSuccessMiddleware = (store) => (next) => (action) => {
   if (action.type === AuthActionTypes.FAIL_EXCHANGE_AUTH) {
     next({
       type: AuthActionTypes.RETRY_EXCHANGE_AUTH
+    });
+  }
+
+  if (action.type === AuthActionTypes.SUCCESS_CALDAV_AUTH) {
+    next({
+      type: DbActionTypes.RETRIEVE_STORED_EVENTS,
+      payload: { providerType: Providers.CALDAV, user: action.payload.user }
+    });
+  }
+  if (action.type === AuthActionTypes.FAIL_CALDAV_AUTH) {
+    next({
+      type: AuthActionTypes.RETRY_CALDAV_AUTH
     });
   }
   return next(action);

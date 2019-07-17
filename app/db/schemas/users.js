@@ -25,6 +25,9 @@ export default {
     },
     password: {
       type: 'string'
+    },
+    url: {
+      type: 'string'
     }
   },
   required: ['personId', 'originalId']

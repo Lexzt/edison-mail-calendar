@@ -16,11 +16,12 @@ const parseRecurrenceEvents = (calEvents) => {
         id: uuidv4(),
         originalId: calEvent.eventData.originalId,
         freq: calEvent.recurData.rrule.freq,
-        interval: calEvent.recurData.rruleinterval,
+        interval: calEvent.recurData.rrule.interval,
         until: calEvent.recurData.rrule.until,
         exDates: calEvent.recurData.exDates,
         recurrenceIds: calEvent.recurData.recurrenceIds,
-        modifiedThenDeleted: calEvent.recurData.modifiedThenDeleted
+        modifiedThenDeleted: calEvent.recurData.modifiedThenDeleted,
+        numberOfRepeats: calEvent.recurData.rrule.count
       });
     }
   });
@@ -78,9 +79,11 @@ const newParseCalendarObjects = (calendar) => {
 
 const parseCalendarObject = (calendarObject, calendarId) => {
   const { etag, url, calendarData } = calendarObject;
+  const etagClean = etag.slice(1, -1);
+
   let edisonEvent = {};
   if (calendarData !== undefined && calendarData !== '') {
-    edisonEvent = parseCalendarData(calendarData, etag, url, calendarId);
+    edisonEvent = parseCalendarData(calendarData, etagClean, url, calendarId);
   } else {
     edisonEvent = '';
   }
@@ -111,12 +114,12 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
     // Recurring event
     results.push({
       recurData: { rrule, exDates, recurrenceIds, modifiedThenDeleted },
-      eventData: parseEvent(comp, true, etag, url, calendarId)
+      eventData: parseEvent(comp, true, etag, url, calendarId, true)
     });
   } else {
     // Non-recurring event
     results.push({
-      eventData: parseEvent(comp, false, etag, url, calendarId)
+      eventData: parseEvent(comp, false, etag, url, calendarId, false)
     });
   }
   // debugger;
@@ -159,16 +162,16 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
     },
     attendee: getAttendees(modifiedEvent),
     // calendarId,
-    providerType: 'caldav',
+    providerType: 'CALDAV',
     isRecurring: false,
     // isModifiedThenDeleted: mtd,
     etag,
-    caldavUrl: url,
+    htmlLink: url,
     calendarId
   };
 };
 
-const parseEvent = (component, isRecurring, etag, url, calendarId) => {
+const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
   const masterEvent = component.getFirstSubcomponent('vevent');
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
@@ -213,12 +216,13 @@ const parseEvent = (component, isRecurring, etag, url, calendarId) => {
       timezone: 'timezone'
     },
     attendee: getAttendees(masterEvent),
-    providerType: 'caldav',
+    providerType: 'CALDAV',
     isRecurring,
     // isModifiedThenDeleted: mtd,
     etag,
-    caldavUrl: url,
-    calendarId
+    htmlLink: url,
+    calendarId,
+    isMaster: cdIsMaster
   };
   return event;
 };
@@ -287,7 +291,12 @@ const parseAttendees = (properties) =>
 const expandRecurEvents = async (results) => {
   const db = await getDb();
   const nonMTDresults = results.filter((result) => !result.isModifiedThenDeleted);
-  const recurringEvents = nonMTDresults.filter((nonMTDresult) => nonMTDresult.isRecurring);
+  const recurringEvents = nonMTDresults.filter(
+    (nonMTDresult) =>
+      nonMTDresult.isRecurring &&
+      nonMTDresult.providerType === 'CALDAV' &&
+      nonMTDresult.isMaster === true
+  );
   let finalResults = [];
   if (recurringEvents.length === 0) {
     finalResults = nonMTDresults;
@@ -312,10 +321,13 @@ const expandSeries = async (recurringEvents, db) => {
 };
 
 const parseRecurrence = (pattern, recurMasterEvent) => {
+  debugger;
   const recurEvents = [];
   const ruleSet = buildRuleSet(pattern, recurMasterEvent);
   const recurDates = ruleSet.all().map((date) => date.toJSON());
   const duration = getDuration(recurMasterEvent);
+
+  debugger;
 
   recurDates.forEach((recurDateTime) => {
     recurEvents.push({
@@ -331,22 +343,28 @@ const parseRecurrence = (pattern, recurMasterEvent) => {
         timezone: 'timezone'
       },
       summary: recurMasterEvent.summary,
-      organizer: recurMasterEvent.organizer,
-      recurrence: recurMasterEvent.recurrence,
+      // organizer: recurMasterEvent.organizer,
+      // recurrence: recurMasterEvent.recurrence,
       iCalUID: recurMasterEvent.iCalUID,
-      attendees: recurMasterEvent.attendee,
+      attendee: recurMasterEvent.attendee,
       originalId: recurMasterEvent.originalId,
-      creator: recurMasterEvent.creator,
+      // creator: recurMasterEvent.creator,
       isRecurring: recurMasterEvent.isRecurring,
       providerType: recurMasterEvent.providerType,
-      calendarId: recurMasterEvent.calendarId
+      calendarId: recurMasterEvent.calendarId,
+      created: recurMasterEvent.created,
+      description: recurMasterEvent.description,
+      etag: recurMasterEvent.etag,
+      htmlLink: recurMasterEvent.htmlLink,
+      location: recurMasterEvent.location,
+      originalStartTime: recurMasterEvent.originalStartTime,
+      updated: recurMasterEvent.updated
     });
   });
   return recurEvents;
 };
 
 const buildRuleSet = (pattern, master) => {
-  debugger;
   const rruleSet = new RRuleSet();
   const ruleObject = buildRuleObject(pattern, master);
   rruleSet.rrule(new RRule(ruleObject));
@@ -385,7 +403,17 @@ const buildRuleObject = (pattern, master) => {
       break;
     default:
   }
-  ruleObject.until = pattern.until ? new Date(pattern.until) : TEMPORARY_RECURRENCE_END;
+
+  if (
+    (pattern.until === undefined || pattern.until === null) &&
+    (pattern.numberOfRepeats === undefined || pattern.numberOfRepeats === null)
+  ) {
+    ruleObject.until = TEMPORARY_RECURRENCE_END;
+  } else if (pattern.until === undefined || pattern.until === null) {
+    ruleObject.count = pattern.numberOfRepeats;
+  } else {
+    ruleObject.until = new Date(pattern.until);
+  }
   return ruleObject;
 };
 

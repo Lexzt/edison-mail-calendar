@@ -7,7 +7,7 @@ import db from '../db';
 export const OUTLOOK = 'OUTLOOK';
 export const GOOGLE = 'GOOGLE';
 export const EXCHANGE = 'EXCHANGE';
-export const CALDAV = 'caldav';
+export const CALDAV = 'CALDAV';
 
 export const dropDownTime = (currentTime) => {
   const timeOptions = [];
@@ -362,6 +362,9 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
 
       // console.log(schemaCastedDbObject);
       return schemaCastedDbObject;
+
+    case CALDAV:
+      return dbEvent;
     default:
       console.log(`Provider ${type} not available`);
   }

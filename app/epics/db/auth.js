@@ -52,7 +52,23 @@ export const storeExchangeAuthEpic = (action$) =>
     )
   );
 
+export const storeCaldavAuthEpic = (action$) =>
+  action$.pipe(
+    ofType(AuthActionTypes.SUCCESS_CALDAV_AUTH),
+    mergeMap((action) =>
+      from(storeUser(action.payload.user)).pipe(
+        mergeMap((resp) =>
+          of(successStoreAuth(), retrieveStoreEvents(Providers.CALDAV, action.payload.user))
+        ),
+        catchError((error) => {
+          of(console.log(error));
+        })
+      )
+    )
+  );
+
 const storeUser = async (user) => {
+  console.log(user);
   const db = await getDb();
   let userDb = '';
   try {
