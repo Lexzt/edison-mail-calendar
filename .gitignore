@@ -53,20 +53,6 @@ npm-debug.log.*
 #Credentials
 app/utils/Credentials.js
 
-eventsdb-rxdb-0-_admin
-eventsdb-rxdb-0-_collections
-eventsdb-rxdb-0-calendars
-eventsdb-rxdb-0-eventpersons
-eventsdb-rxdb-0-events
-eventsdb-rxdb-0-pendingactions
-eventsdb-rxdb-0-persons
-eventsdb-rxdb-0-recurrencepatterns
+eventsdb-rxdb-0-*
 
 package-lock.json
-eventsdb-rxdb-0-_admin~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
-eventsdb-rxdb-0-_collections~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
-eventsdb-rxdb-0-calendars~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
-eventsdb-rxdb-0-eventpersons~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
-eventsdb-rxdb-0-events~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
-eventsdb-rxdb-0-persons~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
-eventsdb-rxdb-0-recurrencepatterns~7061e1cb033ac1fd3b18ea7d25bb947c07fe2bf1
