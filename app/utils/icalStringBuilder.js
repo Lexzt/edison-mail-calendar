@@ -6,7 +6,6 @@ import { RRule, RRuleSet, rrulestr } from 'rrule';
 const uuidv1 = require('uuid/v1');
 
 export const buildICALStringUpdateOnly = (updatedEvent, calendarObject) => {
-  // debugger;
   const calendarData = ICAL.parse(calendarObject.ICALString);
   const calendarComp = new ICAL.Component(calendarData);
   const timezoneMetadata = calendarComp.getFirstSubcomponent('vtimezone');

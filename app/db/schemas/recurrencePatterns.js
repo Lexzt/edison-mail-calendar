@@ -19,41 +19,82 @@ export default {
       type: 'string'
     },
     interval: {
-      type: 'number'
+      type: 'number',
+      default: 1
     },
     until: {
       type: 'string'
     },
+
+    wkSt: {
+      type: 'string'
+    },
+
     exDates: {
       type: 'array'
     },
     recurrenceIds: {
       type: 'array'
     },
+
     modifiedThenDeleted: {
       type: 'boolean'
     },
     weeklyPattern: {
       type: 'array'
     },
+
     numberOfRepeats: {
       type: 'number',
       default: 0
     },
+    isCount: {
+      type: 'boolean'
+    },
+
     iCalUid: {
       type: 'string'
     },
+
     byWeekNo: {
-      type: 'string'
+      type: 'string',
+      default: ''
     },
     byWeekDay: {
-      type: 'string'
+      type: 'string',
+      default: ''
     },
     byMonth: {
-      type: 'string'
+      type: 'string',
+      default: ''
     },
     byMonthDay: {
-      type: 'string'
+      type: 'string',
+      default: ''
+    },
+    byYearDay: {
+      type: 'string',
+      default: ''
+    },
+    byHour: {
+      type: 'string',
+      default: ''
+    },
+    byMinute: {
+      type: 'string',
+      default: ''
+    },
+    bySecond: {
+      type: 'string',
+      default: ''
+    },
+    byEaster: {
+      type: 'string',
+      default: ''
+    },
+    bySetPos: {
+      type: 'string',
+      default: ''
     }
   }
 };

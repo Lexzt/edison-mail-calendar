@@ -9,9 +9,11 @@ const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
 const parseRecurrenceEvents = (calEvents) => {
   const recurringEvents = [];
+  console.log(calEvents);
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring) {
+      console.log(calEvent);
       recurringEvents.push({
         id: uuidv4(),
         originalId: calEvent.eventData.originalId,
@@ -21,7 +23,19 @@ const parseRecurrenceEvents = (calEvents) => {
         exDates: calEvent.recurData.exDates,
         recurrenceIds: calEvent.recurData.recurrenceIds,
         modifiedThenDeleted: calEvent.recurData.modifiedThenDeleted,
-        numberOfRepeats: calEvent.recurData.rrule.count
+        numberOfRepeats: calEvent.recurData.rrule.count,
+        iCalUid: calEvent.eventData.iCalUID,
+        wkSt: calEvent.recurData.rrule.wkst,
+        bySetPos: calEvent.recurData.rrule.bysetpos,
+        byMonth: calEvent.recurData.rrule.bymonth,
+        byMonthDay: calEvent.recurData.rrule.bymonthday,
+        byYearDay: calEvent.recurData.rrule.byyearday,
+        byWeekNo: calEvent.recurData.rrule.byweekno,
+        byWeekDay: calEvent.recurData.rrule.byday,
+        byHour: calEvent.recurData.rrule.byhour,
+        byMinute: calEvent.recurData.rrule.byminute,
+        bySecond: calEvent.recurData.rrule.bysecond,
+        byEaster: calEvent.recurData.rrule.byeaster
       });
     }
   });
@@ -234,7 +248,11 @@ const getRuleJSON = (masterEvent, icalMasterEvent) => {
   if (icalMasterEvent.isRecurring()) {
     const rrule = masterEvent.getFirstPropertyValue('rrule');
     rruleJSON = rrule.toJSON();
-    rruleJSON = { ...rruleJSON, interval: rrule.interval };
+    if (rruleJSON.byday !== undefined) {
+      if (typeof rruleJSON.byday === 'string') {
+        rruleJSON.byday = [rruleJSON.byday];
+      }
+    }
   }
   return rruleJSON;
 };
@@ -390,6 +408,16 @@ const buildRuleObject = (pattern, master) => {
   const ruleObject = {};
   ruleObject.interval = pattern.interval;
   ruleObject.dtstart = new Date(master.start.dateTime);
+  ruleObject.bymonth = pattern.byMonth ? pattern.byMonth : null;
+  ruleObject.bysetpos = pattern.bySetPos ? pattern.bySetPos : null;
+  ruleObject.bymonthday = pattern.byMonthDay ? pattern.byMonthDay : null;
+  ruleObject.byyearday = pattern.byYearDay ? pattern.byYearDay : null;
+  ruleObject.byhour = pattern.byHour ? pattern.byHour : null;
+  ruleObject.byminute = pattern.byMinute ? pattern.byMinute : null;
+  ruleObject.bysecond = pattern.bySecond ? pattern.bySecond : null;
+  ruleObject.byeaster = pattern.byEaster ? pattern.byEaster : null;
+  ruleObject.until = pattern.until ? new Date(pattern.until) : TEMPORARY_RECURRENCE_END;
+
   switch (pattern.freq) {
     case 'YEARLY':
       ruleObject.freq = 0;
@@ -415,6 +443,93 @@ const buildRuleObject = (pattern, master) => {
     ruleObject.count = pattern.numberOfRepeats;
   } else {
     ruleObject.until = new Date(pattern.until);
+  }
+
+  switch (pattern.wkst) {
+    case 'MO':
+      ruleObject.wkst = 0;
+      break;
+    case 'TU':
+      ruleObject.wkst = 1;
+      break;
+    case 'WE':
+      ruleObject.wkst = 2;
+      break;
+    case 'TH':
+      ruleObject.wkst = 3;
+      break;
+    case 'FR':
+      ruleObject.wkst = 4;
+      break;
+    case 'SA':
+      ruleObject.wkst = 5;
+      break;
+    case 'SU':
+      ruleObject.wkst = 6;
+      break;
+    default:
+      ruleObject.wkst = null;
+  }
+
+  if (pattern.byweekday) {
+    const weekdays = pattern.byweekday;
+    if (weekdays.length === 1) {
+      switch (pattern.byweekday) {
+        case 'MO':
+          ruleObject.byweekday = 0;
+          break;
+        case 'TU':
+          ruleObject.byweekday = 1;
+          break;
+        case 'WE':
+          ruleObject.byweekday = 2;
+          break;
+        case 'TH':
+          ruleObject.byweekday = 3;
+          break;
+        case 'FR':
+          ruleObject.byweekday = 4;
+          break;
+        case 'SA':
+          ruleObject.byweekday = 5;
+          break;
+        case 'SU':
+          ruleObject.byweekday = 6;
+          break;
+        default:
+          ruleObject.byweekday = null;
+      }
+    } else {
+      const byweekdays = [];
+      weekdays.forEach((weekday) => {
+        switch (weekday) {
+          case 'MO':
+            byweekdays.push(0);
+            break;
+          case 'TU':
+            byweekdays.push(1);
+            break;
+          case 'WE':
+            byweekdays.push(2);
+            break;
+          case 'TH':
+            byweekdays.push(3);
+            break;
+          case 'FR':
+            byweekdays.push(4);
+            break;
+          case 'SA':
+            byweekdays.push(5);
+            break;
+          case 'SU':
+            byweekdays.push(6);
+            break;
+          default:
+            break;
+        }
+      });
+      ruleObject.byweekday = byweekdays;
+    }
   }
   return ruleObject;
 };

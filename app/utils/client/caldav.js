@@ -86,7 +86,20 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
                 exDates: newRP.exDates,
                 recurrenceIds: newRP.recurrenceIds,
                 modifiedThenDeleted: newRP.modifiedThenDeleted,
-                numberOfRepeats: newRP.numberOfRepeats
+                numberOfRepeats: newRP.numberOfRepeats,
+                isCount: newRP.isCount,
+                iCalUid: '',
+                wkSt: newRP.wkSt,
+                bySetPos: newRP.bySetPos,
+                byMonth: newRP.byMonth,
+                byMonthDay: newRP.byMonthDay,
+                byYearDay: newRP.byYearDay,
+                byWeekNo: newRP.byWeekNo,
+                byWeekDay: newRP.byWeekDay,
+                byHour: newRP.byHour,
+                byMinute: newRP.byMinute,
+                bySecond: newRP.bySecond,
+                byEaster: newRP.byEaster
               }
             })
         );

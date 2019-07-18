@@ -148,7 +148,6 @@ const removeEvent = async (payload) => {
 };
 
 const updateEvent = async (payload) => {
-  // debugger;
   const db = await getDb();
   try {
     const rxEvent = await db.events
@@ -156,7 +155,6 @@ const updateEvent = async (payload) => {
       .where('originalId')
       .eq(payload.eventObject.originalId)
       .exec();
-    // debugger;
     switch (payload.options.type) {
       case 'UPDATE_SERIES_RECUR':
       case 'UPDATE_SINGLE':
