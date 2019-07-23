@@ -53,13 +53,93 @@ export const buildICALStringUpdateAll = (eventObject) => {
   return calendarComp.toString();
 };
 
-export const buildICALStringDeleteRecurEvent = (recurPattern, exDate, eventObject) => {
-  // debugger;
-  const calendarData = ICAL.parse(eventObject.ICALString);
+const buildRruleObject = (recurrencePattern) => {
+  debugger;
+  console.log(recurrencePattern);
+  let returnObj;
+  if (recurrencePattern.numberOfRepeats > 0) {
+    returnObj = {
+      freq: recurrencePattern.freq,
+      interval: recurrencePattern.interval,
+      count: recurrencePattern.numberOfRepeats
+      // // Commented out atm due to unsure how to parse it in, and not sure if needed.
+      // wkst: recurrencePattern.wkSt,  // Type: ICAL.Time.weekDay
+      // bysecond: recurrencePattern.bySecond, // Not sure if needed. Too detailed.
+      // byminute: recurrencePattern.byMinute, // Not sure if needed. Too detailed.
+      // byhour: recurrencePattern.byHour, // Not sure if needed. Too detailed.
+      // byday: recurrencePattern.freq, // Currently missing in db schema
+      // bymonthday: recurrencePattern.byMonthDay, // Different type, Array<Number> vs <String>
+      // byyearday: recurrencePattern.byYearDay, // Different type, Array<Number> vs <String>
+      // byweekno: recurrencePattern.byWeekNo, // Different type, Array<Number> vs <String>
+      // bymonth: recurrencePattern.byMonth, // Different type, Array<Number> vs <String>
+      // bysetpos: recurrencePattern.bySetPos, // Different type, Array<Number> vs <String>
+    };
+  } else if (recurrencePattern.until !== '') {
+    returnObj = {
+      freq: recurrencePattern.freq,
+      interval: recurrencePattern.interval,
+      until: ICAL.Time()
+      // // Commented out atm due to unsure how to parse it in, and not sure if needed.
+      // wkst: recurrencePattern.wkSt,  // Type: ICAL.Time.weekDay
+      // bysecond: recurrencePattern.bySecond, // Not sure if needed. Too detailed.
+      // byminute: recurrencePattern.byMinute, // Not sure if needed. Too detailed.
+      // byhour: recurrencePattern.byHour, // Not sure if needed. Too detailed.
+      // byday: recurrencePattern.freq, // Currently missing in db schema
+      // bymonthday: recurrencePattern.byMonthDay, // Different type, Array<Number> vs <String>
+      // byyearday: recurrencePattern.byYearDay, // Different type, Array<Number> vs <String>
+      // byweekno: recurrencePattern.byWeekNo, // Different type, Array<Number> vs <String>
+      // bymonth: recurrencePattern.byMonth, // Different type, Array<Number> vs <String>
+      // bysetpos: recurrencePattern.bySetPos, // Different type, Array<Number> vs <String>
+    };
+  } else {
+    returnObj = {
+      freq: recurrencePattern.freq,
+      interval: recurrencePattern.interval
+      // // Commented out atm due to unsure how to parse it in, and not sure if needed.
+      // wkst: recurrencePattern.wkSt,  // Type: ICAL.Time.weekDay
+      // bysecond: recurrencePattern.bySecond, // Not sure if needed. Too detailed.
+      // byminute: recurrencePattern.byMinute, // Not sure if needed. Too detailed.
+      // byhour: recurrencePattern.byHour, // Not sure if needed. Too detailed.
+      // byday: recurrencePattern.freq, // Currently missing in db schema
+      // bymonthday: recurrencePattern.byMonthDay, // Different type, Array<Number> vs <String>
+      // byyearday: recurrencePattern.byYearDay, // Different type, Array<Number> vs <String>
+      // byweekno: recurrencePattern.byWeekNo, // Different type, Array<Number> vs <String>
+      // bymonth: recurrencePattern.byMonth, // Different type, Array<Number> vs <String>
+      // bysetpos: recurrencePattern.bySetPos, // Different type, Array<Number> vs <String>
+    };
+  }
+  return returnObj;
+};
+
+export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, eventObject) => {
+  debugger;
+  const calendarData = ICAL.parse(eventObject.iCALString);
   const vcalendar = new ICAL.Component(calendarData);
+
   const vevent = vcalendar.getFirstSubcomponent('vevent');
-  vevent.addPropertyWithValue('exdate', exDate);
+  const datetime = new ICAL.Time().fromJSDate(new Date(exDate));
+  const timezone = new ICAL.Time().fromData(
+    {
+      year: datetime.year,
+      month: datetime.month,
+      day: datetime.day,
+      hour: datetime.hour,
+      minute: datetime.minute,
+      second: datetime.second
+    },
+    new ICAL.Timezone({ tzid: 'America/Los_Angeles' })
+  );
+  vevent.addPropertyWithValue('exdate', timezone);
+  vevent.getAllProperties('exdate').forEach((e) => e.setParameter('tzid', 'America/Los_Angeles'));
+
+  const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
+  vevent.updatePropertyWithValue('rrule', rrule);
+  debugger;
   return vcalendar.toString();
+  // const calendarData = ICAL.parse(eventObject.iCALString);
+  // const vevent = new ICAL.Component(calendarData);
+  // vevent.addPropertyWithValue('exdate', exDate);
+  // return vevent.toString();
 };
 
 export const fromICALString = (string, value) => {};

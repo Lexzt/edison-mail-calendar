@@ -35,7 +35,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
     const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
     const filteredEvents = flatEvents.filter((event) => event !== '');
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
-
+    debugger;
     const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
 
@@ -110,11 +110,16 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
     // console.log(prevRPs);
     const results = await Promise.all(promises);
     console.log(results, events, flatFilteredEvents);
+    const test = flatFilteredEvents.map((calEvent) => calEvent.eventData);
     const expanded = await PARSER.expandRecurEvents(
       flatFilteredEvents.map((calEvent) => calEvent.eventData)
     );
     console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
-    return expanded;
+    debugger;
+    // return flatFilteredEvents.map((calEvent) => calEvent.eventData);
+    const testing2 = [...expanded, ...test.filter((obj) => !obj.isRecurring)];
+    console.log(testing2);
+    return testing2;
   } catch (e) {
     throw e;
   }

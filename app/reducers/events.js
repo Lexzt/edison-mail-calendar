@@ -21,7 +21,12 @@ const mergeEvents = (oldEvents, newItems) => {
 
   for (const newItem of newItems) {
     if (!oldIds.includes(newItem.id)) {
+      // Add it into our calendar events, as it does not exist!
       newPayload.push(newItem);
+    } else {
+      // Find the previous item, and update it by whatever came in from server.
+      const pos = newPayload.map((object) => object.id).indexOf(newItem.id);
+      newPayload[pos] = newItem;
     }
   }
   return newPayload;

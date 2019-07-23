@@ -2,7 +2,12 @@ import { map, mergeMap, catchError } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
 import { from } from 'rxjs';
 import uuidv4 from 'uuid';
-import { SendInvitationsMode, ConflictResolutionMode, Recurrence } from 'ews-javascript-api';
+import {
+  SendInvitationsMode,
+  ConflictResolutionMode,
+  Recurrence,
+  DateTime
+} from 'ews-javascript-api';
 import moment from 'moment';
 import {
   RETRIEVE_STORED_EVENTS,
@@ -25,7 +30,12 @@ import { deleteGoogleEvent, loadClient } from '../../utils/client/google';
 import { asyncGetSingleExchangeEvent, asyncDeleteExchangeEvent } from '../../utils/client/exchange';
 import getDb from '../../db';
 import * as Providers from '../../utils/constants';
-import parser from '../../utils/parser';
+import parser, { buildRuleSet } from '../../utils/parser';
+import * as IcalStringBuilder from '../../utils/icalStringBuilder';
+import serverUrls from '../../utils/serverUrls';
+import credentials from '../../utils/Credentials';
+
+const dav = require('dav');
 
 export const retrieveEventsEpic = (action$) =>
   action$.pipe(
@@ -50,6 +60,7 @@ export const retrieveEventsEpic = (action$) =>
                 organizer: singleEvent.organizer,
                 recurrence: singleEvent.recurrence,
                 iCalUID: singleEvent.iCalUID,
+                iCALString: singleEvent.iCALString,
                 attendees: singleEvent.attendees,
                 originalId: singleEvent.originalId,
                 owner: singleEvent.owner,
@@ -61,7 +72,6 @@ export const retrieveEventsEpic = (action$) =>
                 isMaster: singleEvent.isMaster
               }));
             }),
-            mergeMap((nonExpandedRecurr) => parser.expandRecurEvents(nonExpandedRecurr)),
             map((results) => {
               console.log(results);
               return updateStoredEvents(results, action.payload.user);
@@ -77,11 +87,33 @@ export const storeEventsEpic = (action$) =>
     ofType(BEGIN_STORE_EVENTS),
     mergeMap((action) =>
       from(storeEvents(action.payload)).pipe(
+        mergeMap((allEvents) => mergeRecurringAndNonRecurringEvents(allEvents)),
         map((results) => successStoringEvents(results)),
         catchError((error) => failStoringEvents(error))
       )
     )
   );
+
+const mergeRecurringAndNonRecurringEvents = async (allEvents) => {
+  // debugger;
+  const expandedEvents = await parser.expandRecurEvents(allEvents);
+
+  // const db = await getDb();
+  // expandedEvents.map((e) => {
+  //   if (e.providerType === Providers.CALDAV) {
+  //     db.events
+  //       .findOne()
+  //       .where('iCalUID')
+  //       .eq(e.iCalUID)
+  //       .where('start.dateTime')
+  //       .eq(e.start.dateTime)
+  //       .exec();
+  //   }
+  // })
+
+  // return [...expandedEvents, ...allEvents.filter((e) => !e.isRecurring)];
+  return allEvents;
+};
 
 export const beginStoreEventsEpic = (action$) =>
   action$.pipe(
@@ -93,7 +125,7 @@ export const deleteSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteEvent(action.payload)).pipe(
+      from(deleteSingleEvent(action.payload)).pipe(
         map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
       )
     )
@@ -103,7 +135,7 @@ export const deleteAllRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_RECURRENCE_SERIES_BEGIN),
     mergeMap((action) =>
-      from(deleteReccurenceEvent(action.payload)).pipe(
+      from(deleteAllReccurenceEvent(action.payload)).pipe(
         map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
       )
     )
@@ -126,7 +158,14 @@ const storeEvents = async (payload) => {
   const dbUpsertPromises = [];
   const { data } = payload;
 
+  // debugger;
+
   console.log(data);
+
+  // if (debug) {
+  const alle = await db.events.find().exec();
+  console.log(alle.map((e) => e.toJSON().start));
+  // }
 
   // Create a list of promises to retrieve previous event from db first if it does not exist.
   for (const dbEvent of data) {
@@ -137,31 +176,49 @@ const storeEvents = async (payload) => {
       payload.owner,
       false
     );
+    console.log(filteredEvent);
 
     // As id is the uniqid on our side, we need to find and update or delete accordingly.
     // We use filtered object as it has casted it into our schema object type.
+    // dbFindPromises.push(
+    //   db.events
+    //     .findOne()
+    //     .where('originalId')
+    //     .eq(filteredEvent.originalId)
+    //     .exec()
+    // );
+
+    // Unable to use origianlId as originalId is duplicated for CalDav. Argh.
     dbFindPromises.push(
       db.events
         .findOne()
-        .where('originalId')
-        .eq(filteredEvent.originalId)
+        .where('iCalUID')
+        .eq(filteredEvent.iCalUID)
+        .where('start.dateTime')
+        .eq(filteredEvent.start.dateTime)
         .exec()
     );
   }
 
+  console.log('herE?');
+
   // Wait for all the promises to complete
   const results = await Promise.all(dbFindPromises);
+  console.log(results);
+  // console.log(results.map((e) => e.toJSON()));
 
   // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
   // dbFindPromises must have same length as results, as its just an array of same size.
   // This ensure the index of data is the same with find query index.
   for (let i = 0; i < results.length; i += 1) {
+    // debugger;
     const filteredEvent = Providers.filterIntoSchema(
       data[i],
       payload.providerType,
       payload.owner,
       false
     );
+    console.log(filteredEvent);
 
     // Means it is a new object, we upsert coz filtered event already is new.
     if (results[i] === null) {
@@ -192,8 +249,10 @@ const storeEvents = async (payload) => {
       // eslint-disable-next-line no-await-in-loop
       await db.events
         .findOne()
-        .where('originalId')
-        .eq(filteredEvent.originalId)
+        .where('iCalUID')
+        .eq(filteredEvent.iCalUID)
+        .where('start.dateTime')
+        .eq(filteredEvent.start.dateTime)
         .update({ $set: filteredEvent });
     }
 
@@ -207,9 +266,10 @@ const storeEvents = async (payload) => {
   return addedEvents;
 };
 
-const deleteEvent = async (id) => {
-  const debug = false;
+const deleteSingleEvent = async (id) => {
+  const debug = true;
 
+  // #region Getting information
   // Get database
   const db = await getDb();
   const query = db.events
@@ -223,7 +283,7 @@ const deleteEvent = async (id) => {
     console.error('Omg, actually a collision?');
   }
   const data = datas[0];
-  console.log(data);
+  console.log(datas, data);
 
   // Find the proper user on database
   const users = await db.users
@@ -238,6 +298,8 @@ const deleteEvent = async (id) => {
     console.error('Omg, actually a collision?');
   }
   const user = users[0];
+  console.log(user);
+  // #endregion
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
@@ -292,6 +354,23 @@ const deleteEvent = async (id) => {
           console.log(result2[0].toJSON());
         }
         break;
+      case Providers.CALDAV:
+        const cdAddingIntoRpQuery = db.recurrencepatterns
+          .find()
+          .where('originalId')
+          .eq(data.iCalUID);
+
+        if (debug) {
+          const result = await cdAddingIntoRpQuery.exec();
+          console.log(result[0].toJSON());
+        }
+
+        await cdAddingIntoRpQuery.update({
+          $addToSet: {
+            exDates: data.start.dateTime
+          }
+        });
+        break;
       default:
         console.log(
           'Unhandled provider: ',
@@ -305,18 +384,31 @@ const deleteEvent = async (id) => {
   // Based off which provider, we will have different delete functions.
   switch (data.providerType) {
     case Providers.GOOGLE:
-      await loadClient();
-      const responseFromAPI = await deleteGoogleEvent(data.get('originalId'));
-      await query.remove();
+      try {
+        // // Google is broken, ignore first.
+        // await loadClient();
+        // const responseFromAPI = await deleteGoogleEvent(data.get('originalId'));
+        // await query.remove();
+        console.log('Google, To-Do delete feature');
+      } catch (googleError) {
+        console.log('Handle Google pending action here', googleError);
+      }
       break;
     case Providers.OUTLOOK:
-      console.log('Outlook, To-Do delete feature');
+      try {
+        console.log('Outlook, To-Do delete feature');
+      } catch (outlookError) {
+        console.log('Handle Outlook pending action here', outlookError);
+      }
       break;
     case Providers.EXCHANGE:
+      // Delete doc is meant for both offline and online actions.
       const deleteDoc = db.events
         .find()
         .where('originalId')
         .eq(data.get('originalId'));
+
+      // Try catch for HTTP errors, offline etc.
       try {
         // asyncGetSingleExchangeEvent will throw error when no internet or event missing.
         const singleAppointment = await asyncGetSingleExchangeEvent(
@@ -331,10 +423,10 @@ const deleteEvent = async (id) => {
         });
 
         await deleteDoc.remove();
-      } catch (error) {
+      } catch (exchangeError) {
         // This means item has been deleted on server, maybe by another user
         // Handle this differently.
-        if (error.ErrorCode === 249) {
+        if (exchangeError.ErrorCode === 249) {
           // Just remove it from database instead, and break;
           await deleteDoc.remove();
           break;
@@ -357,6 +449,90 @@ const deleteEvent = async (id) => {
         });
       }
       break;
+    case Providers.CALDAV:
+      // Try catch for HTTP errors, offline etc.
+      try {
+        let result;
+
+        // Needed information for deleting of Caldav information.
+        // etag - Event tag, there is the same for calendar if needed.
+        //   UUID generated by caldav servers
+        // caldavUrl - URL of specific endpoint for deleting single or recurrring events
+        const { etag, caldavUrl } = data;
+
+        // Parse user information from account layer to dav object.
+        const xhrObject = new dav.transport.Basic(
+          new dav.Credentials({
+            username: user.email,
+            password: user.password
+          })
+        );
+        // Ensure etag is set in option for no 412 http error.
+        const option = {
+          xhr: xhrObject,
+          etag
+        };
+
+        // For recurring events, we want to just add it to ex dates instead
+        // Due to caldav nature, deleting an etag instead of updating results in deleting of
+        // entire series.
+        // Updating is done by pushing the entire iCal string to the server
+        if (data.isRecurring) {
+          // Get recurring pattern to build new iCal string for updating
+          const recurrenceObject = db.recurrencepatterns
+            .findOne()
+            .where('originalId')
+            .eq(data.iCalUID);
+          const recurrence = await recurrenceObject.exec();
+
+          // Builds the iCal string
+          const iCalString = IcalStringBuilder.buildICALStringDeleteRecurEvent(
+            recurrence,
+            data.start.dateTime,
+            data
+          );
+          // console.log(iCalString);
+
+          // Due to how there is no master,
+          // We need to ensure all events that are part of the series
+          // have the same iCal string such that we do not have inconsistency.
+          // Run a db query, to update them all to the new iCalString.
+          const allRecurringEvents = db.events
+            .find()
+            .where('originalId')
+            .eq(data.iCalUID);
+          await allRecurringEvents.update({
+            $set: {
+              iCALString: iCalString
+            }
+          });
+
+          // To delete a single recurring pattern, the calendar object is different.
+          // So we add the string into the object we are PUT-ing to the server
+          const calendarData = iCalString;
+          const calendarObject = {
+            url: caldavUrl,
+            calendarData
+          };
+          // Result will throw error, we can do a seperate check here if needed.
+          result = await dav.updateCalendarObject(calendarObject, option);
+        } else {
+          // As we are deleting a single object, non recurring event
+          // It is identified by etag. So for our calendar object,
+          // We just need to know the endpoint.
+          const calendarObject = {
+            url: caldavUrl
+          };
+          // Result will throw error, we can do a seperate check here if needed.
+          result = await dav.deleteCalendarObject(calendarObject, option);
+        }
+        console.log(result);
+
+        const removedEvent = await query.remove();
+      } catch (caldavError) {
+        console.log('Handle Caldav pending action here', caldavError);
+      }
+      break;
     default:
       console.log(`Delete feature for ${data.providerType} not handled`);
       break;
@@ -369,9 +545,10 @@ const deleteEvent = async (id) => {
   };
 };
 
-const deleteReccurenceEvent = async (id) => {
+const deleteAllReccurenceEvent = async (id) => {
   const debug = false;
 
+  // #region Getting information
   // Get database
   const db = await getDb();
   const query = db.events
@@ -400,6 +577,7 @@ const deleteReccurenceEvent = async (id) => {
     console.error('Omg, actually a collision?');
   }
   const user = users[0];
+  // #endregion
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
@@ -444,6 +622,24 @@ const deleteReccurenceEvent = async (id) => {
           console.log(newRp);
         }
         break;
+      case Providers.CALDAV:
+        // Duplicate now, I just wanna get it working
+        if (debug) {
+          const allRP = await db.recurrencepatterns.find().exec();
+          console.log(allRP);
+        }
+
+        const removingRbCd = db.recurrencepatterns
+          .find()
+          .where('iCalUid')
+          .eq(data.iCalUID);
+        await removingRbCd.remove();
+
+        if (debug) {
+          const newRp = await db.recurrencepatterns.find().exec();
+          console.log(newRp);
+        }
+        break;
       default:
         console.log('Unhandled provider: ', data.providerType, ' for deleting recurring pattern');
         break;
@@ -465,8 +661,6 @@ const deleteReccurenceEvent = async (id) => {
         .find()
         .where('recurringEventId')
         .eq(data.get('recurringEventId'));
-
-      console.log(deleteDoc);
 
       try {
         // asyncGetSingleExchangeEvent will throw error when no internet or event missing.
@@ -510,6 +704,47 @@ const deleteReccurenceEvent = async (id) => {
         });
       }
       break;
+    case Providers.CALDAV:
+      const deleteDocs = db.events
+        .find()
+        .where('originalId')
+        .eq(data.iCalUID);
+
+      try {
+        // Needed information for deleting of Caldav information.
+        // etag - Event tag, there is the same for calendar if needed.
+        //   UUID generated by caldav servers
+        // caldavUrl - URL of specific endpoint for deleting single or recurrring events
+        const { etag, caldavUrl } = data;
+
+        // Parse user information from account layer to dav object.
+        const xhrObject = new dav.transport.Basic(
+          new dav.Credentials({
+            username: user.email,
+            password: user.password
+          })
+        );
+        // Ensure etag is set in option for no 412 http error.
+        const option = {
+          xhr: xhrObject,
+          etag
+        };
+
+        // To delete the entire series, find a event with an etag, and run delete on it.
+        // Do not need calendar as etag is the only identifier you need.
+        const calendarObject = {
+          url: caldavUrl
+        };
+        // Result will throw error, we can do a seperate check here if needed.
+        const result = await dav.deleteCalendarObject(calendarObject, option);
+        console.log(result);
+
+        // Remove all the recurring events accordingly.
+        const removedEvent = await deleteDocs.remove();
+      } catch (caldavError) {
+        console.log('Handle Caldav pending action here', caldavError);
+      }
+      break;
     default:
       console.log(`Delete feature for ${data.providerType} not handled`);
       break;
@@ -523,8 +758,9 @@ const deleteReccurenceEvent = async (id) => {
 };
 
 const deleteFutureReccurenceEvent = async (id) => {
-  const debug = false;
+  const debug = true;
 
+  // #region Getting information
   // Get database
   const db = await getDb();
   const query = db.events
@@ -553,6 +789,7 @@ const deleteFutureReccurenceEvent = async (id) => {
     console.error('Omg, actually a collision?');
   }
   const user = users[0];
+  // #endregion
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
@@ -573,7 +810,6 @@ const deleteFutureReccurenceEvent = async (id) => {
 
   // Based off which provider, we will have different delete functions.
   switch (data.providerType) {
-    case Providers.CALDAV:
     case Providers.GOOGLE:
       await loadClient();
       const responseFromAPI = await deleteGoogleEvent(data.get('originalId'));
@@ -599,7 +835,8 @@ const deleteFutureReccurenceEvent = async (id) => {
           data.get('originalId')
         );
 
-        console.log(recurrMasterAppointment, data);
+        console.log(recurrMasterAppointment, data, singleAppointment);
+        debugger;
         if (
           recurrMasterAppointment.Recurrence.StartDate.MomentDate.isSame(
             moment(data.start.dateTime),
@@ -629,7 +866,9 @@ const deleteFutureReccurenceEvent = async (id) => {
             const rpDatabaseVals = await rpDatabase.exec();
             console.log('Before anything ', rpDatabaseVals);
           }
-          recurrMasterAppointment.Recurrence.EndDate = singleAppointment.Start;
+          const newStartTime = singleAppointment.Start.MomentDate.clone();
+          const dt = new DateTime(newStartTime.startOf('day').add(-1, 'day'));
+          recurrMasterAppointment.Recurrence.EndDate = dt;
           await recurrMasterAppointment
             .Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsMode.SendToNone)
             .then(async () => {
@@ -644,10 +883,18 @@ const deleteFutureReccurenceEvent = async (id) => {
                 .where('recurringEventId')
                 .eq(data.get('recurringEventId'))
                 .exec();
-              console.log(removedDeletedEventsLocally, singleAppointment.End.MomentDate);
+
+              console.log(
+                removedDeletedEventsLocally,
+                singleAppointment.Start.MomentDate,
+                singleAppointment.End.MomentDate,
+                singleAppointment
+              );
+
+              const endTime = singleAppointment.Start.MomentDate.clone();
 
               const afterEvents = removedDeletedEventsLocally.filter((event) =>
-                moment(event.toJSON().start.dateTime).isAfter(singleAppointment.End.MomentDate)
+                moment(event.toJSON().start.dateTime).isSameOrAfter(endTime)
               );
 
               await Promise.all(
@@ -709,6 +956,110 @@ const deleteFutureReccurenceEvent = async (id) => {
         }
       } catch (error) {
         console.log(error);
+      }
+      break;
+    case Providers.CALDAV:
+      try {
+        // Needed information for deleting of Caldav information.
+        // etag - Event tag, there is the same for calendar if needed.
+        //   UUID generated by caldav servers
+        // caldavUrl - URL of specific endpoint for deleting single or recurrring events
+        const { etag, caldavUrl } = data;
+
+        // Parse user information from account layer to dav object.
+        const xhrObject = new dav.transport.Basic(
+          new dav.Credentials({
+            username: user.email,
+            password: user.password
+          })
+        );
+        // Ensure etag is set in option for no 412 http error.
+        const option = {
+          xhr: xhrObject,
+          etag
+        };
+
+        // For recurring events, we want to ensure exdates is clean too.
+        // Clean means no duplicate, and has the right values.
+        // This ensures that if we re-expand the series, the exdates are not copied over
+        // It is starting to look like CalDav is just a storage service, as there can be duplicates.
+        // Due to caldav nature, we can just update the end condition accordingly.
+        // As we are deleting this and future events, we just need to update the end condition.
+        // Updating is done by pushing the entire iCal string to the server
+        // Get recurring pattern to build new iCal string for updating
+        const recurrenceObject = db.recurrencepatterns
+          .findOne()
+          .where('originalId')
+          .eq(data.iCalUID);
+        const recurrence = await recurrenceObject.exec();
+        const recurrencePattern = recurrence.toJSON();
+        console.log(data);
+        debugger;
+
+        const ruleSet = buildRuleSet(recurrencePattern, data.originalStartTime.dateTime);
+        const recurDates = ruleSet.all().map((date) => date.toJSON());
+        const recurrAfterDates = recurDates.filter((date) =>
+          moment(date).isSameOrAfter(moment(data.start.dateTime))
+        );
+
+        // To settle the end condition
+        if (recurrencePattern.numberOfRepeats > 0) {
+          recurrencePattern.numberOfRepeats -= recurrAfterDates.length;
+        } else if (recurrencePattern.until !== '') {
+          // Need to test util end date, coz date time is ical type.
+          recurrencePattern.until = data.start.dateTime;
+        } else {
+          // Yet to figure out how to deal with no end date.
+        }
+
+        // Builds the iCal string
+        const iCalString = IcalStringBuilder.buildICALStringDeleteRecurEvent(
+          recurrencePattern,
+          data.start.dateTime,
+          data
+        );
+        console.log(iCalString);
+
+        // Due to how there is no master,
+        // We need to ensure all events that are part of the series
+        // have the same iCal string such that we do not have inconsistency.
+        // Run a db query, to update them all to the new iCalString.
+        const allRecurringEvents = db.events
+          .find()
+          .where('originalId')
+          .eq(data.iCalUID);
+        await allRecurringEvents.update({
+          $set: {
+            iCALString: iCalString
+          }
+        });
+
+        // To delete a single recurring pattern, the calendar object is different.
+        // So we add the string into the object we are PUT-ing to the server
+        const calendarData = iCalString;
+        const calendarObject = {
+          url: caldavUrl,
+          calendarData
+        };
+        // Result will throw error, we can do a seperate check here if needed.
+        const result = await dav.updateCalendarObject(calendarObject, option);
+        console.log(result);
+
+        const deletingEvents = await Promise.all(
+          recurrAfterDates.map((date) =>
+            db.events
+              .findOne()
+              .where('originalId')
+              .eq(data.iCalUID)
+              .where('start.dateTime')
+              .eq(date)
+              .remove()
+          )
+        );
+
+        console.log(deletingEvents);
+      } catch (caldavError) {
+        console.log('Handle Caldav pending action here', caldavError);
       }
       break;
     default:

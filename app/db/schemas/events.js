@@ -167,7 +167,7 @@ export default {
     local: {
       // local for dealing with pending actions
       type: 'boolean',
-      default: true
+      default: false
     },
     hide: {
       type: 'boolean',
@@ -192,7 +192,7 @@ export default {
     etag: {
       type: 'string'
     },
-    ICALString: {
+    iCALString: {
       type: 'string'
     },
     isMaster: {

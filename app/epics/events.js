@@ -1062,13 +1062,14 @@ export const beginGetCaldavEventsEpics = (action$) =>
           console.log(action);
 
           try {
-            const events = await asyncGetAllCalDavEvents(
+            const cdEvents = await asyncGetAllCalDavEvents(
               action.payload.email,
               action.payload.password,
               action.payload.url
             );
-            console.log(events);
-            resolve(events);
+            // debugger;
+            console.log(cdEvents);
+            resolve(cdEvents);
           } catch (e) {
             console.log(e);
             throw e;

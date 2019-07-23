@@ -55,6 +55,9 @@ export default {
     iCalUid: {
       type: 'string'
     },
+    iCALString: {
+      type: 'string'
+    },
 
     byWeekNo: {
       type: 'string',

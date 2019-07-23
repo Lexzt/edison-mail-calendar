@@ -86,6 +86,9 @@ export default class View extends React.Component {
     const allRP = await db.recurrencepatterns.find().exec();
     console.log(allRP.map((rp) => rp.toJSON()));
 
+    const allE = await db.events.find().exec();
+    console.log(allE.map((rp) => rp.toJSON()));
+
     db.users
       .find()
       .exec()
@@ -246,6 +249,7 @@ export default class View extends React.Component {
   };
 
   handleEventClick = (event) => {
+    console.log(event);
     this.setState({
       isShowEvent: true,
       currentEvent: event,
@@ -310,7 +314,6 @@ export default class View extends React.Component {
     // } else {
     //   props.beginDeleteCalendarObject(state.currentEvent.iCalUID);
     // }
-    // // props.beginDeleteCalendarObjec
     this.closeModal();
   };
 
