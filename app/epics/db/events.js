@@ -479,19 +479,20 @@ const deleteSingleEvent = async (id) => {
         // Updating is done by pushing the entire iCal string to the server
         if (data.isRecurring) {
           // Get recurring pattern to build new iCal string for updating
-          const recurrenceObject = db.recurrencepatterns
+          const recurrenceObjectQuery = db.recurrencepatterns
             .findOne()
             .where('originalId')
             .eq(data.iCalUID);
-          const recurrence = await recurrenceObject.exec();
+          const recurrence = await recurrenceObjectQuery.exec();
+          const recurrenceObject = recurrence.toJSON();
 
           // Builds the iCal string
           const iCalString = IcalStringBuilder.buildICALStringDeleteRecurEvent(
-            recurrence,
+            recurrenceObject,
             data.start.dateTime,
             data
           );
-          // console.log(iCalString);
+          console.log(iCalString);
 
           // Due to how there is no master,
           // We need to ensure all events that are part of the series
@@ -519,7 +520,7 @@ const deleteSingleEvent = async (id) => {
         } else {
           // As we are deleting a single object, non recurring event
           // It is identified by etag. So for our calendar object,
-          // We just need to know the endpoint.
+          // We just need to know the endpoint, which is the caldavUrl
           const calendarObject = {
             url: caldavUrl
           };
@@ -528,6 +529,7 @@ const deleteSingleEvent = async (id) => {
         }
         console.log(result);
 
+        // Remove it from the database for updating of UI.
         const removedEvent = await query.remove();
       } catch (caldavError) {
         console.log('Handle Caldav pending action here', caldavError);
@@ -987,14 +989,28 @@ const deleteFutureReccurenceEvent = async (id) => {
         // As we are deleting this and future events, we just need to update the end condition.
         // Updating is done by pushing the entire iCal string to the server
         // Get recurring pattern to build new iCal string for updating
-        const recurrenceObject = db.recurrencepatterns
+        const recurrenceObjectQuery = db.recurrencepatterns
           .findOne()
           .where('originalId')
           .eq(data.iCalUID);
-        const recurrence = await recurrenceObject.exec();
+        const recurrence = await recurrenceObjectQuery.exec();
         const recurrencePattern = recurrence.toJSON();
         console.log(data);
         debugger;
+
+        // Problem here is that updating the rp based on the exDates and recurringIds.
+        // This means we need to remove it from the rp and build the rp based on them.
+        // Note that we cannot edit the RxDoc directly, therefore, we use the JsonObject
+        // We set the exDates according to if it is before the selected start time.
+        // Compared using moment.
+        recurrencePattern.exDates = recurrencePattern.exDates.filter((date) =>
+          moment(date).isBefore(moment(data.start.dateTime))
+        );
+
+        // Do the same for edited ids.
+        recurrencePattern.recurrenceIds = recurrencePattern.recurrenceIds.filter((date) =>
+          moment(date).isBefore(moment(data.start.dateTime))
+        );
 
         const ruleSet = buildRuleSet(recurrencePattern, data.originalStartTime.dateTime);
         const recurDates = ruleSet.all().map((date) => date.toJSON());
@@ -1034,6 +1050,10 @@ const deleteFutureReccurenceEvent = async (id) => {
           }
         });
 
+        await recurrenceObjectQuery.update({
+          $set: recurrencePattern
+        });
+
         // To delete a single recurring pattern, the calendar object is different.
         // So we add the string into the object we are PUT-ing to the server
         const calendarData = iCalString;
@@ -1046,15 +1066,16 @@ const deleteFutureReccurenceEvent = async (id) => {
         console.log(result);
 
         const deletingEvents = await Promise.all(
-          recurrAfterDates.map((date) =>
-            db.events
+          recurrAfterDates.map((date) => {
+            console.log(data.iCalUID, date);
+            return db.events
               .findOne()
               .where('originalId')
               .eq(data.iCalUID)
               .where('start.dateTime')
               .eq(date)
-              .remove()
-          )
+              .remove();
+          })
         );
 
         console.log(deletingEvents);

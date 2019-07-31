@@ -117,22 +117,27 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
   const vcalendar = new ICAL.Component(calendarData);
 
   const vevent = vcalendar.getFirstSubcomponent('vevent');
-  const datetime = new ICAL.Time().fromJSDate(new Date(exDate));
-  const timezone = new ICAL.Time().fromData(
-    {
-      year: datetime.year,
-      month: datetime.month,
-      day: datetime.day,
-      hour: datetime.hour,
-      minute: datetime.minute,
-      second: datetime.second
-    },
-    new ICAL.Timezone({ tzid: 'America/Los_Angeles' })
-  );
-  vevent.addPropertyWithValue('exdate', timezone);
+  vevent.removeAllProperties('exdate');
+
+  recurrencePattern.exDates.forEach((date) => {
+    const datetime = new ICAL.Time().fromJSDate(new Date(date));
+    const timezone = new ICAL.Time().fromData(
+      {
+        year: datetime.year,
+        month: datetime.month,
+        day: datetime.day,
+        hour: datetime.hour,
+        minute: datetime.minute,
+        second: datetime.second
+      },
+      new ICAL.Timezone({ tzid: 'America/Los_Angeles' })
+    );
+    vevent.addPropertyWithValue('exdate', timezone);
+  });
   vevent.getAllProperties('exdate').forEach((e) => e.setParameter('tzid', 'America/Los_Angeles'));
 
   const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
+  recurrencePattern.iCALString = rrule.toString();
   vevent.updatePropertyWithValue('rrule', rrule);
   debugger;
   return vcalendar.toString();
