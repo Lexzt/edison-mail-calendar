@@ -5,7 +5,7 @@ import { RRule, RRuleSet, rrulestr } from 'rrule';
 
 const uuidv1 = require('uuid/v1');
 
-// TO DELETE
+// #region TO DELETE
 export const buildICALStringUpdateOnly = (updatedEvent, calendarObject) => {
   const calendarData = ICAL.parse(calendarObject.ICALString);
   const calendarComp = new ICAL.Component(calendarData);
@@ -54,6 +54,7 @@ export const buildICALStringUpdateAll = (eventObject) => {
   vevent.getFirstProperty('dtend').setParameter('tzid', 'US/Pacific');
   return calendarComp.toString();
 };
+// #endregion
 
 const buildRruleObject = (recurrencePattern) => {
   debugger;
@@ -301,6 +302,74 @@ export const buildICALStringUpdateSingleEvent = (updatedEvent, calendarObject) =
   calendarComp.addSubcomponent(timezoneMetadata);
   // debugger;
   return calendarComp.toString();
+};
+
+export const buildICALStringUpdateAllRecurEvent = (
+  recurrencePattern,
+  eventObject,
+  updatedObject
+) => {
+  debugger;
+  const calendarData = ICAL.parse(eventObject.iCALString);
+  const vcalendar = new ICAL.Component(calendarData);
+
+  const timezoneMetadata = vcalendar.getFirstSubcomponent('vtimezone');
+  vcalendar.removeSubcomponent('vtimezone');
+  const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
+  debugger;
+  const jcalData = ICAL.parse(iCalendarData);
+  const vevent = new ICAL.Component(jcalData);
+
+  const recurringMaster = vcalendar
+    .getAllSubcomponents('vevent')
+    .filter((e) => e.getFirstPropertyValue('recurrence-id') === null)[0];
+
+  const startDateTime = ICAL.Time.fromJSDate(new Date(eventObject.start.dateTime), false);
+
+  vevent.updatePropertyWithValue('sequence', 0);
+
+  vevent.updatePropertyWithValue('uid', eventObject.iCalUID);
+
+  vevent.updatePropertyWithValue('dtstart', recurringMaster.getFirstPropertyValue('dtstart'));
+  vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+
+  vevent.updatePropertyWithValue('duration', 'PT1H');
+
+  vevent.updatePropertyWithValue('created', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('priority', 0);
+
+  vevent.updatePropertyWithValue('summary', updatedObject.title);
+
+  const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
+  recurrencePattern.iCALString = rrule.toString();
+  vevent.updatePropertyWithValue('rrule', rrule);
+
+  vevent.updatePropertyWithValue('status', 'CONFIRMED');
+
+  vevent.updatePropertyWithValue('transp', 'OPAQUE');
+
+  vevent.updatePropertyWithValue('class', 'PUBLIC');
+  // TO-DO, ADD MORE FIELDS AND TEST IF IT WORKS.
+
+  // vevent.updatePropertyWithValue('location', eventObject.location);
+  // vevent.updatePropertyWithValue('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('x-apple-travel-advisory-behavior', 'AUTOMATIC');
+
+  // vevent.updatePropertyWithValue('dtend', eventObject.end.dateTime);
+  // vevent.getFirstProperty('dtend').setParameter('tzid', 'US/Pacific');
+
+  // Remove the previous master, by finding the object in the ical string that does not have
+  // the recurring id, therefore, it is the master.
+
+  vcalendar.removeSubcomponent(recurringMaster);
+
+  vcalendar.addSubcomponent(vevent);
+  vcalendar.addSubcomponent(timezoneMetadata);
+  debugger;
+  return vcalendar.toString();
 };
 
 export const fromICALString = (string, value) => {};

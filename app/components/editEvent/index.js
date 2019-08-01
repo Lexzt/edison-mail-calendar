@@ -289,7 +289,7 @@ export default class EditEvent extends React.Component {
               byWeekDay: state.recurrByWeekDay,
               byWeekNo: state.recurrByWeekNo
             };
-            props.editEwsAllEventBegin(calDavEventObject);
+            props.editCalDavAllEventBegin(calDavEventObject);
             break;
           default:
             console.log(`Have not handled ${state.providerType} updating of all recurring events.`);
@@ -299,7 +299,7 @@ export default class EditEvent extends React.Component {
       case 'updateFuture':
         switch (state.providerType) {
           case EXCHANGE:
-            const eventObject = {
+            const ewsEventObject = {
               id: state.id,
               title: state.title,
               user,
@@ -320,7 +320,31 @@ export default class EditEvent extends React.Component {
               byWeekDay: state.recurrByWeekDay,
               byWeekNo: state.recurrByWeekNo
             };
-            props.editEwsFutureEventBegin(eventObject);
+            props.editEwsFutureEventBegin(ewsEventObject);
+            break;
+          case CALDAV:
+            const calDavEventObject = {
+              id: state.id,
+              title: state.title,
+              user,
+              location: state.place,
+              originalId: state.originalId,
+              recurringEventId: state.recurringEventId,
+              props,
+              firstOption: state.firstSelectedOption,
+              secondOption: state.selectedSecondRecurrOption,
+              recurrInterval: state.recurrInterval,
+              recurrPatternId: state.recurrPatternId,
+              untilType: state.thirdRecurrOptions,
+              untilDate: state.recurrEndDate,
+              untilAfter: state.thirdOptionAfter,
+              iCalUID: state.iCalUID,
+              byMonth: state.recurrByMonth,
+              byMonthDay: state.recurrByMonthDay,
+              byWeekDay: state.recurrByWeekDay,
+              byWeekNo: state.recurrByWeekNo
+            };
+            props.editCalDavFutureEventBegin(calDavEventObject);
             break;
           default:
             break;
