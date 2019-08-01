@@ -107,19 +107,20 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
       i += 1;
     });
 
-    // console.log(prevRPs);
     const results = await Promise.all(promises);
-    console.log(results, events, flatFilteredEvents);
-    const test = flatFilteredEvents.map((calEvent) => calEvent.eventData);
     const expanded = await PARSER.expandRecurEvents(
       flatFilteredEvents.map((calEvent) => calEvent.eventData)
     );
-    console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
-    debugger;
-    // return flatFilteredEvents.map((calEvent) => calEvent.eventData);
-    const testing2 = [...expanded, ...test.filter((obj) => !obj.isRecurring)];
-    console.log(testing2);
-    return testing2;
+    // console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
+    const finalResult = [
+      ...expanded,
+      ...flatFilteredEvents
+        .filter((e) => e.recurData === undefined || e.recurData === null)
+        .map((e) => e.eventData)
+    ];
+    finalResult.forEach((e) => (e.owner = username));
+    console.log(finalResult);
+    return finalResult;
   } catch (e) {
     throw e;
   }

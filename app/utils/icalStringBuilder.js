@@ -5,12 +5,14 @@ import { RRule, RRuleSet, rrulestr } from 'rrule';
 
 const uuidv1 = require('uuid/v1');
 
+// TO DELETE
 export const buildICALStringUpdateOnly = (updatedEvent, calendarObject) => {
   const calendarData = ICAL.parse(calendarObject.ICALString);
   const calendarComp = new ICAL.Component(calendarData);
   const timezoneMetadata = calendarComp.getFirstSubcomponent('vtimezone');
   calendarComp.removeSubcomponent('vtimezone');
   const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
+  debugger;
   const jcalData = ICAL.parse(iCalendarData);
   const vevent = new ICAL.Component(jcalData);
   vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
@@ -145,6 +147,160 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
   // const vevent = new ICAL.Component(calendarData);
   // vevent.addPropertyWithValue('exdate', exDate);
   // return vevent.toString();
+};
+
+export const buildICALStringUpdateRecurEvent = (recurrencePattern, eventObject, updatedObject) => {
+  debugger;
+  const calendarData = ICAL.parse(eventObject.iCALString);
+  const vcalendar = new ICAL.Component(calendarData);
+
+  const timezoneMetadata = vcalendar.getFirstSubcomponent('vtimezone');
+  vcalendar.removeSubcomponent('vtimezone');
+  const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
+  debugger;
+  const jcalData = ICAL.parse(iCalendarData);
+  const vevent = new ICAL.Component(jcalData);
+  // vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+  // vevent.updatePropertyWithValue('summary', eventObject.summary);
+  // vevent.updatePropertyWithValue('location', eventObject.location);
+  // vevent.updatePropertyWithValue('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('sequence', 0);
+  // vevent.updatePropertyWithValue('recurrence-id', eventObject.start.dateTime);
+  // vevent.getFirstProperty('recurrence-id').setParameter('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('uid', eventObject.iCalUID);
+  // vevent.updatePropertyWithValue('created', ICAL.Time.now());
+  // vevent.updatePropertyWithValue('dtstart', eventObject.start.dateTime);
+  // vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('duration', 'PT1H');
+  // vevent.updatePropertyWithValue('priority', 0);
+  // vevent.updatePropertyWithValue('status', 'CONFIRMED');
+  // vevent.updatePropertyWithValue('transp', 'OPAQUE');
+  // vevent.updatePropertyWithValue('class', 'PUBLIC');
+  // vevent.updatePropertyWithValue('x-apple-travel-advisory-behavior', 'AUTOMATIC');
+
+  const startDateTime = ICAL.Time.fromJSDate(new Date(eventObject.start.dateTime), false);
+  vevent.updatePropertyWithValue('recurrence-id', startDateTime);
+  vevent.getFirstProperty('recurrence-id').setParameter('tzid', 'US/Pacific');
+
+  vevent.updatePropertyWithValue('uid', eventObject.iCalUID);
+
+  vevent.updatePropertyWithValue('dtstart', startDateTime);
+  vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+
+  vevent.updatePropertyWithValue('duration', 'PT1H');
+
+  vevent.updatePropertyWithValue('sequence', 0);
+
+  vevent.updatePropertyWithValue('created', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('priority', 0);
+
+  vevent.updatePropertyWithValue('summary', updatedObject.title);
+
+  vevent.updatePropertyWithValue('status', 'CONFIRMED');
+
+  vevent.updatePropertyWithValue('transp', 'OPAQUE');
+
+  vevent.updatePropertyWithValue('class', 'PUBLIC');
+  // TO-DO, ADD MORE FIELDS AND TEST IF IT WORKS.
+
+  // vevent.updatePropertyWithValue('location', eventObject.location);
+  // vevent.updatePropertyWithValue('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('x-apple-travel-advisory-behavior', 'AUTOMATIC');
+
+  // vevent.updatePropertyWithValue('dtend', eventObject.end.dateTime);
+  // vevent.getFirstProperty('dtend').setParameter('tzid', 'US/Pacific');
+
+  const filteredResult = vcalendar
+    .getAllSubcomponents('vevent')
+    .filter((e) => e.getFirstPropertyValue('recurrence-id') !== null)
+    .map((e) => {
+      console.log(
+        moment(e.getFirstPropertyValue('recurrence-id').toJSDate()),
+        moment(eventObject.start.dateTime),
+        moment(e.getFirstPropertyValue('recurrence-id').toJSDate()).isSame(
+          moment(eventObject.start.dateTime)
+        )
+      );
+      return {
+        e,
+        result: moment(e.getFirstPropertyValue('recurrence-id').toJSDate()).isSame(
+          moment(eventObject.start.dateTime)
+        )
+      };
+    });
+  const hasDuplicate = filteredResult.filter((anyTrue) => anyTrue.result === true).length > 0;
+
+  if (hasDuplicate) {
+    const removingVEvents = filteredResult.filter((anyTrue) => anyTrue.result === true);
+    // console.log('has duplicate?', removingVEvents);
+    removingVEvents.forEach((obj) => vcalendar.removeSubcomponent(obj.e));
+  }
+  vcalendar.addSubcomponent(vevent);
+  vcalendar.addSubcomponent(timezoneMetadata);
+  debugger;
+  return vcalendar.toString();
+};
+
+export const buildICALStringUpdateSingleEvent = (updatedEvent, calendarObject) => {
+  debugger;
+  const calendarData = ICAL.parse(calendarObject.iCALString);
+  const calendarComp = new ICAL.Component(calendarData);
+  const timezoneMetadata = calendarComp.getFirstSubcomponent('vtimezone');
+
+  calendarComp.removeSubcomponent('vtimezone');
+  calendarComp.removeSubcomponent('vevent');
+
+  const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
+  debugger;
+  const jcalData = ICAL.parse(iCalendarData);
+
+  const vevent = new ICAL.Component(jcalData);
+  const startDateTime = ICAL.Time.fromJSDate(new Date(calendarObject.start.dateTime), false);
+
+  vevent.updatePropertyWithValue('sequence', 0);
+
+  vevent.updatePropertyWithValue('uid', calendarObject.iCalUID);
+
+  vevent.updatePropertyWithValue('dtstart', startDateTime);
+  vevent.getFirstProperty('dtstart').setParameter('tzid', 'America/Los_Angeles');
+
+  vevent.updatePropertyWithValue('duration', 'PT1H');
+
+  vevent.updatePropertyWithValue('created', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('priority', 0);
+  // TO-DO, ADD MORE FIELDS HERE
+  vevent.updatePropertyWithValue('summary', updatedEvent.title);
+
+  vevent.updatePropertyWithValue('status', 'CONFIRMED');
+
+  vevent.updatePropertyWithValue('transp', 'OPAQUE');
+
+  // vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+  // vevent.updatePropertyWithValue('summary', updatedEvent.summary);
+  // vevent.updatePropertyWithValue('location', updatedEvent.location);
+  // vevent.updatePropertyWithValue('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('sequence', 0);
+  // vevent.updatePropertyWithValue('recurrence-id', updatedEvent.start);
+  // vevent.getFirstProperty('recurrence-id').setParameter('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('uid', calendarObject.iCalUID);
+  // vevent.updatePropertyWithValue('created', ICAL.Time.now());
+  // vevent.updatePropertyWithValue('dtstart', updatedEvent.start);
+  // vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('dtend', updatedEvent.end);
+  // vevent.getFirstProperty('dtend').setParameter('tzid', 'US/Pacific');
+
+  // vevent.updatePropertyWithValue('x-apple-travel-advisory-behavior', 'AUTOMATIC');
+  // vevent.updatePropertyWithValue('transp', 'OPAQUE');
+  calendarComp.addSubcomponent(vevent);
+  calendarComp.addSubcomponent(timezoneMetadata);
+  // debugger;
+  return calendarComp.toString();
 };
 
 export const fromICALString = (string, value) => {};

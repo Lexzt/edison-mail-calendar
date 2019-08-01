@@ -12,9 +12,7 @@ const parseRecurrenceEvents = (calEvents) => {
   console.log(calEvents);
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
-    if (isRecurring) {
-      console.log(calEvent);
-      // debugger;
+    if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
       recurringEvents.push({
         id: uuidv4(),
         originalId: calEvent.eventData.originalId,
@@ -117,6 +115,7 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
   if (icalMasterEvent.isRecurring()) {
     const recurrenceIds = getRecurrenceIds(modifiedEvents);
     const exDates = getExDates(masterEvent);
+    debugger;
 
     // I need to figure out how to parse the data into db here.
     const rrule = getRuleJSON(masterEvent, icalMasterEvent);
@@ -226,12 +225,12 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
     attendee: getAttendees(modifiedEvent),
     // calendarId,
     providerType: 'CALDAV',
-    isRecurring: false,
+    isRecurring: true,
     // isModifiedThenDeleted: mtd,
     etag,
     caldavUrl: url,
     calendarId,
-    iCALString: modifiedEvent.toString()
+    iCALString: comp.toString()
   };
 };
 

@@ -179,41 +179,44 @@ export default class EditEvent extends React.Component {
       props.history.push('/');
     }
 
+    const user = props.providers[state.providerType].filter(
+      (object) => object.email === state.owner
+    )[0]; // this validates which user the event belongs to, by email.
+
+    debugger;
     switch (e.target.name) {
       case 'updateOne':
         switch (state.providerType) {
           case GOOGLE:
-            await loadClient();
-            // Error Handling
-            const startDateTime = momentAdd(state.startDay, state.startTime);
-            const endDateTime = momentAdd(state.endDay, state.endTime);
-            const attendeeForAPI = state.attendees.map((attendee) => ({
-              email: attendee.value
-            }));
-            const eventPatch = {
-              summary: state.title,
-              start: {
-                dateTime: startDateTime
-              },
-              end: {
-                dateTime: endDateTime
-              },
-              location: state.place.name,
-              attendees: attendeeForAPI
-            };
-            if (state.conference.label === 'Hangouts') {
-              eventPatch.conferenceData = {
-                createRequest: { requestId: '7qxalsvy0e' }
-              };
-            }
-            const editResp = await editGoogleEvent(state.id, eventPatch);
-            return editResp;
+            // // READ THIS, GOOGLE DOES NOT WORK.
+            // await loadClient();
+            // // Error Handling
+            // const startDateTime = momentAdd(state.startDay, state.startTime);
+            // const endDateTime = momentAdd(state.endDay, state.endTime);
+            // const attendeeForAPI = state.attendees.map((attendee) => ({
+            //   email: attendee.value
+            // }));
+            // const eventPatch = {
+            //   summary: state.title,
+            //   start: {
+            //     dateTime: startDateTime
+            //   },
+            //   end: {
+            //     dateTime: endDateTime
+            //   },
+            //   location: state.place.name,
+            //   attendees: attendeeForAPI
+            // };
+            // if (state.conference.label === 'Hangouts') {
+            //   eventPatch.conferenceData = {
+            //     createRequest: { requestId: '7qxalsvy0e' }
+            //   };
+            // }
+            // const editResp = await editGoogleEvent(state.id, eventPatch);
+            // return editResp;
+            break;
           case EXCHANGE:
-            const user = props.providers.EXCHANGE.filter(
-              (object) => object.email === state.owner
-            )[0]; // this validates which user the event belongs to, by email.
-
-            const eventObject = {
+            const ewsEventObject = {
               id: state.id,
               title: state.title,
               user,
@@ -221,7 +224,18 @@ export default class EditEvent extends React.Component {
               originalId: state.originalId,
               props
             };
-            props.editEwsSingleEventBegin(eventObject);
+            props.editEwsSingleEventBegin(ewsEventObject);
+            break;
+          case CALDAV:
+            const calDavEventObject = {
+              id: state.id,
+              title: state.title,
+              user,
+              location: state.place,
+              originalId: state.originalId,
+              props
+            };
+            props.editCalDavSingleEventBegin(calDavEventObject);
             break;
           default:
             break;
@@ -230,11 +244,7 @@ export default class EditEvent extends React.Component {
       case 'updateAll':
         switch (state.providerType) {
           case EXCHANGE:
-            const user = props.providers.EXCHANGE.filter(
-              (object) => object.email === state.owner
-            )[0]; // this validates which user the event belongs to, by email.
-
-            const eventObject = {
+            const ewsEventObject = {
               id: state.id,
               title: state.title,
               user,
@@ -255,7 +265,31 @@ export default class EditEvent extends React.Component {
               byWeekDay: state.recurrByWeekDay,
               byWeekNo: state.recurrByWeekNo
             };
-            props.editEwsAllEventBegin(eventObject);
+            props.editEwsAllEventBegin(ewsEventObject);
+            break;
+          case CALDAV:
+            const calDavEventObject = {
+              id: state.id,
+              title: state.title,
+              user,
+              location: state.place,
+              originalId: state.originalId,
+              recurringEventId: state.recurringEventId,
+              props,
+              firstOption: state.firstSelectedOption,
+              secondOption: state.selectedSecondRecurrOption,
+              recurrInterval: state.recurrInterval,
+              recurrPatternId: state.recurrPatternId,
+              untilType: state.thirdRecurrOptions,
+              untilDate: state.recurrEndDate,
+              untilAfter: state.thirdOptionAfter,
+              iCalUID: state.iCalUID,
+              byMonth: state.recurrByMonth,
+              byMonthDay: state.recurrByMonthDay,
+              byWeekDay: state.recurrByWeekDay,
+              byWeekNo: state.recurrByWeekNo
+            };
+            props.editEwsAllEventBegin(calDavEventObject);
             break;
           default:
             console.log(`Have not handled ${state.providerType} updating of all recurring events.`);
@@ -265,10 +299,6 @@ export default class EditEvent extends React.Component {
       case 'updateFuture':
         switch (state.providerType) {
           case EXCHANGE:
-            const user = props.providers.EXCHANGE.filter(
-              (object) => object.email === state.owner
-            )[0];
-
             const eventObject = {
               id: state.id,
               title: state.title,

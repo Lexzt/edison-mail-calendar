@@ -5,7 +5,10 @@ import {
   editEventBegin,
   editEwsSingleEventBegin,
   editEwsFutureEventBegin,
-  editEwsAllEventBegin
+  editEwsAllEventBegin,
+  editCalDavSingleEventBegin,
+  editCalDavAllEventBegin,
+  editCalDavFutureEventBegin
 } from '../actions/events';
 import { beginUpdateCalendarObject } from '../actions/caldav';
 import EditEvent from '../components/editEvent';
@@ -37,9 +40,14 @@ const mapDispatchToProps = (dispatch) => ({
   beginUpdateCalendarObject: (event, options) =>
     dispatch(beginUpdateCalendarObject(event, options)),
 
+  // Merge them up in the future.
   editEwsSingleEventBegin: (event) => dispatch(editEwsSingleEventBegin(event)),
   editEwsAllEventBegin: (event) => dispatch(editEwsAllEventBegin(event)),
-  editEwsFutureEventBegin: (event) => dispatch(editEwsFutureEventBegin(event))
+  editEwsFutureEventBegin: (event) => dispatch(editEwsFutureEventBegin(event)),
+
+  editCalDavSingleEventBegin: (event) => dispatch(editCalDavSingleEventBegin(event)),
+  editCalDavAllEventBegin: (event) => dispatch(editCalDavAllEventBegin(event)),
+  editCalDavFutureEventBegin: (event) => dispatch(editCalDavFutureEventBegin(event))
 });
 
 export default connect(
