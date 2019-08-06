@@ -9,12 +9,14 @@ const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
 const parseRecurrenceEvents = (calEvents) => {
   const recurringEvents = [];
-  console.log(calEvents);
+  // console.log(calEvents);
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
+      debugger;
       recurringEvents.push({
         id: uuidv4(),
+        recurringTypeId: calEvent.eventData.start.dateTime,
         originalId: calEvent.eventData.originalId,
         freq: calEvent.recurData.rrule.freq,
         interval: calEvent.recurData.rrule.interval,
@@ -23,7 +25,7 @@ const parseRecurrenceEvents = (calEvents) => {
         recurrenceIds: calEvent.recurData.recurrenceIds,
         modifiedThenDeleted: calEvent.recurData.modifiedThenDeleted,
         numberOfRepeats: calEvent.recurData.rrule.count,
-        iCalUid: calEvent.eventData.iCalUID,
+        iCalUID: calEvent.eventData.iCalUID,
         iCALString: calEvent.recurData.iCALString,
         wkSt: calEvent.recurData.rrule.wkst,
         bySetPos: calEvent.recurData.rrule.bysetpos,
@@ -105,6 +107,7 @@ const parseCalendarObject = (calendarObject, calendarId) => {
 };
 
 const parseCalendarData = (calendarData, etag, url, calendarId) => {
+  // debugger;
   const results = [];
   const jCalData = ICAL.parse(calendarData);
   const comp = new ICAL.Component(jCalData);
@@ -115,7 +118,7 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
   if (icalMasterEvent.isRecurring()) {
     const recurrenceIds = getRecurrenceIds(modifiedEvents);
     const exDates = getExDates(masterEvent);
-    debugger;
+    // debugger;
 
     // I need to figure out how to parse the data into db here.
     const rrule = getRuleJSON(masterEvent, icalMasterEvent);
@@ -172,10 +175,7 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
   } else if (modifiedEvent.hasProperty('duration')) {
     if (modifiedEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
       dtend = modifiedEvent.getFirstPropertyValue('dtstart').clone();
-
-      console.log(dtend);
       dtend.addDuration(modifiedEvent.getFirstPropertyValue('duration'));
-      console.log(dtend);
     }
   } else {
     // According to documentation, it ask me to add one day if both duration and dtend does not exist.
@@ -188,7 +188,6 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
         })
       );
   }
-  console.log(dtend);
   dtend = dtend.toJSDate().toISOString();
 
   return {
@@ -254,10 +253,7 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
   } else if (masterEvent.hasProperty('duration')) {
     if (masterEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
       dtend = masterEvent.getFirstPropertyValue('dtstart').clone();
-
-      console.log(dtend);
       dtend.addDuration(masterEvent.getFirstPropertyValue('duration'));
-      console.log(dtend);
     }
   } else {
     // According to documentation, it ask me to add one day if both duration and dtend does not exist.
@@ -270,7 +266,6 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
         })
       );
   }
-  console.log(dtend);
   // const dtend =
   //   masterEvent.getFirstPropertyValue('dtend') == null
   //     ? masterEvent
@@ -407,7 +402,7 @@ const expandRecurEvents = async (results) => {
 
 const expandSeries = async (recurringEvents, db) => {
   // const allEvents = await db.events.find().exec();
-  // console.log(allEvents);
+  // console.log(recurringEvents);
 
   const resolved = await Promise.all(
     recurringEvents.map(async (recurMasterEvent) => {
@@ -419,7 +414,7 @@ const expandSeries = async (recurringEvents, db) => {
       return parseRecurrence(recurPatternRecurId[0].toJSON(), recurMasterEvent);
     })
   );
-  console.log(resolved);
+  // console.log(resolved);
   const expandedSeries = resolved.reduce((acc, val) => acc.concat(val), []);
   // // debugger;
   // console.log(expandedSeries);
@@ -669,6 +664,7 @@ const getModifiedThenDeletedDates = (exDates, recurDates) => {
 export default {
   parseCal,
   parseCalEvents,
+  parseCalendarData,
   parseEventPersons,
   parseRecurrenceEvents,
   expandRecurEvents,

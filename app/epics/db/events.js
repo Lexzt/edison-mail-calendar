@@ -330,7 +330,7 @@ const deleteSingleEvent = async (id) => {
       case Providers.EXCHANGE:
         const addingIntoRpQuery = db.recurrencepatterns
           .find()
-          .where('iCalUid')
+          .where('iCalUID')
           .eq(data.iCalUID);
 
         if (debug) {
@@ -347,7 +347,7 @@ const deleteSingleEvent = async (id) => {
         if (debug) {
           const addingIntoRpQuery2 = db.recurrencepatterns
             .find()
-            .where('iCalUid')
+            .where('iCalUID')
             .eq(data.iCalUID);
 
           const result2 = await addingIntoRpQuery2.exec();
@@ -615,7 +615,7 @@ const deleteAllReccurenceEvent = async (id) => {
 
         const removingRb = db.recurrencepatterns
           .find()
-          .where('iCalUid')
+          .where('iCalUID')
           .eq(data.iCalUID);
         await removingRb.remove();
 
@@ -633,7 +633,7 @@ const deleteAllReccurenceEvent = async (id) => {
 
         const removingRbCd = db.recurrencepatterns
           .find()
-          .where('iCalUid')
+          .where('iCalUID')
           .eq(data.iCalUID);
         await removingRbCd.remove();
 
@@ -752,6 +752,14 @@ const deleteAllReccurenceEvent = async (id) => {
       break;
   }
 
+  // const rpRemoveQuery = db.recurrencepatterns
+  //   .find()
+  //   .where('originalId')
+  //   .eq(data.iCalUID);
+
+  // // Remove all the recurring events accordingly.
+  // const removedEvent = await rpRemoveQuery.remove();
+
   // Return which user has been edited.
   return {
     providerType: data.providerType,
@@ -853,7 +861,7 @@ const deleteFutureReccurenceEvent = async (id) => {
 
           const removingRb = db.recurrencepatterns
             .find()
-            .where('iCalUid')
+            .where('iCalUID')
             .eq(data.iCalUID);
           await removingRb.remove();
         } else {
@@ -862,7 +870,7 @@ const deleteFutureReccurenceEvent = async (id) => {
 
             const rpDatabase = db.recurrencepatterns
               .find()
-              .where('iCalUid')
+              .where('iCalUID')
               .eq(data.iCalUID);
 
             const rpDatabaseVals = await rpDatabase.exec();
@@ -911,7 +919,7 @@ const deleteFutureReccurenceEvent = async (id) => {
 
               const updatingDb = db.recurrencepatterns
                 .find()
-                .where('iCalUid')
+                .where('iCalUID')
                 .eq(data.iCalUID);
 
               const updateDbVals = await updatingDb.exec();
@@ -948,7 +956,7 @@ const deleteFutureReccurenceEvent = async (id) => {
               if (debug) {
                 const newUpdatingDb = db.recurrencepatterns
                   .find()
-                  .where('iCalUid')
+                  .where('iCalUID')
                   .eq(data.iCalUID);
 
                 const newData = await newUpdatingDb.exec();

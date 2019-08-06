@@ -335,7 +335,7 @@ const asyncGetExchangeBodyEvents = async (exch, arrayOfNonRecurrIds, exchangeEve
 export const parseEwsRecurringPatterns = (
   id,
   ews,
-  iCalUid,
+  iCalUID,
   deletedOccurrences,
   editedOccurrences
 ) => ({
@@ -345,7 +345,7 @@ export const parseEwsRecurringPatterns = (
   interval: ews.Interval === undefined || ews.Interval === null ? 0 : parseInt(ews.Interval, 10),
   recurringTypeId: ews.StartDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
   until: ews.EndDate === null ? '' : ews.EndDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
-  iCalUid,
+  iCalUID,
   // TO-DO, actually populate this properly.
   exDates:
     deletedOccurrences === null
@@ -557,7 +557,7 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
         exchangeEvents.forEach((event, eventId) => {
           const prevDbObj = existInDb
             .filter((dbRecurrencePattern) => dbRecurrencePattern !== null)
-            .filter((dbRecurrencePattern) => dbRecurrencePattern.iCalUid === eventId);
+            .filter((dbRecurrencePattern) => dbRecurrencePattern.iCalUID === eventId);
 
           // console.log(prevDbObj, event, eventId, existInDb);
           if (prevDbObj.length > 0) {
@@ -587,7 +587,7 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
                   modifiedThenDeleted: recurrencePattern.modifiedThenDeleted,
                   weeklyPattern: recurrencePattern.weeklyPattern,
                   numberOfRepeats: recurrencePattern.numberOfRepeats,
-                  iCalUid: recurrencePattern.iCalUid,
+                  iCalUID: recurrencePattern.iCalUID,
                   byWeekNo: recurrencePattern.byWeekNo,
                   byWeekDay: recurrencePattern.byWeekDay,
                   byMonth: recurrencePattern.byMonth,

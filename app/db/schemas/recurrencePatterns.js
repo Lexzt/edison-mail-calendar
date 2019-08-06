@@ -52,7 +52,7 @@ export default {
       type: 'boolean'
     },
 
-    iCalUid: {
+    iCalUID: {
       type: 'string'
     },
     iCALString: {

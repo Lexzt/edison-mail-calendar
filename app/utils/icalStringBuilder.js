@@ -56,7 +56,7 @@ export const buildICALStringUpdateAll = (eventObject) => {
 };
 // #endregion
 
-const buildRruleObject = (recurrencePattern) => {
+export const buildRruleObject = (recurrencePattern) => {
   debugger;
   console.log(recurrencePattern);
   let returnObj;
@@ -367,6 +367,231 @@ export const buildICALStringUpdateAllRecurEvent = (
   vcalendar.removeSubcomponent(recurringMaster);
 
   vcalendar.addSubcomponent(vevent);
+  vcalendar.addSubcomponent(timezoneMetadata);
+  debugger;
+  return vcalendar.toString();
+};
+
+export const buildICALStringUpdateFutureRecurMasterEvent = (
+  recurrencePattern,
+  eventObject,
+  updatedObject
+) => {
+  debugger;
+  const calendarData = ICAL.parse(eventObject.iCALString);
+  const vcalendar = new ICAL.Component(calendarData);
+
+  const timezoneMetadata = vcalendar.getFirstSubcomponent('vtimezone');
+  vcalendar.removeSubcomponent('vtimezone');
+
+  // #region Updating Old Object, with all the previous values & new recurrence
+  const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
+  debugger;
+  const jcalData = ICAL.parse(iCalendarData);
+  const vevent = new ICAL.Component(jcalData);
+
+  const allVEvents = vcalendar.getAllSubcomponents('vevent');
+
+  const recurringMaster = allVEvents.filter(
+    (e) => e.getFirstPropertyValue('recurrence-id') === null
+  )[0];
+
+  const nonRecurringEvents = allVEvents.filter(
+    (e) => e.getFirstPropertyValue('recurrence-id') !== null
+  );
+
+  const recurringChildren = [];
+
+  const result = nonRecurringEvents.map((e2) => {
+    const nonMasterVEventTime = moment(e2.getFirstPropertyValue('recurrence-id').toJSDate());
+    if (nonMasterVEventTime.isAfter(moment(eventObject.start.dateTime))) {
+      vcalendar.removeSubcomponent(e2);
+      return 'deleted';
+    }
+    recurringChildren.push(e2);
+    return 'ignored';
+  });
+
+  debugger;
+  console.log(recurringMaster.getAllSubcomponents('exdate'));
+
+  recurringMaster.getAllProperties('exdate').forEach((e) => {
+    const exDateMoment = moment(e.getValues()[0].toJSDate());
+    if (exDateMoment.isSameOrAfter(moment(eventObject.start.dateTime))) {
+      recurringMaster.removeProperty(e);
+    }
+  });
+
+  recurringChildren.forEach((e) => vcalendar.removeSubcomponent(e));
+
+  debugger;
+
+  const startDateTime = ICAL.Time.fromJSDate(new Date(eventObject.start.dateTime), false);
+
+  vevent.updatePropertyWithValue('sequence', 0);
+
+  vevent.updatePropertyWithValue('uid', eventObject.iCalUID);
+
+  vevent.updatePropertyWithValue('dtstart', recurringMaster.getFirstPropertyValue('dtstart'));
+  vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+
+  vevent.updatePropertyWithValue('duration', 'PT1H');
+
+  vevent.updatePropertyWithValue('created', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('priority', 0);
+
+  vevent.updatePropertyWithValue('summary', eventObject.summary);
+
+  const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
+  recurrencePattern.iCALString = rrule.toString();
+  vevent.updatePropertyWithValue('rrule', rrule);
+
+  vevent.updatePropertyWithValue('status', 'CONFIRMED');
+
+  vevent.updatePropertyWithValue('transp', 'OPAQUE');
+
+  vevent.updatePropertyWithValue('class', 'PUBLIC');
+  // TO-DO, ADD MORE FIELDS AND TEST IF IT WORKS.
+
+  // vevent.updatePropertyWithValue('location', eventObject.location);
+  // vevent.updatePropertyWithValue('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('x-apple-travel-advisory-behavior', 'AUTOMATIC');
+
+  // vevent.updatePropertyWithValue('dtend', eventObject.end.dateTime);
+  // vevent.getFirstProperty('dtend').setParameter('tzid', 'US/Pacific');
+
+  // Remove the previous master, by finding the object in the ical string that does not have
+  // the recurring id, therefore, it is the master.
+
+  vcalendar.removeSubcomponent(recurringMaster);
+  // #endregion
+
+  vcalendar.addSubcomponent(vevent);
+
+  recurringChildren.forEach((e) => vcalendar.addSubcomponent(e));
+  vcalendar.addSubcomponent(timezoneMetadata);
+  debugger;
+  return vcalendar.toString();
+};
+
+export const buildICALStringUpdateFutureRecurCreateEvent = (
+  recurrencePattern,
+  eventObject,
+  updatedObject
+) => {
+  debugger;
+  const calendarData = ICAL.parse(eventObject.iCALString);
+  const vcalendar = new ICAL.Component(calendarData);
+
+  const timezoneMetadata = vcalendar.getFirstSubcomponent('vtimezone');
+  vcalendar.removeSubcomponent('vtimezone');
+
+  // #region Updating Old Object, with all the previous values & new recurrence
+  const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
+  debugger;
+  const jcalData = ICAL.parse(iCalendarData);
+  const vevent = new ICAL.Component(jcalData);
+
+  const allVEvents = vcalendar.getAllSubcomponents('vevent');
+
+  const recurringMaster = allVEvents.filter(
+    (e) => e.getFirstPropertyValue('recurrence-id') === null
+  )[0];
+
+  const nonRecurringEvents = allVEvents.filter(
+    (e) => e.getFirstPropertyValue('recurrence-id') !== null
+  );
+
+  const recurringChildren = [];
+
+  nonRecurringEvents.forEach((e) => {
+    const nonMasterVEventTime = moment(e.getFirstPropertyValue('recurrence-id').toJSDate());
+    debugger;
+    let toDelete = true;
+    for (let index = 0; index < recurrencePattern.recurrenceIds.length; index += 1) {
+      const element = recurrencePattern.recurrenceIds[index];
+      if (nonMasterVEventTime.isSameOrAfter(moment(element))) {
+        toDelete = false;
+        break;
+      }
+    }
+    if (toDelete) {
+      vcalendar.removeSubcomponent(e);
+    } else {
+      e.updatePropertyWithValue('uid', recurrencePattern.originalId);
+      recurringChildren.push(e);
+    }
+  });
+
+  recurringChildren.forEach((e) => vcalendar.removeSubcomponent(e));
+
+  const startDateTime = ICAL.Time.fromJSDate(new Date(eventObject.start.dateTime), false);
+
+  vevent.updatePropertyWithValue('sequence', 0);
+
+  vevent.updatePropertyWithValue('uid', recurrencePattern.originalId);
+
+  vevent.updatePropertyWithValue('dtstart', startDateTime);
+  vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+
+  vevent.updatePropertyWithValue('duration', 'PT1H');
+
+  vevent.updatePropertyWithValue('created', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+
+  vevent.updatePropertyWithValue('priority', 0);
+
+  vevent.updatePropertyWithValue('summary', updatedObject.title);
+
+  const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
+  recurrencePattern.iCALString = rrule.toString();
+  vevent.updatePropertyWithValue('rrule', rrule);
+
+  vevent.updatePropertyWithValue('status', 'CONFIRMED');
+
+  vevent.updatePropertyWithValue('transp', 'OPAQUE');
+
+  vevent.updatePropertyWithValue('class', 'PUBLIC');
+
+  recurrencePattern.exDates.forEach((date) => {
+    const datetime = new ICAL.Time().fromJSDate(new Date(date));
+    const timezone = new ICAL.Time().fromData(
+      {
+        year: datetime.year,
+        month: datetime.month,
+        day: datetime.day,
+        hour: datetime.hour,
+        minute: datetime.minute,
+        second: datetime.second
+      },
+      new ICAL.Timezone({ tzid: 'America/Los_Angeles' })
+    );
+    vevent.addPropertyWithValue('exdate', timezone);
+  });
+  vevent.getAllProperties('exdate').forEach((e) => e.setParameter('tzid', 'America/Los_Angeles'));
+
+  // TO-DO, ADD MORE FIELDS AND TEST IF IT WORKS.
+
+  // vevent.updatePropertyWithValue('location', eventObject.location);
+  // vevent.updatePropertyWithValue('tzid', 'US/Pacific');
+  // vevent.updatePropertyWithValue('x-apple-travel-advisory-behavior', 'AUTOMATIC');
+
+  // vevent.updatePropertyWithValue('dtend', eventObject.end.dateTime);
+  // vevent.getFirstProperty('dtend').setParameter('tzid', 'US/Pacific');
+
+  // Remove the previous master, by finding the object in the ical string that does not have
+  // the recurring id, therefore, it is the master.
+
+  vcalendar.removeSubcomponent(recurringMaster);
+  // #endregion
+
+  vcalendar.addSubcomponent(vevent);
+  recurringChildren.forEach((e) => vcalendar.addSubcomponent(e));
+
   vcalendar.addSubcomponent(timezoneMetadata);
   debugger;
   return vcalendar.toString();
