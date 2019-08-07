@@ -1,8 +1,7 @@
 import ICAL from 'ical.js';
 import moment from 'moment';
 import { RRule, RRuleSet } from 'rrule';
-
-const uuidv1 = require('uuid/v1');
+import uuidv1 from 'uuid';
 
 export const buildRruleObject = (recurrencePattern) => {
   debugger;

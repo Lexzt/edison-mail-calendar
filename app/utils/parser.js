@@ -448,30 +448,6 @@ const parseRecurrence = (pattern, recurMasterEvent) => {
   return recurEvents;
 };
 
-export const buildRuleSet = (pattern, start) => {
-  // Create new ruleset based off the rule object.
-  const rruleSet = new RRuleSet();
-  const ruleObject = buildRuleObject(pattern, start);
-  rruleSet.rrule(new RRule(ruleObject));
-
-  // Get the deleted and updated occurances from the recurrence pattern.
-  const { exDates, recurrenceIds } = pattern;
-
-  // For each of them, set the ex date so to not include them in the list.
-  if (exDates !== undefined) {
-    exDates.forEach((exdate) => rruleSet.exdate(new Date(exdate)));
-  }
-  // Here, I am unsure if I am handling it correctly as
-  // an edited occurance is also a exdate techincally speaking
-  if (recurrenceIds !== undefined) {
-    recurrenceIds.forEach((recurDate) => rruleSet.exdate(new Date(recurDate)));
-  }
-
-  // const modifiedThenDeletedDates = getModifiedThenDeletedDates(exDates, recurrenceIds);
-  /* To remove start date duplicate */
-  return rruleSet;
-};
-
 const getDuration = (master) => {
   const start = moment(master.start.dateTime);
   const end = moment(master.end.dateTime);
@@ -618,6 +594,30 @@ const getModifiedThenDeletedDates = (exDates, recurDates) => {
     });
   });
   return modifiedThenDeletedDates;
+};
+
+export const buildRuleSet = (pattern, start) => {
+  // Create new ruleset based off the rule object.
+  const rruleSet = new RRuleSet();
+  const ruleObject = buildRuleObject(pattern, start);
+  rruleSet.rrule(new RRule(ruleObject));
+
+  // Get the deleted and updated occurances from the recurrence pattern.
+  const { exDates, recurrenceIds } = pattern;
+
+  // For each of them, set the ex date so to not include them in the list.
+  if (exDates !== undefined) {
+    exDates.forEach((exdate) => rruleSet.exdate(new Date(exdate)));
+  }
+  // Here, I am unsure if I am handling it correctly as
+  // an edited occurance is also a exdate techincally speaking
+  if (recurrenceIds !== undefined) {
+    recurrenceIds.forEach((recurDate) => rruleSet.exdate(new Date(recurDate)));
+  }
+
+  // const modifiedThenDeletedDates = getModifiedThenDeletedDates(exDates, recurrenceIds);
+  /* To remove start date duplicate */
+  return rruleSet;
 };
 
 export default {

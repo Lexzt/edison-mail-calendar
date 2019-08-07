@@ -17,8 +17,6 @@ import { retrieveStoreEvents } from '../actions/db/events';
 import {
   beginGetGoogleEvents,
   beginGetOutlookEvents,
-  beginGetExchangeEvents,
-  beginGetCaldavEvents,
   beginDeleteEvent,
   clearAllEvents,
   beginPollingEvents,
@@ -26,9 +24,10 @@ import {
   beginPendingActions,
   endPendingActions,
   beginDeleteRecurrenceSeries,
-  beginDeleteFutureRecurrenceSeries,
-  editEventsBeginCaldav
+  beginDeleteFutureRecurrenceSeries
 } from '../actions/events';
+import { beginGetCaldavEvents } from '../actions/providers/caldav';
+import { beginGetExchangeEvents } from '../actions/providers/exchange';
 import getFilteredEvents from '../selectors/ui-selector';
 
 const mapStateToProps = (state) => ({

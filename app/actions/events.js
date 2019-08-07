@@ -143,57 +143,9 @@ export const apiFailure = (error) => ({
     error
   }
 });
-
-export const editEventsBeginCaldav = (currentEvent) => ({
-  type: EDIT_EVENT_BEGIN_CALDAV,
-  payload: currentEvent
-});
 // ---------------------- EDIT EVENTS ---------------------- //
 
-// ---------------------- EXCHANGE ---------------------- //
-export const GET_EXCHANGE_EVENTS_BEGIN = 'GET_EXCHANGE_EVENTS_BEGIN';
-export const GET_EXCHANGE_EVENTS_SUCCESS = 'GET_EXCHANGE_EVENTS_SUCCESS';
-export const GET_EXCHANGE_EVENTS_FAILURE = 'GET_EXCHANGE_EVENTS_FAILURE';
-
-export const EDIT_EXCHANGE_SINGLE_EVENT_BEGIN = 'EDIT_EXCHANGE_SINGLE_EVENT_BEGIN';
-export const EDIT_EXCHANGE_SINGLE_EVENT_SUCCESS = 'EDIT_EXCHANGE_SINGLE_EVENT_SUCCESS';
-export const EDIT_EXCHANGE_SINGLE_EVENT_FAILURE = 'EDIT_EXCHANGE_SINGLE_EVENT_FAILURE';
-
-export const EDIT_EXCHANGE_FUTURE_EVENT_BEGIN = 'EDIT_EXCHANGE_FUTURE_EVENT_BEGIN';
-export const EDIT_EXCHANGE_FUTURE_EVENT_SUCCESS = 'EDIT_EXCHANGE_FUTURE_EVENT_SUCCESS';
-export const EDIT_EXCHANGE_FUTURE_EVENT_FAILURE = 'EDIT_EXCHANGE_FUTURE_EVENT_FAILURE';
-
-export const EDIT_EXCHANGE_ALL_EVENT_BEGIN = 'EDIT_EXCHANGE_ALL_EVENT_BEGIN';
-export const EDIT_EXCHANGE_ALL_EVENT_SUCCESS = 'EDIT_EXCHANGE_ALL_EVENT_SUCCESS';
-export const EDIT_EXCHANGE_ALL_EVENT_FAILURE = 'EDIT_EXCHANGE_ALL_EVENT_FAILURE';
-
-export const beginGetExchangeEvents = (resp) => ({
-  type: GET_EXCHANGE_EVENTS_BEGIN,
-  payload: resp
-});
-
-export const getExchangeEventsSuccess = (resp) => ({
-  type: GET_EXCHANGE_EVENTS_SUCCESS,
-  payload: resp
-});
-
-export const editEwsSingleEventBegin = (resp) => ({
-  type: EDIT_EXCHANGE_SINGLE_EVENT_BEGIN,
-  payload: resp
-});
-
-export const editEwsFutureEventBegin = (resp) => ({
-  type: EDIT_EXCHANGE_FUTURE_EVENT_BEGIN,
-  payload: resp
-});
-
-export const editEwsAllEventBegin = (resp) => ({
-  type: EDIT_EXCHANGE_ALL_EVENT_BEGIN,
-  payload: resp
-});
-// ---------------------- EXCHANGE ---------------------- //
-
-// ---------------------- GENERAL ---------------------- //
+// #region General
 export const CLEAR_ALL_EVENTS = 'CLEAR_ALL_EVENTS';
 export const CLEAR_ALL_EVENTS_SUCCESS = 'CLEAR_ALL_EVENTS_SUCCESS';
 
@@ -204,9 +156,9 @@ export const clearAllEvents = () => ({
 export const clearAllEventsSuccess = () => ({
   type: CLEAR_ALL_EVENTS_SUCCESS
 });
-// ---------------------- GENERAL ---------------------- //
+// #endregion
 
-// ---------------------- POLLING ---------------------- //
+// #region Polling
 export const beginPollingEvents = (payload) => ({
   type: BEGIN_POLLING_EVENTS
 });
@@ -214,9 +166,9 @@ export const beginPollingEvents = (payload) => ({
 export const endPollingEvents = (payload) => ({
   type: END_POLLING_EVENTS
 });
-// ---------------------- POLLING ---------------------- //
+// #endregion
 
-// ---------------------- POLLING ---------------------- //
+// #region Pending Actions
 export const beginPendingActions = (payload) => ({
   type: BEGIN_PENDING_ACTIONS,
   payload
@@ -225,7 +177,7 @@ export const beginPendingActions = (payload) => ({
 export const endPendingActions = (payload) => ({
   type: END_PENDING_ACTIONS
 });
-// ---------------------- POLLING ---------------------- //
+// #endregion
 
 // --------------- DELETE RECURR SERIES ---------------- //
 export const beginDeleteRecurrenceSeries = (id) => ({
@@ -238,53 +190,3 @@ export const beginDeleteFutureRecurrenceSeries = (id) => ({
   payload: id
 });
 // --------------- DELETE RECURR SERIES ---------------- //
-
-// ---------------------- CALDAV ---------------------- //
-export const GET_CALDAV_EVENTS_BEGIN = 'GET_CALDAV_EVENTS_BEGIN';
-export const GET_CALDAV_EVENTS_SUCCESS = 'GET_CALDAV_EVENTS_SUCCESS';
-export const GET_CALDAV_EVENTS_FAILURE = 'GET_CALDAV_EVENTS_FAILURE';
-
-export const EDIT_CALDAV_SINGLE_EVENT_BEGIN = 'EDIT_CALDAV_SINGLE_EVENT_BEGIN';
-export const EDIT_CALDAV_SINGLE_EVENT_SUCCESS = 'EDIT_CALDAV_SINGLE_EVENT_SUCCESS';
-export const EDIT_CALDAV_SINGLE_EVENT_FAILURE = 'EDIT_CALDAV_SINGLE_EVENT_FAILURE';
-
-export const EDIT_CALDAV_FUTURE_EVENT_BEGIN = 'EDIT_CALDAV_FUTURE_EVENT_BEGIN';
-export const EDIT_CALDAV_FUTURE_EVENT_SUCCESS = 'EDIT_CALDAV_FUTURE_EVENT_SUCCESS';
-export const EDIT_CALDAV_FUTURE_EVENT_FAILURE = 'EDIT_CALDAV_FUTURE_EVENT_FAILURE';
-
-export const EDIT_CALDAV_ALL_EVENT_BEGIN = 'EDIT_CALDAV_ALL_EVENT_BEGIN';
-export const EDIT_CALDAV_ALL_EVENT_SUCCESS = 'EDIT_CALDAV_ALL_EVENT_SUCCESS';
-export const EDIT_CALDAV_ALL_EVENT_FAILURE = 'EDIT_CALDAV_ALL_EVENT_FAILURE';
-
-export const beginGetCaldavEvents = (resp) => ({
-  type: GET_CALDAV_EVENTS_BEGIN,
-  payload: resp
-});
-
-export const postCaldavEventBegin = (calEvent) => ({
-  type: GET_CALDAV_EVENTS_FAILURE,
-  payload: calEvent
-});
-
-export const getCaldavEventsSuccess = (response) => ({
-  type: GET_CALDAV_EVENTS_SUCCESS,
-  payload: {
-    data: response
-  }
-});
-
-export const editCalDavSingleEventBegin = (resp) => ({
-  type: EDIT_CALDAV_SINGLE_EVENT_BEGIN,
-  payload: resp
-});
-
-export const editCalDavFutureEventBegin = (resp) => ({
-  type: EDIT_CALDAV_FUTURE_EVENT_BEGIN,
-  payload: resp
-});
-
-export const editCalDavAllEventBegin = (resp) => ({
-  type: EDIT_CALDAV_ALL_EVENT_BEGIN,
-  payload: resp
-});
-// ---------------------- CALDAV ---------------------- //

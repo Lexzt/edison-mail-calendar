@@ -1,15 +1,17 @@
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import { withStyles } from '@material-ui/core/styles';
+import { editEventBegin } from '../actions/events';
 import {
-  editEventBegin,
-  editEwsSingleEventBegin,
-  editEwsFutureEventBegin,
-  editEwsAllEventBegin,
   editCalDavSingleEventBegin,
   editCalDavAllEventBegin,
   editCalDavFutureEventBegin
-} from '../actions/events';
+} from '../actions/providers/caldav';
+import {
+  editEwsSingleEventBegin,
+  editEwsFutureEventBegin,
+  editEwsAllEventBegin
+} from '../actions/providers/exchange';
 import EditEvent from '../components/editEvent';
 
 const styles = (theme) => ({
@@ -37,7 +39,6 @@ const mapDispatchToProps = (dispatch) => ({
   editEventBegin: (id, eventObject, providerType) =>
     dispatch(editEventBegin(id, eventObject, providerType)), // This handles google only, parse it into generic.
 
-  // Merge them up in the future.
   editEwsSingleEventBegin: (event) => dispatch(editEwsSingleEventBegin(event)),
   editEwsAllEventBegin: (event) => dispatch(editEwsAllEventBegin(event)),
   editEwsFutureEventBegin: (event) => dispatch(editEwsFutureEventBegin(event)),

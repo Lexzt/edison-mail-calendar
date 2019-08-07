@@ -27,8 +27,9 @@ import {
 } from 'ews-javascript-api';
 import moment from 'moment';
 import _ from 'lodash';
-import uuidv4 from 'uuid';
+import { uuidv4, uuidv1 } from 'uuid';
 import ICAL from 'ical.js';
+
 import { syncStoredEvents, retrieveStoreEvents, UPDATE_STORED_EVENTS } from '../actions/db/events';
 import {
   loadClient,
@@ -58,26 +59,18 @@ import {
   POST_EVENT_BEGIN,
   CLEAR_ALL_EVENTS,
   GET_OUTLOOK_EVENTS_BEGIN,
-  GET_EXCHANGE_EVENTS_BEGIN,
   BEGIN_POLLING_EVENTS,
   END_POLLING_EVENTS,
   BEGIN_PENDING_ACTIONS,
   END_PENDING_ACTIONS,
   CLEAR_ALL_EVENTS_SUCCESS,
-  EDIT_EXCHANGE_SINGLE_EVENT_BEGIN,
-  EDIT_EXCHANGE_FUTURE_EVENT_BEGIN,
-  EDIT_EXCHANGE_ALL_EVENT_BEGIN,
-  EDIT_CALDAV_SINGLE_EVENT_BEGIN,
   apiFailure,
   getEventsSuccess,
   postEventSuccess,
   editEventSuccess,
   getEventsFailure,
   clearAllEventsSuccess,
-  endPollingEvents,
-  GET_CALDAV_EVENTS_BEGIN,
-  EDIT_CALDAV_ALL_EVENT_BEGIN,
-  EDIT_CALDAV_FUTURE_EVENT_BEGIN
+  endPollingEvents
 } from '../actions/events';
 import getDb from '../db';
 import * as Credentials from '../utils/Credentials';
@@ -86,7 +79,6 @@ import PARSER, { buildRuleSet } from '../utils/parser';
 import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
 import * as IcalStringBuilder from '../utils/icalStringBuilder';
 
-const uuidv1 = require('uuid/v1');
 const dav = require('dav');
 
 // // ------------------------------------ GOOGLE ------------------------------------- //
