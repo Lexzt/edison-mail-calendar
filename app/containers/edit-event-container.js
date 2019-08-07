@@ -31,8 +31,7 @@ const styles = (theme) => ({
 });
 
 const mapStateToProps = (state) => ({
-  providers: state.auth.providers,
-  updateEventObject: state.events.updateEventObject
+  providers: state.auth.providers
 });
 
 const mapDispatchToProps = (dispatch) => ({

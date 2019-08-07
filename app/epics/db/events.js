@@ -752,14 +752,6 @@ const deleteAllReccurenceEvent = async (id) => {
       break;
   }
 
-  // const rpRemoveQuery = db.recurrencepatterns
-  //   .find()
-  //   .where('originalId')
-  //   .eq(data.iCalUID);
-
-  // // Remove all the recurring events accordingly.
-  // const removedEvent = await rpRemoveQuery.remove();
-
   // Return which user has been edited.
   return {
     providerType: data.providerType,

@@ -4,30 +4,11 @@ import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import Modal from 'react-modal';
 import './view.css';
-import {
-  ExchangeService,
-  Uri,
-  ExchangeCredentials,
-  Item,
-  PropertySet,
-  ItemSchema,
-  ItemId,
-  DateTime,
-  WellKnownFolderName,
-  FolderView,
-  ItemView,
-  CalendarView,
-  AppointmentSchema,
-  BasePropertySet,
-  BodyType
-} from 'ews-javascript-api';
+import { ExchangeService, Uri, ExchangeCredentials, DateTime } from 'ews-javascript-api';
 
-import RRule from 'rrule';
-import ICAL from 'ical.js';
 import getDb from '../db';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
-import { asyncGetRecurrAndSingleExchangeEvents } from '../utils/client/exchange';
 import serverUrls from '../utils/serverUrls';
 import { FASTMAIL_USERNAME, FASTMAIL_PASSWORD } from '../utils/Credentials';
 
@@ -70,12 +51,13 @@ export default class View extends React.Component {
   }
 
   async componentDidMount() {
-    const userName = 'e0176993@u.nus.edu';
-    const password = 'Ggrfw4406@nus41';
+    // // Code here for when testing different servers.
+    // const userName = 'e0176993@u.nus.edu';
+    // const password = 'Ggrfw4406@nus41';
 
-    const exch = new ExchangeService();
-    exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
-    exch.Credentials = new ExchangeCredentials(userName, password);
+    // const exch = new ExchangeService();
+    // exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
+    // exch.Credentials = new ExchangeCredentials(userName, password);
 
     const { props } = this;
     props.beginPendingActions(props.providers);
@@ -162,7 +144,6 @@ export default class View extends React.Component {
 
   authorizeCaldavCodeRequest = (user, pwd, type) => {
     const { props } = this;
-    console.log(user, pwd, type);
     let url = '';
     switch (type) {
       case 'ICLOUD':
@@ -216,33 +197,12 @@ export default class View extends React.Component {
 
   handleSelectDate = ({ start, end }) => {
     const { props } = this;
-    // props.beginCreateCalendarObject({
-    //   summary: 'Component Event',
-    //   description: 'Event Description',
-    //   dtstart: ICAL.Time.fromDateTimeString('2019-07-30T10:00:00').toICALString(),
-    //   dtend: ICAL.Time.fromDateTimeString('2019-07-30T13:00:00').toICALString(),
-    //   rrule: {
-    //     freq: 'DAILY',
-    //     interval: 1,
-    //     count: 10
-    //   },
-    //   attendees: ['mailto:sham@edison.tech', 'mailto:shamsheer619@gmail.com']
-    // });
     props.history.push(`/${start}/${end}`);
   };
 
   editEvent = () => {
-    const { props } = this;
-    const { state } = this;
-    console.log(state, props);
+    const { props, state } = this;
     props.history.push(`/${state.currentEvent.id}`);
-
-    // debugger;
-    // props.history.push(`/${state.currentEvent.originalId}`);
-    // const payload = {
-    //   id: state.currentEvent.originalId
-    // };
-    // props.beginUpdateCalendarObject(payload);
   };
 
   handleEventClick = (event) => {
@@ -294,36 +254,19 @@ export default class View extends React.Component {
   addEvent = () => {};
 
   deleteEvent = () => {
-    const { props } = this;
-    const { state } = this;
+    const { props, state } = this;
     props.beginDeleteEvent(state.currentEvent.id);
-    // if (state.currentEvent.isRecurring) {
-    //   const eventObject = {
-    //     exdate: moment(state.currentEvent.start)
-    //       .utc()
-    //       .format()
-    //   };
-    //   props.beginUpdateCalendarObject({
-    //     eventObject,
-    //     iCalUID: state.currentEvent.iCalUID,
-    //     type: 'DELETE_SINGLE_RECUR'
-    //   });
-    // } else {
-    //   props.beginDeleteCalendarObject(state.currentEvent.iCalUID);
-    // }
     this.closeModal();
   };
 
   deleteAllRecurrenceEvent = () => {
-    const { props } = this;
-    const { state } = this;
+    const { props, state } = this;
     props.beginDeleteRecurrenceSeries(state.currentEvent.id);
     this.closeModal();
   };
 
   deleteFutureRecurrenceEvent = () => {
-    const { props } = this;
-    const { state } = this;
+    const { props, state } = this;
     props.beginDeleteFutureRecurrenceSeries(state.currentEvent.id);
     this.closeModal();
   };
@@ -331,9 +274,7 @@ export default class View extends React.Component {
   getVisibleEvents = () => {
     const { props } = this;
     const { events } = props;
-    const { deletedEventId } = props;
-    const visibleEvents = [];
-    return events.filter((event) => event.id !== deletedEventId);
+    return events;
   };
 
   /* Render functions */

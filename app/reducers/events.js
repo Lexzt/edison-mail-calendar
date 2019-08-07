@@ -7,10 +7,7 @@ import {
 } from '../actions/db/events';
 
 const initialState = {
-  calEvents: [],
-  deletedEventId: '',
-  deleteError: '',
-  updateEventObject: ''
+  calEvents: []
 };
 
 const mergeEvents = (oldEvents, newItems) => {
