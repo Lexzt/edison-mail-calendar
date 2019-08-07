@@ -16,7 +16,6 @@ import {
 import { retrieveStoreEvents } from '../../actions/db/events';
 
 import * as Credentials from '../../utils/Credentials';
-import * as CalDavActionCreators from '../../actions/caldav';
 import { asyncGetAllCalDavEvents } from '../../utils/client/caldav';
 import * as IcalStringBuilder from '../../utils/icalStringBuilder';
 import PARSER, { buildRuleSet } from '../../utils/parser';
@@ -25,24 +24,6 @@ import * as Providers from '../../utils/constants';
 
 const dav = require('dav');
 const uuidv1 = require('uuid/v1');
-
-// export const createCaldavAccountEpics = (action$) =>
-//   action$.pipe(
-//     ofType(CalDavActionCreators.RESET_CALDAV_ACCOUNT),
-//     map(() => {
-//       const xhrObject = new dav.transport.Basic(
-//         new dav.Credentials({
-//           username: Credentials.FASTMAIL_USERNAME,
-//           password: Credentials.FASTMAIL_PASSWORD
-//         })
-//       );
-//       return CalDavActionCreators.beginCreateAccount({
-//         server: ServerUrls.FASTMAIL,
-//         xhr: xhrObject,
-//         loadObjects: true
-//       });
-//     })
-//   );
 
 export const beginGetCaldavEventsEpics = (action$) =>
   action$.pipe(

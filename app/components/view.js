@@ -78,14 +78,12 @@ export default class View extends React.Component {
     exch.Credentials = new ExchangeCredentials(userName, password);
 
     const { props } = this;
-
     props.beginPendingActions(props.providers);
 
     const db = await getDb();
 
     const allRP = await db.recurrencepatterns.find().exec();
     console.log(allRP.map((rp) => rp.toJSON()));
-
     const allE = await db.events.find().exec();
     console.log(allE.map((rp) => rp.toJSON()));
 

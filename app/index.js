@@ -7,9 +7,6 @@ import { configureStore, history } from './store/configureStore';
 
 import './index.css';
 import './bootstrap.css';
-import * as Credentials from './utils/Credentials';
-import * as CalDavActionCreators from './actions/caldav';
-import ServerUrls from './utils/serverUrls';
 
 const store = configureStore();
 

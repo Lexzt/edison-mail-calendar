@@ -5,8 +5,6 @@ import {
   DUPLICATE_ACTION,
   SYNC_STORED_EVENTS
 } from '../actions/db/events';
-import { EDIT_EVENT_BEGIN_CALDAV } from '../actions/events';
-import { BEGIN_DELETE_CALENDAR_OBJECT, FAIL_DELETE_CALENDAR_OBJECT } from '../actions/caldav';
 
 const initialState = {
   calEvents: [],
@@ -34,8 +32,7 @@ const mergeEvents = (oldEvents, newItems) => {
 
 const syncEvents = (oldEvents, newEvents) => {
   const newPayload = [...oldEvents];
-  // console.log(oldEvents, newEvents);
-  debugger;
+  // debugger;
   for (const newEvent of newEvents) {
     const pos = newPayload.map((object) => object.id).indexOf(newEvent.event.id);
     // console.log(pos);
@@ -54,16 +51,6 @@ const syncEvents = (oldEvents, newEvents) => {
     }
   }
   return newPayload;
-};
-
-const hideEvent = (calEvents, deletedEventId) => {
-  const newEvents = [];
-  calEvents.forEach((calEvent) => {
-    if (calEvent.id !== deletedEventId) {
-      newEvents.push(calEvent);
-    }
-  });
-  return newEvents;
 };
 
 export default function eventsReducer(state = initialState, action) {
@@ -85,18 +72,6 @@ export default function eventsReducer(state = initialState, action) {
     }
     case DUPLICATE_ACTION:
       return state;
-    case BEGIN_DELETE_CALENDAR_OBJECT: {
-      return Object.assign({}, state, { deletedEventId: action.payload });
-    }
-    case FAIL_DELETE_CALENDAR_OBJECT:
-      return Object.assign({}, state, {
-        deletedEventId: '',
-        deleteError: action.payload
-      });
-    case EDIT_EVENT_BEGIN_CALDAV:
-      return Object.assign({}, state, {
-        updateEventObject: action.payload
-      });
     default:
       return state;
   }

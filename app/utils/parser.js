@@ -9,11 +9,9 @@ const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
 const parseRecurrenceEvents = (calEvents) => {
   const recurringEvents = [];
-  // console.log(calEvents);
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
-      debugger;
       recurringEvents.push({
         id: uuidv4(),
         recurringTypeId: calEvent.eventData.start.dateTime,
@@ -107,7 +105,6 @@ const parseCalendarObject = (calendarObject, calendarId) => {
 };
 
 const parseCalendarData = (calendarData, etag, url, calendarId) => {
-  // debugger;
   const results = [];
   const jCalData = ICAL.parse(calendarData);
   const comp = new ICAL.Component(jCalData);
@@ -118,7 +115,6 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
   if (icalMasterEvent.isRecurring()) {
     const recurrenceIds = getRecurrenceIds(modifiedEvents);
     const exDates = getExDates(masterEvent);
-    // debugger;
 
     // I need to figure out how to parse the data into db here.
     const rrule = getRuleJSON(masterEvent, icalMasterEvent);
@@ -134,7 +130,6 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
       }
     }
 
-    // debugger;
     // Recurring event
     results.push({
       recurData: { rrule, exDates, recurrenceIds, modifiedThenDeleted, iCALString },
@@ -146,12 +141,10 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
       eventData: parseEvent(comp, false, etag, url, calendarId, false)
     });
   }
-  // debugger;
   return results;
 };
 
 const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
-  // debugger;
   const dtstart = modifiedEvent
     .getFirstPropertyValue('dtstart')
     .toJSDate()
@@ -235,8 +228,6 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
 
 const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
   const masterEvent = component.getFirstSubcomponent('vevent');
-  // console.log(masterEvent, masterEvent.getFirstPropertyValue('last-modified'));
-  // debugger;
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
       ? ''
@@ -401,9 +392,6 @@ const expandRecurEvents = async (results) => {
 };
 
 const expandSeries = async (recurringEvents, db) => {
-  // const allEvents = await db.events.find().exec();
-  // console.log(recurringEvents);
-
   const resolved = await Promise.all(
     recurringEvents.map(async (recurMasterEvent) => {
       const recurPatternRecurId = await db.recurrencepatterns
@@ -414,45 +402,16 @@ const expandSeries = async (recurringEvents, db) => {
       return parseRecurrence(recurPatternRecurId[0].toJSON(), recurMasterEvent);
     })
   );
-  // console.log(resolved);
   const expandedSeries = resolved.reduce((acc, val) => acc.concat(val), []);
-  // // debugger;
-  // console.log(expandedSeries);
-
-  // const updateIdsFindQuery = await Promise.all(
-  //   expandedSeries.map((event) => {
-  //     console.log(event);
-  //     return db.events
-  //       .findOne()
-  //       .where('iCalUID')
-  //       .eq(event.iCalUID)
-  //       .where('start.dateTime')
-  //       .eq(event.start.dateTime)
-  //       .exec();
-  //   })
-  // );
-
-  // console.log(updateIdsFindQuery);
-
-  // for (let i = 0; i < updateIdsFindQuery.length; i += 1) {
-  //   if (updateIdsFindQuery[i] === null) {
-  //     continue;
-  //   }
-  //   expandedSeries[i].id = updateIdsFindQuery[i].id;
-  // }
-  // console.log(expandedSeries);
-  // debugger;
   return expandedSeries;
 };
 
 const parseRecurrence = (pattern, recurMasterEvent) => {
-  // debugger;
   const recurEvents = [];
   const ruleSet = buildRuleSet(pattern, recurMasterEvent.start.dateTime);
   const recurDates = ruleSet.all().map((date) => date.toJSON());
   const duration = getDuration(recurMasterEvent);
 
-  // debugger;
   recurDates.forEach((recurDateTime) => {
     recurEvents.push({
       id: uuidv4(),

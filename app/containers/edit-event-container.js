@@ -10,7 +10,6 @@ import {
   editCalDavAllEventBegin,
   editCalDavFutureEventBegin
 } from '../actions/events';
-import { beginUpdateCalendarObject } from '../actions/caldav';
 import EditEvent from '../components/editEvent';
 
 const styles = (theme) => ({
@@ -37,8 +36,6 @@ const mapStateToProps = (state) => ({
 const mapDispatchToProps = (dispatch) => ({
   editEventBegin: (id, eventObject, providerType) =>
     dispatch(editEventBegin(id, eventObject, providerType)), // This handles google only, parse it into generic.
-  beginUpdateCalendarObject: (event, options) =>
-    dispatch(beginUpdateCalendarObject(event, options)),
 
   // Merge them up in the future.
   editEwsSingleEventBegin: (event) => dispatch(editEwsSingleEventBegin(event)),

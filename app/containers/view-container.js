@@ -29,13 +29,6 @@ import {
   beginDeleteFutureRecurrenceSeries,
   editEventsBeginCaldav
 } from '../actions/events';
-import {
-  beginRetrieveCaldavEvents,
-  resetCaldavAccount,
-  beginDeleteCalendarObject,
-  beginUpdateCalendarObject,
-  beginCreateCalendarObject
-} from '../actions/caldav';
 import getFilteredEvents from '../selectors/ui-selector';
 
 const mapStateToProps = (state) => ({
@@ -43,8 +36,7 @@ const mapStateToProps = (state) => ({
   initialSync: state.events.initialSync,
   isAuth: state.auth.isAuth,
   providers: state.auth.providers,
-  expiredProviders: state.auth.expiredProviders,
-  deletedEventId: state.events.deletedEventId
+  expiredProviders: state.auth.expiredProviders
 });
 
 const mapDispatchToProps = (dispatch) => ({
@@ -91,17 +83,7 @@ const mapDispatchToProps = (dispatch) => ({
 
   // Start/End Pending actions for offline actions
   beginPendingActions: (providers) => dispatch(beginPendingActions(providers)),
-  endPendingActions: () => dispatch(endPendingActions()),
-
-  // CalDav Accounts
-  beginRetrieveCalDavEvents: () => dispatch(beginRetrieveCaldavEvents()),
-  resetCaldavAccount: () => dispatch(resetCaldavAccount()),
-
-  // CalDav CRUD Operations
-  beginDeleteCalendarObject: (eventId) => dispatch(beginDeleteCalendarObject(eventId)),
-  beginUpdateCalendarObject: (event) => dispatch(beginUpdateCalendarObject(event)),
-  editEventsBeginCaldav: (currentEvent) => dispatch(editEventsBeginCaldav(currentEvent)),
-  beginCreateCalendarObject: (payload) => dispatch(beginCreateCalendarObject(payload))
+  endPendingActions: () => dispatch(endPendingActions())
 });
 
 export default connect(

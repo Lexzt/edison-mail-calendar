@@ -2,7 +2,7 @@ import { connect } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import { withStyles } from '@material-ui/core/styles';
 import { postEventBegin } from '../actions/events';
-import { beginCreateCalendarObject } from '../actions/caldav'; // merge this in later
+// import { beginCreateCalendarObject } from '../actions/caldav'; // merge this in later
 import AddEvent from '../components/addForm';
 
 const styles = (theme) => ({
@@ -27,8 +27,8 @@ const mapStateToProps = (state) => ({
 });
 
 const mapDispatchToProps = (dispatch) => ({
-  postEventBegin: (event, auth, type) => dispatch(postEventBegin(event, auth, type)),
-  beginCreateCalendarObject: (payload) => dispatch(beginCreateCalendarObject(payload))
+  postEventBegin: (event, auth, type) => dispatch(postEventBegin(event, auth, type))
+  // beginCreateCalendarObject: (payload) => dispatch(beginCreateCalendarObject(payload))
 });
 
 export default connect(

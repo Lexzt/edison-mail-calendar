@@ -81,11 +81,8 @@ import {
 } from '../actions/events';
 import getDb from '../db';
 import * as Credentials from '../utils/Credentials';
-import * as CalDavActionCreators from '../actions/caldav';
 import ServerUrls from '../utils/serverUrls';
 import PARSER, { buildRuleSet } from '../utils/parser';
-// import { storeCaldav } from './db/caldav';
-import { processObjects } from '../reducers/caldav';
 import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
 import * as IcalStringBuilder from '../utils/icalStringBuilder';
 
