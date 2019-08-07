@@ -78,10 +78,23 @@ export const buildRruleObject = (recurrencePattern) => {
       // bysetpos: recurrencePattern.bySetPos, // Different type, Array<Number> vs <String>
     };
   } else if (recurrencePattern.until !== '') {
+    const datetime = new ICAL.Time().fromJSDate(new Date(recurrencePattern.until));
+    const dtTimezone = new ICAL.Time().fromData(
+      {
+        year: datetime.year,
+        month: datetime.month,
+        day: datetime.day,
+        hour: datetime.hour,
+        minute: datetime.minute,
+        second: datetime.second
+      },
+      new ICAL.Timezone({ tzid: 'America/Los_Angeles' })
+    );
+
     returnObj = {
       freq: recurrencePattern.freq,
       interval: recurrencePattern.interval,
-      until: ICAL.Time()
+      until: dtTimezone
       // // Commented out atm due to unsure how to parse it in, and not sure if needed.
       // wkst: recurrencePattern.wkSt,  // Type: ICAL.Time.weekDay
       // bysecond: recurrencePattern.bySecond, // Not sure if needed. Too detailed.
@@ -122,6 +135,10 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
   const vevent = vcalendar.getFirstSubcomponent('vevent');
   vevent.removeAllProperties('exdate');
 
+  const allEditedEvent = vcalendar
+    .getAllSubcomponents('vevent')
+    .filter((e) => e.getFirstPropertyValue('recurrence-id') !== null);
+
   recurrencePattern.exDates.forEach((date) => {
     const datetime = new ICAL.Time().fromJSDate(new Date(date));
     const timezone = new ICAL.Time().fromData(
@@ -142,6 +159,26 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
   const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
   recurrencePattern.iCALString = rrule.toString();
   vevent.updatePropertyWithValue('rrule', rrule);
+
+  // This removes all the edited event, and the master.
+  vcalendar.removeAllSubcomponents('vevent');
+
+  vcalendar.addSubcomponent(vevent);
+
+  debugger;
+
+  recurrencePattern.recurrenceIds.forEach((date) => {
+    debugger;
+    const editedEvent = moment(date);
+    const findingEditedComp = allEditedEvent.filter((e2) =>
+      moment(e2.getFirstPropertyValue().toJSDate()).isSame(editedEvent, 'day')
+    );
+    if (findingEditedComp.length > 0) {
+      console.log(findingEditedComp);
+      vcalendar.addSubcomponent(findingEditedComp[0]);
+    }
+  });
+
   debugger;
   return vcalendar.toString();
   // const calendarData = ICAL.parse(eventObject.iCALString);

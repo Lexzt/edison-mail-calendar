@@ -1691,10 +1691,18 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     ) {
       // No end condition for this, figure out later LOL
     } else if (pattern.until === undefined || pattern.until === null) {
+      // The idea here is to first update the old recurrence pattern with until
+      // so that we can generate a ruleset as the freq could be a daily/weekly/monthly
+      // or have some weird interval.
+      // Once we have done thatWe filter the exdate and recurrenceids so that the old pattern
+      // does not have the extra dates as the series has shortened.
+      // As the start date is the same, we set the recurringtypeId as the same.
+      // In the future, I need to change the freq and interval based off the UI here.
+      // We also need to ensure that the id is the same due to updating of database.
+      // Originalid is the caldavUID given by the server.
       Object.assign(oldRecurringPattern, {
         id: pattern.id,
         originalId: pattern.originalId,
-        // // Temp take from the recurrence master first, will take from the UI in future.
         // freq: payload.options.rrule.freq,
         // interval: payload.options.rrule.interval,
         freq: pattern.freq,
@@ -1706,9 +1714,14 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
           moment(rpDate).isBefore(moment(data.start.dateTime))
         ),
         recurringTypeId: pattern.recurringTypeId,
-        until: data.start.dateTime
+        until: data.start.dateTime,
+        isCount: true
       });
-      debugger;
+
+      // We build the ruleset based off the temp pattern, and as we dealing with count,
+      // We use the all function to get the length of the input.
+      // Parsed into Json for readability and able to be manipulated. RxDocs are not mutable.
+      // As we editing this event, we need the minus one.
       const ruleSet = buildRuleSet(oldRecurringPattern, pattern.recurringTypeId);
       const recurDates = ruleSet.all().map((date) => date.toJSON());
       const seriesEndCount = pattern.numberOfRepeats - recurDates.length;
@@ -1718,7 +1731,11 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
         isCount: true
       });
 
+      // Delete removes the definition as we want to ensure the UI uses count.
+      // It checks via undefined, which deletes makes it.
       delete oldRecurringPattern.until;
+
+      // Reassign the values of old pattern, Safety set the exdates and recurrenceids again.
       Object.assign(oldRecurringPattern, {
         numberOfRepeats: recurDates.length - 1, // Old RP needs to repeat till the selected event minus one.
         isCount: true,
@@ -1743,26 +1760,38 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
         }
       });
     } else {
-      // ruleObject.until = new Date(pattern.until);
+      // Here, we assign the end condition for our recurrence pattern.
+      // We set the until, and the UI will take care of the rest.
       Object.assign(newRecurrencePattern, {
         until: pattern.until,
         isCount: false
       });
-      const updatedUntil = moment(payload.start)
-        .subtract(1, 'days')
+
+      // Minus one day, and format it, to ensure that the until is properly formatted.
+      // Minus one day due to how expanding of event works for caldav.
+      const updatedUntil = moment(data.start.dateTime)
+        .subtract(1, 'second')
         .format('YYYY-MM-DDTHH:mm:ss');
 
+      // Update the old pattern to the start date of the selected event.
+      // Ensure that the exdate and recurrenceid does not have duplicates.
       await recurPatternQuery.update({
         $set: {
           until: updatedUntil,
-          isCount: false
+          isCount: false,
+          exDates: pattern.exDates.filter((exDate) =>
+            moment(exDate).isBefore(moment(data.start.dateTime))
+          ),
+          recurrenceIds: pattern.recurrenceIds.filter((rpDate) =>
+            moment(rpDate).isBefore(moment(data.start.dateTime))
+          )
         }
       });
     }
 
+    // Debug, also meant for generating the new icalstring based off the recurrence pattern.
     const updatedOldRecurPattern = await recurPatternQuery.exec();
     const updatedOldPattern = recurPattern[0].toJSON();
-
     console.log(updatedOldPattern);
 
     // Builds the old iCal string, which has edited based off the recurring pattern.
@@ -1780,19 +1809,17 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       payload
     );
     console.log(newiCalString);
-    debugger;
 
-    const ruleSet = buildRuleSet(newRecurrencePattern, data.start.dateTime);
-    const recurDates = ruleSet.all().map((date) => date.toJSON());
     console.log('New Recurrence Pattern: ', newRecurrencePattern);
+    // Insert the new recurrence pattern into database, as it is new, should not have any issues.
     await db.recurrencepatterns.upsert(newRecurrencePattern);
-    // await db.recurrencepatterns.upsert(oldRecurringPattern);
+
+    // Update the old recurrence pattern with the new iCalString.
     await recurPatternQuery.update({
       $set: {
         iCALString: updatedOldPattern.iCALString
       }
     });
-    debugger;
     // #endregion
 
     // #region Updating Calendar, Server Side
@@ -1831,11 +1858,14 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       .remove();
     // #endregion
 
-    const allEventsBefore = await db.events.find().exec();
-    console.log('Before: ', allEventsBefore.map((e) => e.toJSON()));
-    debugger;
+    // const allEventsBefore = await db.events.find().exec();
+    // console.log('Before: ', allEventsBefore.map((e) => e.toJSON()));
+    // debugger;
 
     // #region Updating Calendar, Local Side
+    // The idea here is using the new iCalString generated, to create the new events to parse in.
+    // So we first expand events based off the updated recurrence pattern and master.
+    // After that, we append it into the events db for the redux to pick up and update.
     const oldFutureResults = PARSER.parseCalendarData(oldiCalString, etag, caldavUrl, calendarId);
     const oldExpanded = await PARSER.expandRecurEvents(
       oldFutureResults.map((calEvent) => calEvent.eventData)
@@ -1853,6 +1883,11 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     // #endregion
 
     // #region Adding Future Events, Server Side
+    // Here, we are roughly doing the same as the updating the calendar itself.
+    // However, the problem is the the etag is not part of the iCalString.
+    // And as the server does not respond correctly, due to Pg 28 of RFC 4791,
+    // We do a full sync of the items, and match the etags to the event itself.
+    // We sync the caldav url also, just incase.
     const newFutureResults = PARSER.parseCalendarData(
       newiCalString,
       newETag,
@@ -1883,14 +1918,18 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     });
     const newResult = await Promise.all(newFinalResultPromises);
     const oldResult = await Promise.all(oldFinalResultPromises);
-    console.log(newResult.map((e) => e.toJSON()), oldResult.map((e) => e.toJSON()));
+    // console.log(newResult.map((e) => e.toJSON()), oldResult.map((e) => e.toJSON()));
 
+    // Here, we update the etag of every event we have appended into the database,
+    // and we update them accordingly after that again.
     const updateEtag = newResult.map((localDbItem) => {
       const json = localDbItem.toJSON();
       json.etag = allEvents.filter((event) => event.iCalUID === json.iCalUID)[0].etag;
       json.caldavUrl = allEvents.filter((event) => event.iCalUID === json.iCalUID)[0].caldavUrl;
       return db.events.upsert(json);
     });
+
+    // Ensure that all etags have been updated, before going back to the main screen.
     await Promise.all(updateEtag);
     // #endregion
   } catch (error) {

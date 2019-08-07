@@ -26,9 +26,6 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
     loadObjects: true
   });
 
-  console.log(resp);
-  debugger;
-
   const db = await getDb();
   // This breaks due to how our database works, with id being a uniqid.
   // so we need find it first then upsert. Yay, no checks again.

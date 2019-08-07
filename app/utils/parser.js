@@ -236,7 +236,7 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
 const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
   const masterEvent = component.getFirstSubcomponent('vevent');
   // console.log(masterEvent, masterEvent.getFirstPropertyValue('last-modified'));
-  debugger;
+  // debugger;
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
       ? ''

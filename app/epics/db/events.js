@@ -1012,81 +1012,115 @@ const deleteFutureReccurenceEvent = async (id) => {
         // We set the exDates according to if it is before the selected start time.
         // Compared using moment.
         recurrencePattern.exDates = recurrencePattern.exDates.filter((date) =>
-          moment(date).isBefore(moment(data.start.dateTime))
+          moment(date).isBefore(moment(data.start.dateTime), 'day')
         );
 
         // Do the same for edited ids.
         recurrencePattern.recurrenceIds = recurrencePattern.recurrenceIds.filter((date) =>
-          moment(date).isBefore(moment(data.start.dateTime))
+          moment(date).isBefore(moment(data.start.dateTime), 'day')
         );
 
-        const ruleSet = buildRuleSet(recurrencePattern, data.originalStartTime.dateTime);
+        const ruleSet = buildRuleSet(recurrencePattern, recurrencePattern.recurringTypeId);
         const recurDates = ruleSet.all().map((date) => date.toJSON());
         const recurrAfterDates = recurDates.filter((date) =>
           moment(date).isSameOrAfter(moment(data.start.dateTime))
         );
 
+        let deleteWholeSeries = false;
         // To settle the end condition
         if (recurrencePattern.numberOfRepeats > 0) {
           recurrencePattern.numberOfRepeats -= recurrAfterDates.length;
+          if (recurrencePattern.numberOfRepeats <= 0) {
+            deleteWholeSeries = true;
+          }
         } else if (recurrencePattern.until !== '') {
           // Need to test util end date, coz date time is ical type.
-          recurrencePattern.until = data.start.dateTime;
+          const momentSelectedDt = moment(data.start.dateTime).add(-1, 'second');
+          const momentPreviousDt = moment(recurrencePattern.recurringTypeId);
+          recurrencePattern.until = momentSelectedDt.format('YYYY-MM-DDThh:mm:ss');
+          if (momentSelectedDt.isSame(momentPreviousDt, 'day')) {
+            deleteWholeSeries = true;
+          }
         } else {
           // Yet to figure out how to deal with no end date.
         }
 
-        // Builds the iCal string
-        const iCalString = IcalStringBuilder.buildICALStringDeleteRecurEvent(
-          recurrencePattern,
-          data.start.dateTime,
-          data
-        );
-        console.log(iCalString);
+        if (deleteWholeSeries) {
+          const calendarObject = {
+            url: caldavUrl
+          };
 
-        // Due to how there is no master,
-        // We need to ensure all events that are part of the series
-        // have the same iCal string such that we do not have inconsistency.
-        // Run a db query, to update them all to the new iCalString.
-        const allRecurringEvents = db.events
-          .find()
-          .where('originalId')
-          .eq(data.iCalUID);
-        await allRecurringEvents.update({
-          $set: {
-            iCALString: iCalString
-          }
-        });
+          // Result will throw error, we can do a seperate check here if needed.
+          const result = await dav.deleteCalendarObject(calendarObject, option);
+          // console.log(result);
 
-        await recurrenceObjectQuery.update({
-          $set: recurrencePattern
-        });
+          const allRecurringEvents = await db.events
+            .find()
+            .where('originalId')
+            .eq(data.iCalUID)
+            .remove();
 
-        // To delete a single recurring pattern, the calendar object is different.
-        // So we add the string into the object we are PUT-ing to the server
-        const calendarData = iCalString;
-        const calendarObject = {
-          url: caldavUrl,
-          calendarData
-        };
-        // Result will throw error, we can do a seperate check here if needed.
-        const result = await dav.updateCalendarObject(calendarObject, option);
-        console.log(result);
+          const previousRecurringPattern = await db.recurrencepatterns
+            .find()
+            .where('originalId')
+            .eq(data.iCalUID)
+            .remove();
+        } else {
+          // Builds the iCal string
+          const iCalString = IcalStringBuilder.buildICALStringDeleteRecurEvent(
+            recurrencePattern,
+            data.start.dateTime,
+            data
+          );
+          console.log(iCalString);
 
-        const deletingEvents = await Promise.all(
-          recurrAfterDates.map((date) => {
-            console.log(data.iCalUID, date);
-            return db.events
-              .findOne()
-              .where('originalId')
-              .eq(data.iCalUID)
-              .where('start.dateTime')
-              .eq(date)
-              .remove();
-          })
-        );
+          // Due to how there is no master,
+          // We need to ensure all events that are part of the series
+          // have the same iCal string such that we do not have inconsistency.
+          // Run a db query, to update them all to the new iCalString.
+          const allRecurringEvents = db.events
+            .find()
+            .where('originalId')
+            .eq(data.iCalUID);
+          await allRecurringEvents.update({
+            $set: {
+              iCALString: iCalString
+            }
+          });
 
-        console.log(deletingEvents);
+          await recurrenceObjectQuery.update({
+            $set: recurrencePattern
+          });
+
+          // To delete a single recurring pattern, the calendar object is different.
+          // So we add the string into the object we are PUT-ing to the server
+          const calendarData = iCalString;
+          const calendarObject = {
+            url: caldavUrl,
+            calendarData
+          };
+          // Result will throw error, we can do a seperate check here if needed.
+          const result = await dav.updateCalendarObject(calendarObject, option);
+          console.log(result);
+
+          const allevents = await db.events.find().exec();
+          console.log(allevents);
+
+          const deletingEvents = await Promise.all(
+            recurrAfterDates.map((date) => {
+              console.log(data.iCalUID, date);
+              return db.events
+                .findOne()
+                .where('originalId')
+                .eq(data.iCalUID)
+                .where('start.dateTime')
+                .eq(date)
+                .remove();
+            })
+          );
+
+          console.log(deletingEvents);
+        }
       } catch (caldavError) {
         console.log('Handle Caldav pending action here', caldavError);
       }
