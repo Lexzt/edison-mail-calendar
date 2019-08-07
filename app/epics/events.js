@@ -1666,10 +1666,10 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       freq: pattern.freq,
       interval: pattern.interval,
       exDates: pattern.exDates.filter((exDate) =>
-        moment(exDate).isSameOrAfter(moment(data.start.dateTime))
+        moment(exDate).isAfter(moment(data.start.dateTime))
       ),
       recurrenceIds: pattern.recurrenceIds.filter((recurrId) =>
-        moment(recurrId).isSameOrAfter(moment(data.start.dateTime))
+        moment(recurrId).isAfter(moment(data.start.dateTime))
       ),
       recurringTypeId: moment(data.start.dateTime).format('YYYY-MM-DDTHH:mm:ss'),
       iCalUID: updatedUid,
@@ -1691,10 +1691,11 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     ) {
       // No end condition for this, figure out later LOL
     } else if (pattern.until === undefined || pattern.until === null) {
+      debugger;
       // The idea here is to first update the old recurrence pattern with until
       // so that we can generate a ruleset as the freq could be a daily/weekly/monthly
       // or have some weird interval.
-      // Once we have done thatWe filter the exdate and recurrenceids so that the old pattern
+      // Once we have done that, we filter the exdate and recurrenceids so that the old pattern
       // does not have the extra dates as the series has shortened.
       // As the start date is the same, we set the recurringtypeId as the same.
       // In the future, I need to change the freq and interval based off the UI here.
@@ -1714,7 +1715,9 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
           moment(rpDate).isBefore(moment(data.start.dateTime))
         ),
         recurringTypeId: pattern.recurringTypeId,
-        until: data.start.dateTime,
+        until: moment(data.start.dateTime)
+          .subtract(1, 'second')
+          .format('YYYY-MM-DDTHH:mm:ssZ'),
         isCount: true
       });
 
@@ -1723,11 +1726,13 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       // Parsed into Json for readability and able to be manipulated. RxDocs are not mutable.
       // As we editing this event, we need the minus one.
       const ruleSet = buildRuleSet(oldRecurringPattern, pattern.recurringTypeId);
+      // Recur Dates only hold events and not exceptions.
       const recurDates = ruleSet.all().map((date) => date.toJSON());
-      const seriesEndCount = pattern.numberOfRepeats - recurDates.length;
+      const seriesEndCount =
+        pattern.numberOfRepeats - recurDates.length - oldRecurringPattern.recurrenceIds.length;
 
       Object.assign(newRecurrencePattern, {
-        numberOfRepeats: seriesEndCount + 1, // New Rp needs to repeat from that day till the next.
+        numberOfRepeats: seriesEndCount, // New Rp needs to repeat from that day till the next.
         isCount: true
       });
 
@@ -1737,7 +1742,7 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
 
       // Reassign the values of old pattern, Safety set the exdates and recurrenceids again.
       Object.assign(oldRecurringPattern, {
-        numberOfRepeats: recurDates.length - 1, // Old RP needs to repeat till the selected event minus one.
+        numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
         isCount: true,
         exDates: pattern.exDates.filter((exDate) =>
           moment(exDate).isBefore(moment(data.start.dateTime))
@@ -1749,7 +1754,7 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
 
       await recurPatternQuery.update({
         $set: {
-          numberOfRepeats: recurDates.length - 1, // Old RP needs to repeat till the selected event minus one.
+          numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
           isCount: true,
           exDates: pattern.exDates.filter((exDate) =>
             moment(exDate).isBefore(moment(data.start.dateTime))

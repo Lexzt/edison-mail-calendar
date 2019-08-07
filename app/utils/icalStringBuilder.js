@@ -423,7 +423,6 @@ export const buildICALStringUpdateFutureRecurMasterEvent = (
 
   // #region Updating Old Object, with all the previous values & new recurrence
   const iCalendarData = 'BEGIN:VEVENT\nEND:VEVENT\n';
-  debugger;
   const jcalData = ICAL.parse(iCalendarData);
   const vevent = new ICAL.Component(jcalData);
 
@@ -441,16 +440,13 @@ export const buildICALStringUpdateFutureRecurMasterEvent = (
 
   const result = nonRecurringEvents.map((e2) => {
     const nonMasterVEventTime = moment(e2.getFirstPropertyValue('recurrence-id').toJSDate());
-    if (nonMasterVEventTime.isAfter(moment(eventObject.start.dateTime))) {
+    if (nonMasterVEventTime.isSameOrAfter(moment(eventObject.start.dateTime), 'day')) {
       vcalendar.removeSubcomponent(e2);
       return 'deleted';
     }
     recurringChildren.push(e2);
     return 'ignored';
   });
-
-  debugger;
-  console.log(recurringMaster.getAllSubcomponents('exdate'));
 
   recurringMaster.getAllProperties('exdate').forEach((e) => {
     const exDateMoment = moment(e.getValues()[0].toJSDate());
@@ -480,7 +476,7 @@ export const buildICALStringUpdateFutureRecurMasterEvent = (
 
   vevent.updatePropertyWithValue('priority', 0);
 
-  vevent.updatePropertyWithValue('summary', eventObject.summary);
+  vevent.updatePropertyWithValue('summary', recurringMaster.getFirstPropertyValue('summary'));
 
   const rrule = new ICAL.Recur(buildRruleObject(recurrencePattern));
   recurrencePattern.iCALString = rrule.toString();
@@ -544,19 +540,43 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
 
   const recurringChildren = [];
 
+  // The goal here is to remove any edited events from the calendar string based off the
+  // recurrence id as the time of the event.
+  // It checks it based off the recurrence pattern parsed in.
+  // It then deletes it if it is before the selected event.
+  // or if it is the same, it will edit it to details from the updated ui.
+  // In the future, if the behavior of updating this and future events change, for e.g.
+  // If it becomes let it automatically expand the events and not take the events from the parents,
+  // Then, come here, and edit this code to not delete or edit but just remove all child elements.
+  // Caldav will automatically handle the expansion.
+  const startDt = moment(eventObject.start.dateTime);
   nonRecurringEvents.forEach((e) => {
     const nonMasterVEventTime = moment(e.getFirstPropertyValue('recurrence-id').toJSDate());
     debugger;
-    let toDelete = true;
-    for (let index = 0; index < recurrencePattern.recurrenceIds.length; index += 1) {
-      const element = recurrencePattern.recurrenceIds[index];
-      if (nonMasterVEventTime.isSameOrAfter(moment(element))) {
-        toDelete = false;
-        break;
-      }
+    let toDelete = false;
+    let isSame = false;
+    // for (let index = 0; index < recurrencePattern.recurrenceIds.length; index += 1) {
+    //   const element = moment(recurrencePattern.recurrenceIds[index]);
+    //   if (nonMasterVEventTime.isBefore(element)) {
+    //     toDelete = true;
+    //     break;
+    //   } else if (nonMasterVEventTime.isSame(element)) {
+    //     isSame = true;
+    //     break;
+    //   }
+    // }
+    if (nonMasterVEventTime.isBefore(startDt)) {
+      toDelete = true;
+    } else if (nonMasterVEventTime.isSame(startDt)) {
+      isSame = true;
     }
-    if (toDelete) {
+
+    if (toDelete || isSame) {
       vcalendar.removeSubcomponent(e);
+      // } else if (isSame) {
+      //   e.updatePropertyWithValue('summary', updatedObject.title);
+      //   e.updatePropertyWithValue('uid', recurrencePattern.originalId);
+      //   recurringChildren.push(e);
     } else {
       e.updatePropertyWithValue('uid', recurrencePattern.originalId);
       recurringChildren.push(e);
