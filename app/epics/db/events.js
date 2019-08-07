@@ -44,15 +44,15 @@ export const retrieveEventsEpic = (action$) =>
       from(getDb()).pipe(
         mergeMap((db) =>
           from(db.events.find().exec()).pipe(
-            map((events) => {
-              console.log(action);
-              return events.filter(
+            map((events) =>
+              // console.log(action);
+              events.filter(
                 (singleEvent) => singleEvent.providerType === action.payload.providerType
-              );
-            }),
-            map((events) => {
-              console.log(events.map((e) => e.toJSON()));
-              return events.map((singleEvent) => ({
+              )
+            ),
+            map((events) =>
+              // console.log(events.map((e) => e.toJSON()));
+              events.map((singleEvent) => ({
                 id: singleEvent.id,
                 end: singleEvent.end,
                 start: singleEvent.start,
@@ -70,12 +70,12 @@ export const retrieveEventsEpic = (action$) =>
                 calendarId: singleEvent.calendarId,
                 providerType: singleEvent.providerType,
                 isMaster: singleEvent.isMaster
-              }));
-            }),
-            map((results) => {
-              console.log(results);
-              return updateStoredEvents(results, action.payload.user);
-            })
+              }))
+            ),
+            map((results) =>
+              // console.log(results);
+              updateStoredEvents(results, action.payload.user)
+            )
           )
         )
       )
