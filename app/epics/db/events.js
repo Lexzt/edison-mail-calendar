@@ -157,15 +157,13 @@ const storeEvents = async (payload) => {
   const dbFindPromises = [];
   const dbUpsertPromises = [];
   const { data } = payload;
+  const debug = false;
 
-  // debugger;
-
-  console.log(data);
-
-  // if (debug) {
-  const alle = await db.events.find().exec();
-  console.log(alle.map((e) => e.toJSON().start));
-  // }
+  if (debug) {
+    console.log(data);
+    const alle = await db.events.find().exec();
+    console.log(alle.map((e) => e.toJSON().start));
+  }
 
   // Create a list of promises to retrieve previous event from db first if it does not exist.
   for (const dbEvent of data) {
@@ -176,17 +174,6 @@ const storeEvents = async (payload) => {
       payload.owner,
       false
     );
-    console.log(filteredEvent);
-
-    // As id is the uniqid on our side, we need to find and update or delete accordingly.
-    // We use filtered object as it has casted it into our schema object type.
-    // dbFindPromises.push(
-    //   db.events
-    //     .findOne()
-    //     .where('originalId')
-    //     .eq(filteredEvent.originalId)
-    //     .exec()
-    // );
 
     // Unable to use origianlId as originalId is duplicated for CalDav. Argh.
     dbFindPromises.push(
@@ -200,11 +187,8 @@ const storeEvents = async (payload) => {
     );
   }
 
-  console.log('herE?');
-
   // Wait for all the promises to complete
   const results = await Promise.all(dbFindPromises);
-  console.log(results);
   // console.log(results.map((e) => e.toJSON()));
 
   // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
@@ -218,7 +202,6 @@ const storeEvents = async (payload) => {
       payload.owner,
       false
     );
-    console.log(filteredEvent);
 
     // Means it is a new object, we upsert coz filtered event already is new.
     if (results[i] === null) {
@@ -226,25 +209,6 @@ const storeEvents = async (payload) => {
     } else {
       // Take back old primary ID, so we do not create another object.
       filteredEvent.id = results[i].id;
-
-      // Push an update query instead of a upsert. Ensure ID is the same.
-      // dbUpsertPromises.push(
-      //   db.events
-      //     .findOne()
-      //     .where('originalId')
-      //     .eq(filteredEvent.originalId)
-      //     .update({
-      //       $set: filteredEvent
-      //     })
-      // );
-
-      // dbUpsertPromises.push(
-      //   db.events
-      //     .findOne()
-      //     .where('originalId')
-      //     .eq(filteredEvent.originalId)
-      //     .atomicUpdate(changeFunc)
-      // );
 
       // eslint-disable-next-line no-await-in-loop
       await db.events
@@ -259,8 +223,6 @@ const storeEvents = async (payload) => {
     // This is for all the events, for UI.
     addedEvents.push(filteredEvent);
   }
-  console.log('here?2', dbUpsertPromises);
-
   await Promise.all(dbUpsertPromises);
   console.log(addedEvents);
   return addedEvents;

@@ -4,7 +4,7 @@ import { RRule, RRuleSet } from 'rrule';
 import uuidv1 from 'uuid';
 
 export const buildRruleObject = (recurrencePattern) => {
-  debugger;
+  // debugger;
   console.log(recurrencePattern);
   let returnObj;
   if (recurrencePattern.numberOfRepeats > 0) {
@@ -128,7 +128,7 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
     }
   });
 
-  debugger;
+  // debugger;
   return vcalendar.toString();
 };
 
@@ -465,7 +465,6 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
   const startDt = moment(eventObject.start.dateTime);
   nonRecurringEvents.forEach((e) => {
     const nonMasterVEventTime = moment(e.getFirstPropertyValue('recurrence-id').toJSDate());
-    debugger;
     let toDelete = false;
     let isSame = false;
     if (nonMasterVEventTime.isBefore(startDt)) {

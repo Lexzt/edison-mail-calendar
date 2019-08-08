@@ -68,7 +68,7 @@ export const storeCaldavAuthEpic = (action$) =>
   );
 
 const storeUser = async (user) => {
-  console.log(user);
+  // console.log(user);
   const db = await getDb();
   let userDb = '';
   try {

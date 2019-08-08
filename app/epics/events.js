@@ -8,13 +8,11 @@ import {
   exhaustMap
 } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
-import { from, iif, of, timer, interval, throwError } from 'rxjs';
-import { normalize, schema } from 'normalizr';
+import { from, iif, of, interval, throwError } from 'rxjs';
 import { Client } from '@microsoft/microsoft-graph-client';
 import * as RxDB from 'rxdb';
 import {
   Appointment,
-  ConflictResolutionMode,
   DateTime,
   ExchangeService,
   ExchangeCredentials,
@@ -22,24 +20,22 @@ import {
   MessageBody,
   Uri,
   SendInvitationsMode,
-  SendInvitationsOrCancellationsMode,
   WellKnownFolderName
 } from 'ews-javascript-api';
 import moment from 'moment';
 import _ from 'lodash';
 import { uuidv4, uuidv1 } from 'uuid';
-import ICAL from 'ical.js';
 
 import { syncStoredEvents, retrieveStoreEvents, UPDATE_STORED_EVENTS } from '../actions/db/events';
-import {
-  loadClient,
-  loadFullCalendar,
-  loadSyncCalendar,
-  loadNextPage,
-  postGoogleEvent,
-  deleteGoogleEvent,
-  editGoogleEvent
-} from '../utils/client/google';
+// import {
+//   loadClient,
+//   loadFullCalendar,
+//   loadSyncCalendar,
+//   loadNextPage,
+//   postGoogleEvent,
+//   deleteGoogleEvent,
+//   editGoogleEvent
+// } from '../utils/client/google';
 import * as Providers from '../utils/constants';
 import { getUserEvents, getAccessToken, filterEventToOutlook } from '../utils/client/outlook';
 import {
@@ -47,18 +43,13 @@ import {
   asyncDeleteExchangeEvent,
   asyncGetRecurrAndSingleExchangeEvents,
   asyncGetSingleExchangeEvent,
-  asyncGetAllExchangeEvents,
-  asyncUpdateExchangeEvent,
-  asyncUpdateRecurrExchangeSeries,
-  createEwsRecurrenceObj,
-  parseEwsRecurringPatterns
+  asyncUpdateExchangeEvent
 } from '../utils/client/exchange';
 import {
-  GET_EVENTS_BEGIN,
-  EDIT_EVENT_BEGIN,
+  // GET_EVENTS_BEGIN,
+  // EDIT_EVENT_BEGIN,
   POST_EVENT_BEGIN,
   CLEAR_ALL_EVENTS,
-  GET_OUTLOOK_EVENTS_BEGIN,
   BEGIN_POLLING_EVENTS,
   END_POLLING_EVENTS,
   BEGIN_PENDING_ACTIONS,
@@ -75,13 +66,11 @@ import {
 import getDb from '../db';
 import * as Credentials from '../utils/Credentials';
 import ServerUrls from '../utils/serverUrls';
-import PARSER, { buildRuleSet } from '../utils/parser';
 import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
-import * as IcalStringBuilder from '../utils/icalStringBuilder';
 
 const dav = require('dav');
 
-// // ------------------------------------ GOOGLE ------------------------------------- //
+// #region Google (Not Working)
 // export const beginGetEventsEpics = (action$) =>
 //   action$.pipe(
 //     ofType(GET_EVENTS_BEGIN),
@@ -167,7 +156,7 @@ const dav = require('dav');
 //     resolve(newItems);
 //   }
 // };
-// ------------------------------------ GOOGLE ------------------------------------- //
+// #endregion
 
 // #region Create Events Epics
 export const beginPostEventEpics = (action$) =>
@@ -175,7 +164,7 @@ export const beginPostEventEpics = (action$) =>
     ofType(POST_EVENT_BEGIN),
     mergeMap((action) => {
       if (action.payload.providerType === Providers.GOOGLE) {
-        return from(postEvent(action.payload)).pipe(
+        return from(postEventGoogle(action.payload)).pipe(
           map(
             (resp) => postEventSuccess([resp.result], action.payload.providerType) // Think if you need to pass in owner here
           ),
@@ -199,13 +188,14 @@ export const beginPostEventEpics = (action$) =>
     })
   );
 
-const postEvent = async (resource) => {
+const postEventGoogle = async (resource) => {
   const calendarObject = {
     calendarId: 'primary',
     resource: resource.data
   };
-  await loadClient();
-  return postGoogleEvent(calendarObject);
+  // await loadClient();
+  // return postGoogleEvent(calendarObject);
+  return apiFailure('Google post event unimplemented.');
 };
 
 const postEventsOutlook = (payload) =>
@@ -301,36 +291,35 @@ const postEventsExchange = (payload) =>
   });
 // #endregion
 
-// #region Outlook Epics
-export const beginGetOutlookEventsEpics = (action$) =>
+// #region Edit Events Epics
+// START WORK HERE TOMORROW! Figure out how to do edit, then based off the single id, do everything else.
+export const beginEditEventEpics = (action$) =>
   action$.pipe(
-    ofType(GET_OUTLOOK_EVENTS_BEGIN),
-    mergeMap((action) =>
-      from(
-        new Promise((resolve, reject) => {
-          if (action.payload === undefined) {
-            reject(getEventsFailure('Outlook user undefined!!'));
-          }
-
-          console.log('Outlook Performing full sync', action);
-          getUserEvents(
-            action.payload.accessToken,
-            action.payload.accessTokenExpiry,
-            (events, error) => {
-              if (error) {
-                console.error(error);
-                return;
-              }
-
-              resolve(events);
-            }
-          );
-        })
-      ).pipe(
-        map((resp) => getEventsSuccess(resp, Providers.OUTLOOK, action.payload.email)),
-        catchError((error) => of(error))
-      )
-    )
+    ofType(POST_EVENT_BEGIN),
+    mergeMap((action) => {
+      if (action.payload.providerType === Providers.GOOGLE) {
+        return from(postEventGoogle(action.payload)).pipe(
+          map(
+            (resp) => postEventSuccess([resp.result], action.payload.providerType) // Think if you need to pass in owner here
+          ),
+          catchError((error) => apiFailure(error))
+        );
+      }
+      if (action.payload.providerType === Providers.OUTLOOK) {
+        return from(postEventsOutlook(action.payload)).pipe(
+          map((resp) => postEventSuccess([resp], action.payload.providerType)), // Think if you need to pass in owner here
+          catchError((error) => apiFailure(error))
+        );
+      }
+      if (action.payload.providerType === Providers.EXCHANGE) {
+        return from(postEventsExchange(action.payload)).pipe(
+          map((resp) =>
+            postEventSuccess([resp], action.payload.providerType, action.payload.auth.email)
+          ),
+          catchError((error) => apiFailure(error))
+        );
+      }
+    })
   );
 // #endregion
 

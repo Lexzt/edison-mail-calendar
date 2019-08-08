@@ -35,7 +35,6 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
     const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
     const filteredEvents = flatEvents.filter((event) => event !== '');
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
-    debugger;
     const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
 
@@ -63,8 +62,6 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
           .exec()
       )
     );
-    console.log(prevRPs);
-    debugger;
 
     let i = 0;
     prevRPs.forEach((prevRP) => {
@@ -72,7 +69,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
       if (prevRP === null) {
         promises.push(db.recurrencepatterns.upsert(newRP));
       } else {
-        console.log(prevRP, newRP);
+        // console.log(prevRP, newRP);
         promises.push(
           db.recurrencepatterns
             .findOne()
@@ -121,7 +118,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
         .map((e) => e.eventData)
     ];
     finalResult.forEach((e) => (e.owner = username));
-    console.log(finalResult);
+    // console.log(finalResult);
     return finalResult;
   } catch (e) {
     throw e;

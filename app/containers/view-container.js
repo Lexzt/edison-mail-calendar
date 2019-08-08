@@ -16,7 +16,6 @@ import {
 import { retrieveStoreEvents } from '../actions/db/events';
 import {
   beginGetGoogleEvents,
-  beginGetOutlookEvents,
   beginDeleteEvent,
   clearAllEvents,
   beginPollingEvents,
@@ -28,6 +27,7 @@ import {
 } from '../actions/events';
 import { beginGetCaldavEvents } from '../actions/providers/caldav';
 import { beginGetExchangeEvents } from '../actions/providers/exchange';
+import { beginGetOutlookEvents } from '../actions/providers/outlook';
 import getFilteredEvents from '../selectors/ui-selector';
 
 const mapStateToProps = (state) => ({
