@@ -56,7 +56,7 @@ const mapDispatchToProps = (dispatch) => ({
   beginCaldavAuth: (user) => dispatch(beginCaldavAuth(user)),
 
   // Get from database List of Events
-  retrieveStoreEvents: (providerType, user) => dispatch(retrieveStoreEvents(providerType, user)),
+  retrieveStoreEvents: (user) => dispatch(retrieveStoreEvents(user)),
 
   // CRUD - Delete Operations
   beginDeleteEvent: (id) => dispatch(beginDeleteEvent(id)),

@@ -110,15 +110,19 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
     const expanded = await PARSER.expandRecurEvents(
       flatFilteredEvents.map((calEvent) => calEvent.eventData)
     );
-    // console.log(expanded, flatFilteredEvents.map((calEvent) => calEvent.eventData));
+    console.log(
+      expanded,
+      flatFilteredEvents,
+      flatFilteredEvents.map((calEvent) => calEvent.eventData)
+    );
     const finalResult = [
-      ...expanded,
+      ...expanded.filter((e) => e.isRecurring === true),
       ...flatFilteredEvents
         .filter((e) => e.recurData === undefined || e.recurData === null)
         .map((e) => e.eventData)
     ];
     finalResult.forEach((e) => (e.owner = username));
-    // console.log(finalResult);
+    console.log(finalResult);
     return finalResult;
   } catch (e) {
     throw e;

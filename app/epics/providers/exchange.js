@@ -69,9 +69,7 @@ export const editExchangeSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_EXCHANGE_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editEwsSingle(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
-      )
+      from(editEwsSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
     )
   );
 
@@ -80,7 +78,7 @@ export const editExchangeAllRecurrenceEventEpics = (action$) =>
     ofType(EDIT_EXCHANGE_ALL_EVENT_BEGIN),
     mergeMap((action) =>
       from(editEwsAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -90,7 +88,7 @@ export const editExchangeFutureRecurrenceEventEpics = (action$) =>
     ofType(EDIT_EXCHANGE_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
       from(editEwsAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -99,9 +97,7 @@ export const deleteExchangeSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_EXCHANGE_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteEwsSingle(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
-      )
+      from(deleteEwsSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
     )
   );
 
@@ -110,7 +106,7 @@ export const deleteExchangeAllRecurrenceEventEpics = (action$) =>
     ofType(DELETE_EXCHANGE_ALL_EVENT_BEGIN),
     mergeMap((action) =>
       from(deleteEwsAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -120,7 +116,7 @@ export const deleteExchangeFutureRecurrenceEventEpics = (action$) =>
     ofType(DELETE_EXCHANGE_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
       from(deleteEwsAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -769,6 +765,8 @@ const deleteEwsSingle = async (payload) => {
       }
     });
   }
+
+  return { user };
 };
 
 const deleteEwsAllRecurrenceEvents = async (payload) => {
@@ -821,6 +819,8 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
       }
     });
   }
+
+  return { user };
 };
 
 const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
@@ -965,4 +965,6 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
   } catch (error) {
     console.log(error);
   }
+
+  return { user };
 };

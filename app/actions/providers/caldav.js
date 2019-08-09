@@ -57,13 +57,13 @@ export const deleteCalDavSingleEventBegin = (resp) => ({
   payload: resp
 });
 
-export const deleteCalDavFutureEventBegin = (resp) => ({
-  type: DELETE_CALDAV_FUTURE_EVENT_BEGIN,
+export const deleteCalDavAllEventBegin = (resp) => ({
+  type: DELETE_CALDAV_ALL_EVENT_BEGIN,
   payload: resp
 });
 
-export const deleteCalDavAllEventBegin = (resp) => ({
-  type: DELETE_CALDAV_ALL_EVENT_BEGIN,
+export const deleteCalDavFutureEventBegin = (resp) => ({
+  type: DELETE_CALDAV_FUTURE_EVENT_BEGIN,
   payload: resp
 });
 // #endregion

@@ -12,9 +12,7 @@ export const storeGoogleAuthEpic = (action$) =>
     ofType(AuthActionTypes.SUCCESS_GOOGLE_AUTH),
     mergeMap((action) =>
       from(storeUser(action.payload.user)).pipe(
-        mergeMap((resp) =>
-          of(successStoreAuth(), retrieveStoreEvents(Providers.GOOGLE, action.payload.user))
-        ),
+        mergeMap((resp) => of(successStoreAuth(), retrieveStoreEvents(action.payload.user))),
         catchError((error) => {
           of(console.log(error));
         })
@@ -27,9 +25,7 @@ export const storeOutLookAuthEpic = (action$) =>
     ofType(AuthActionTypes.SUCCESS_OUTLOOK_AUTH),
     mergeMap((action) =>
       from(storeUser(action.payload.user)).pipe(
-        mergeMap((resp) =>
-          of(successStoreAuth(), retrieveStoreEvents(Providers.OUTLOOK, action.payload.user))
-        ),
+        mergeMap((resp) => of(successStoreAuth(), retrieveStoreEvents(action.payload.user))),
         catchError((error) => {
           of(console.log(error));
         })
@@ -42,9 +38,7 @@ export const storeExchangeAuthEpic = (action$) =>
     ofType(AuthActionTypes.SUCCESS_EXCHANGE_AUTH),
     mergeMap((action) =>
       from(storeUser(action.payload.user)).pipe(
-        mergeMap((resp) =>
-          of(successStoreAuth(), retrieveStoreEvents(Providers.EXCHANGE, action.payload.user))
-        ),
+        mergeMap((resp) => of(successStoreAuth(), retrieveStoreEvents(action.payload.user))),
         catchError((error) => {
           of(console.log(error));
         })
@@ -57,9 +51,7 @@ export const storeCaldavAuthEpic = (action$) =>
     ofType(AuthActionTypes.SUCCESS_CALDAV_AUTH),
     mergeMap((action) =>
       from(storeUser(action.payload.user)).pipe(
-        mergeMap((resp) =>
-          of(successStoreAuth(), retrieveStoreEvents(Providers.CALDAV, action.payload.user))
-        ),
+        mergeMap((resp) => of(successStoreAuth(), retrieveStoreEvents(action.payload.user))),
         catchError((error) => {
           of(console.log(error));
         })

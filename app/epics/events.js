@@ -24,7 +24,8 @@ import {
 } from 'ews-javascript-api';
 import moment from 'moment';
 import _ from 'lodash';
-import { uuidv4, uuidv1 } from 'uuid';
+import uuidv4 from 'uuid';
+// import { uuidv1 } from 'uuid/v1';
 
 import { syncStoredEvents, retrieveStoreEvents, UPDATE_STORED_EVENTS } from '../actions/db/events';
 // import {
@@ -61,14 +62,17 @@ import {
   editEventSuccess,
   getEventsFailure,
   clearAllEventsSuccess,
-  endPollingEvents
+  endPollingEvents,
+  EDIT_EVENT_BEGIN
 } from '../actions/events';
 import getDb from '../db';
 import * as Credentials from '../utils/Credentials';
 import ServerUrls from '../utils/serverUrls';
 import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
+import * as IcalStringBuilder from '../utils/icalStringBuilder';
 
 const dav = require('dav');
+const uuidv1 = require('uuid/v1');
 
 // #region Google (Not Working)
 // export const beginGetEventsEpics = (action$) =>
@@ -185,6 +189,14 @@ export const beginPostEventEpics = (action$) =>
           catchError((error) => apiFailure(error))
         );
       }
+      if (action.payload.providerType === Providers.CALDAV) {
+        return from(postEventsCalDav(action.payload)).pipe(
+          map((resp) =>
+            postEventSuccess([resp], action.payload.providerType, action.payload.auth.email)
+          ),
+          catchError((error) => apiFailure(error))
+        );
+      }
     })
   );
 
@@ -289,38 +301,124 @@ const postEventsExchange = (payload) =>
       )
       .catch((error) => throwError(error));
   });
-// #endregion
 
-// #region Edit Events Epics
-// START WORK HERE TOMORROW! Figure out how to do edit, then based off the single id, do everything else.
-export const beginEditEventEpics = (action$) =>
-  action$.pipe(
-    ofType(POST_EVENT_BEGIN),
-    mergeMap((action) => {
-      if (action.payload.providerType === Providers.GOOGLE) {
-        return from(postEventGoogle(action.payload)).pipe(
-          map(
-            (resp) => postEventSuccess([resp.result], action.payload.providerType) // Think if you need to pass in owner here
-          ),
-          catchError((error) => apiFailure(error))
-        );
-      }
-      if (action.payload.providerType === Providers.OUTLOOK) {
-        return from(postEventsOutlook(action.payload)).pipe(
-          map((resp) => postEventSuccess([resp], action.payload.providerType)), // Think if you need to pass in owner here
-          catchError((error) => apiFailure(error))
-        );
-      }
-      if (action.payload.providerType === Providers.EXCHANGE) {
-        return from(postEventsExchange(action.payload)).pipe(
-          map((resp) =>
-            postEventSuccess([resp], action.payload.providerType, action.payload.auth.email)
-          ),
-          catchError((error) => apiFailure(error))
-        );
-      }
+const postEventsCalDav = async (payload) => {
+  const debug = true;
+
+  // Parse user information from account layer to dav object.
+  const xhrObject = new dav.transport.Basic(
+    new dav.Credentials({
+      username: payload.auth.email,
+      password: payload.auth.password
     })
   );
+
+  let newiCalString = '';
+  const caldavUrl =
+    'https://caldav.fastmail.com/dav/calendars/user/fongzhizhong@fastmail.com/f6bf2b4a-d0d3-43d4-85bd-90e7858e5f9e/';
+
+  const newETag = uuidv1();
+  // console.log(caldavUrl, newETag);
+
+  const { data } = payload;
+
+  // Builds additional fields that are missing specifically for caldav.
+  data.id = uuidv4();
+  data.originalId = uuidv1();
+
+  // Repopulate certain fields that are missing
+  data.attendee = [];
+  data.caldavUrl = caldavUrl;
+  data.created = moment().format('YYYY-MM-DDTHH:mm:ssZ');
+  data.updated = moment().format('YYYY-MM-DDTHH:mm:ssZ');
+  data.iCalUID = data.originalId;
+  data.owner = payload.auth.email;
+  data.providerType = Providers.CALDAV;
+
+  if (payload.data.isRecurring) {
+    const newRecurrencePattern = {};
+    const updatedId = uuidv1();
+    const updatedUid = uuidv1();
+
+    data.isRecurring = true;
+
+    Object.assign(newRecurrencePattern, {
+      id: updatedId,
+      originalId: updatedUid,
+      // // // Temp take from the recurrence master first, will take from the UI in future.
+      // // freq: payload.options.rrule.freq,
+      // // interval: payload.options.rrule.interval,
+      // freq: pattern.freq,
+      // interval: pattern.interval,
+      // exDates: pattern.exDates.filter((exDate) =>
+      //   moment(exDate).isAfter(moment(data.start.dateTime))
+      // ),
+      // recurrenceIds: pattern.recurrenceIds.filter((recurrId) =>
+      //   moment(recurrId).isAfter(moment(data.start.dateTime))
+      // ),
+      recurringTypeId: moment(data.start.dateTime).format('YYYY-MM-DDTHH:mm:ss'),
+      iCalUID: updatedUid,
+      byEaster: '',
+      byHour: '',
+      byMinute: '',
+      byMonth: '',
+      byMonthDay: '',
+      bySecond: '',
+      bySetPos: '',
+      byWeekDay: '',
+      byWeekNo: '',
+      byYearDay: ''
+    });
+
+    // Creates Recurring event.
+    // This does not work atm. isRecurring is not defined too.
+    newiCalString = IcalStringBuilder.buildICALStringCreateRecurEvent(
+      newRecurrencePattern,
+      payload.data
+    );
+  } else {
+    data.isRecurring = false;
+
+    // Creates non Recurring event.
+    newiCalString = IcalStringBuilder.buildICALStringCreateEvent(payload.data);
+  }
+  data.iCALString = newiCalString;
+
+  const calendar = new dav.Calendar();
+  calendar.url = caldavUrl;
+
+  const addCalendarObject = {
+    data: newiCalString,
+    filename: `${newETag}.ics`,
+    xhr: xhrObject
+  };
+
+  const addResult = await dav.createCalendarObject(calendar, addCalendarObject);
+  if (debug) {
+    console.log('(postEventsCalDav)', addResult);
+  }
+
+  // You have to do a full sync as the .ics endpoint might not be valid
+  const allEvents = await asyncGetAllCalDavEvents(
+    payload.auth.email,
+    payload.auth.password,
+    payload.auth.url
+  );
+
+  // Etag is a real problem here LOL. This does NOT WORK
+  const justCreatedEvent = allEvents.filter((e) => e.originalId === data.originalId)[0];
+  data.etag = justCreatedEvent.etag;
+  data.caldavUrl = justCreatedEvent.caldavUrl;
+
+  // If it reaches here, it means we managed to push the object into the provider!
+  // Update database by filtering the new item into our schema.
+  const db = await getDb();
+
+  // Add it to the database
+  const appendedResult = await db.events.upsert(data);
+  return appendedResult.toJSON();
+  // #endregion
+};
 // #endregion
 
 // #region General Epics
@@ -672,9 +770,7 @@ const handlePendingActions = async (users, actions, db) => {
 
   // For every successful user, it will map a retrieve stored event for it.
   // Returns multiple action due to filtering on UI selector, updates specific providers only, not all of them.
-  const resultingAction = noDuplicateUsers.map((indivAcc) =>
-    retrieveStoreEvents(indivAcc.v.user.providerType, indivAcc.v.user)
-  );
+  const resultingAction = noDuplicateUsers.map((indivAcc) => retrieveStoreEvents(indivAcc.v.user));
 
   // // Unsure if needed due to if all fail to send
   // if (resultingAction.length === 0) {

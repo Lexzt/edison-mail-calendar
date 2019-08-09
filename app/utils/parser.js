@@ -227,6 +227,7 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
 };
 
 const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
+  debugger;
   const masterEvent = component.getFirstSubcomponent('vevent');
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null

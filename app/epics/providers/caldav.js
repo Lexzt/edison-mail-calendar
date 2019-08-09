@@ -59,9 +59,7 @@ export const editCalDavSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_CALDAV_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editCalDavSingle(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
-      )
+      from(editCalDavSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
     )
   );
 
@@ -70,7 +68,7 @@ export const editCalDavAllRecurrenceEventEpics = (action$) =>
     ofType(EDIT_CALDAV_ALL_EVENT_BEGIN),
     mergeMap((action) =>
       from(editCalDavAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -80,7 +78,7 @@ export const editCalDavFutureRecurrenceEventEpics = (action$) =>
     ofType(EDIT_CALDAV_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
       from(editCalDavAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -89,9 +87,7 @@ export const deleteCalDavSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_CALDAV_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteCalDavSingle(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
-      )
+      from(deleteCalDavSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
     )
   );
 
@@ -100,7 +96,7 @@ export const deleteCalDavAllRecurrenceEventEpics = (action$) =>
     ofType(DELETE_CALDAV_ALL_EVENT_BEGIN),
     mergeMap((action) =>
       from(deleteCalDavAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -110,7 +106,7 @@ export const deleteCalDavFutureRecurrenceEventEpics = (action$) =>
     ofType(DELETE_CALDAV_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
       from(deleteCalDavAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.providerType, resp.user))
+        map((resp) => retrieveStoreEvents(resp.user))
       )
     )
   );
@@ -724,13 +720,8 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     ];
 
     // You have to do a full sync as the .ics endpoint might not be valid
-    const allEvents = await asyncGetAllCalDavEvents(
-      user.email,
-      user.password,
-      'https://caldav.fastmail.com/dav/'
-    );
-    debugger;
-    console.log(allEvents);
+    const allEvents = await asyncGetAllCalDavEvents(user.email, user.password, user.url);
+    // console.log(allEvents);
     const newFinalResultPromises = newFinalResult.map((newEvent) => {
       newEvent.owner = user.email;
       return db.events.upsert(newEvent);
@@ -854,6 +845,8 @@ const deleteCalDavSingle = async (payload) => {
       .where('id')
       .eq(data.id)
       .remove();
+
+    return { user };
   } catch (caldavError) {
     console.log('Handle Caldav pending action here', caldavError);
   }
@@ -899,6 +892,8 @@ const deleteCalDavAllRecurrenceEvents = async (payload) => {
 
     // Remove all the recurring events accordingly.
     const removedEvent = await deleteDocs.remove();
+
+    return { user };
   } catch (caldavError) {
     console.log('Handle Caldav pending action here', caldavError);
   }
@@ -1060,6 +1055,8 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
 
       console.log(deletingEvents);
     }
+
+    return { user };
   } catch (caldavError) {
     console.log('Handle Caldav pending action here', caldavError);
   }

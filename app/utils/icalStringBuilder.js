@@ -551,3 +551,73 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
   // debugger;
   return vcalendar.toString();
 };
+
+export const buildICALStringCreateRecurEvent = (eventObject) => {
+  // Build the Dav Calendar Object from the iCalString.
+  const calendarData = ICAL.parse();
+  const vcalendar = new ICAL.Component(calendarData);
+};
+
+export const buildICALStringCreateEvent = (eventObject) => {
+  // Build the Dav Calendar Object from the iCalString.
+  const calendarData = ICAL.parse(
+    'BEGIN:VCALENDAR\nVERSION:2.0\nCALSCALE:GREGORIAN\nPRODID:-//CyrusIMAP.org/Cyrus 3.1.6-808-g930a1a1-fmstable-20190805v2//EN\nEND:VCALENDAR\n'
+  );
+
+  const timezoneData = ICAL.parse(
+    'BEGIN:VTIMEZONE\nTZID:America/Los_Angeles\nLAST-MODIFIED:20190205T122727Z\nX-LIC-LOCATION:America/Los_Angeles\nTZUNTIL:20190803T170000Z\nEND:VTIMEZONE\n'
+  );
+  const vtimezone = new ICAL.Component(timezoneData);
+  const daylightData = ICAL.parse(
+    'BEGIN:DAYLIGHT\nTZNAME:PDT\nTZOFFSETFROM:-0800\nTZOFFSETTO:-0700\nDTSTART:20070311T020000\nRRULE:FREQ=YEARLY;BYDAY=2SU;BYMONTH=3\nEND:DAYLIGHT\n'
+  );
+  const vdaylight = new ICAL.Property(daylightData);
+  const standardData = ICAL.parse(
+    'BEGIN:STANDARD\nTZNAME:PST\nTZOFFSETFROM:-0700\nTZOFFSETTO:-0800\nDTSTART:20071104T020000\nRRULE:FREQ=YEARLY;BYDAY=1SU;BYMONTH=11\nEND:STANDARD\n'
+  );
+  const vstandard = new ICAL.Property(standardData);
+  debugger;
+  vtimezone.addSubcomponent(vdaylight);
+  vtimezone.addSubcomponent(vstandard);
+
+  const vcalendar = new ICAL.Component(calendarData);
+
+  // Create new event structure, and parse it into a component.
+  const jcalData = ICAL.parse(new ICAL.Event().toString());
+  const vevent = new ICAL.Component(jcalData);
+
+  // The order might matter, did not test it yet, but sequence is usually at the top.
+  vevent.updatePropertyWithValue('sequence', 0);
+
+  // Take UID from previous object, so that it will replace it.
+  vevent.updatePropertyWithValue('uid', eventObject.originalId);
+
+  // Updating Single Recurring event, so update the recurrence-id based off the start time.
+  const startDateTime = ICAL.Time.fromJSDate(new Date(eventObject.start.dateTime), false);
+
+  // DateTime start of the selected event, set the Timezone ID properly.
+  vevent.updatePropertyWithValue('dtstart', startDateTime);
+  vevent.getFirstProperty('dtstart').setParameter('tzid', 'US/Pacific');
+
+  // Temp set the duration to all an hour, Will change in the future. (TO-DO)
+  vevent.updatePropertyWithValue('duration', 'PT1H');
+
+  // The other fields.
+  vevent.updatePropertyWithValue('created', ICAL.Time.now());
+  vevent.updatePropertyWithValue('dtstamp', ICAL.Time.now());
+  vevent.updatePropertyWithValue('priority', 0);
+
+  // Currently, only updating the title. (TO-DO)
+  // Update all the events based of the new event property.
+  vevent.updatePropertyWithValue('summary', eventObject.summary);
+
+  // The other fields.
+  vevent.updatePropertyWithValue('status', 'CONFIRMED');
+  vevent.updatePropertyWithValue('transp', 'OPAQUE');
+  vevent.updatePropertyWithValue('class', 'PUBLIC');
+  debugger;
+  vcalendar.addSubcomponent(vevent);
+  vcalendar.addSubcomponent(vtimezone);
+  debugger;
+  return vcalendar.toString();
+};

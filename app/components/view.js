@@ -195,7 +195,7 @@ export default class View extends React.Component {
     props.updateEvents(nextEvents);
   };
 
-  handleSelectDate = ({ start, end }) => {
+  addEvent = ({ start, end }) => {
     const { props } = this;
     props.history.push(`/${start}/${end}`);
   };
@@ -251,8 +251,6 @@ export default class View extends React.Component {
     });
   };
 
-  addEvent = () => {};
-
   deleteEvent = () => {
     const { props, state } = this;
     props.beginDeleteEvent(state.currentEvent.id);
@@ -291,7 +289,7 @@ export default class View extends React.Component {
         }}
         onEventDrop={this.moveEventList}
         onEventResize={this.resizeEvent}
-        onSelectSlot={this.handleSelectDate}
+        onSelectSlot={this.addEvent}
         onSelectEvent={(event) => this.handleEventClick(event)}
         popup
         resizable

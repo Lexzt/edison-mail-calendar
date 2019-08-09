@@ -50,7 +50,7 @@ export const momentAdd = (day, time) => {
 export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
   const schemaCastedDbObject = {};
   switch (type) {
-    case GOOGLE:
+    case GOOGLE: {
       [
         'kind',
         'etag',
@@ -69,7 +69,8 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
       dbEvent.hide = false;
 
       return dbEvent;
-    case OUTLOOK:
+    }
+    case OUTLOOK: {
       ['@odata.etag'].forEach((e) => delete dbEvent[e]);
 
       schemaCastedDbObject.id = md5(dbEvent.id);
@@ -126,7 +127,8 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
       schemaCastedDbObject.hide = false;
 
       return schemaCastedDbObject;
-    case EXCHANGE:
+    }
+    case EXCHANGE: {
       /*
         Wow, exchange is actually super hard to handle. I never thought it would be this bad. But lets get into the details.
 
@@ -362,11 +364,13 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
 
       // console.log(schemaCastedDbObject);
       return schemaCastedDbObject;
-
-    case CALDAV:
+    }
+    case CALDAV: {
       return dbEvent;
-    default:
+    }
+    default: {
       console.log(`Provider ${type} not available`);
+    }
   }
 };
 

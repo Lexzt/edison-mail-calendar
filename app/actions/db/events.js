@@ -25,9 +25,9 @@ export const updateStoredEvents = (resp, user) => ({
   payload: { resp, user }
 });
 
-export const retrieveStoreEvents = (providerType, user) => ({
+export const retrieveStoreEvents = (user) => ({
   type: RETRIEVE_STORED_EVENTS,
-  payload: { providerType, user }
+  payload: { user }
 });
 
 export const syncStoredEvents = (resp) => ({

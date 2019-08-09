@@ -236,7 +236,7 @@ export const authSuccessMiddleware = (store) => (next) => (action) => {
   if (action.type === AuthActionTypes.SUCCESS_OUTLOOK_AUTH) {
     next({
       type: DbActionTypes.RETRIEVE_STORED_EVENTS,
-      payload: { providerType: Providers.OUTLOOK, user: action.payload.user }
+      payload: { providerType: action.payload.user.providerType, user: action.payload.user }
     });
   }
   if (action.type === AuthActionTypes.FAIL_OUTLOOK_AUTH) {
@@ -248,7 +248,7 @@ export const authSuccessMiddleware = (store) => (next) => (action) => {
   if (action.type === AuthActionTypes.SUCCESS_EXCHANGE_AUTH) {
     next({
       type: DbActionTypes.RETRIEVE_STORED_EVENTS,
-      payload: { providerType: Providers.EXCHANGE, user: action.payload.user }
+      payload: { providerType: action.payload.user.providerType, user: action.payload.user }
     });
   }
   if (action.type === AuthActionTypes.FAIL_EXCHANGE_AUTH) {
@@ -260,7 +260,7 @@ export const authSuccessMiddleware = (store) => (next) => (action) => {
   if (action.type === AuthActionTypes.SUCCESS_CALDAV_AUTH) {
     next({
       type: DbActionTypes.RETRIEVE_STORED_EVENTS,
-      payload: { providerType: Providers.CALDAV, user: action.payload.user }
+      payload: { providerType: action.payload.user.providerType, user: action.payload.user }
     });
   }
   if (action.type === AuthActionTypes.FAIL_CALDAV_AUTH) {

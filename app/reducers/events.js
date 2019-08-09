@@ -56,7 +56,7 @@ export default function eventsReducer(state = initialState, action) {
   }
   switch (action.type) {
     case RETRIEVE_STORED_EVENTS:
-      return Object.assign({}, state, { providerType: action.providerType });
+      return Object.assign({}, state, { providerType: action.payload.user.providerType });
     case UPDATE_STORED_EVENTS:
       return Object.assign({}, state, { calEvents: action.payload.resp });
     case SUCCESS_STORED_EVENTS: {

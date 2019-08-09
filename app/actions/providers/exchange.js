@@ -57,13 +57,13 @@ export const deleteEwsSingleEventBegin = (resp) => ({
   payload: resp
 });
 
-export const deleteEwsFutureEventBegin = (resp) => ({
-  type: DELETE_EXCHANGE_FUTURE_EVENT_BEGIN,
+export const deleteEwsAllEventBegin = (resp) => ({
+  type: DELETE_EXCHANGE_ALL_EVENT_BEGIN,
   payload: resp
 });
 
-export const deleteEwsAllEventBegin = (resp) => ({
-  type: DELETE_EXCHANGE_ALL_EVENT_BEGIN,
+export const deleteEwsFutureEventBegin = (resp) => ({
+  type: DELETE_EXCHANGE_FUTURE_EVENT_BEGIN,
   payload: resp
 });
 // #endregion
