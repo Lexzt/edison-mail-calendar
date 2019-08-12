@@ -186,6 +186,14 @@ export default class EditEvent extends React.Component {
     debugger;
     switch (e.target.name) {
       case 'updateOne':
+        const oneEventObject = {
+          id: state.id,
+          title: state.title,
+          user,
+          location: state.place,
+          originalId: state.originalId,
+          props
+        };
         switch (state.providerType) {
           case GOOGLE:
             // // READ THIS, GOOGLE DOES NOT WORK.
@@ -216,80 +224,43 @@ export default class EditEvent extends React.Component {
             // return editResp;
             break;
           case EXCHANGE:
-            const ewsEventObject = {
-              id: state.id,
-              title: state.title,
-              user,
-              location: state.place,
-              originalId: state.originalId,
-              props
-            };
-            props.editEwsSingleEventBegin(ewsEventObject);
+            props.editEwsSingleEventBegin(oneEventObject);
             break;
           case CALDAV:
-            const calDavEventObject = {
-              id: state.id,
-              title: state.title,
-              user,
-              location: state.place,
-              originalId: state.originalId,
-              props
-            };
-            props.editCalDavSingleEventBegin(calDavEventObject);
+            props.editCalDavSingleEventBegin(oneEventObject);
             break;
           default:
             break;
         }
         break;
       case 'updateAll':
+        const allEventObj = {
+          id: state.id,
+          title: state.title,
+          user,
+          location: state.place,
+          originalId: state.originalId,
+          recurringEventId: state.recurringEventId,
+          props,
+          firstOption: state.firstSelectedOption,
+          secondOption: state.selectedSecondRecurrOption,
+          recurrInterval: state.recurrInterval,
+          recurrPatternId: state.recurrPatternId,
+          untilType: state.thirdRecurrOptions,
+          untilDate: state.recurrEndDate,
+          untilAfter: state.thirdOptionAfter,
+          iCalUID: state.iCalUID,
+          byMonth: state.recurrByMonth,
+          byMonthDay: state.recurrByMonthDay,
+          byWeekDay: state.recurrByWeekDay,
+          byWeekNo: state.recurrByWeekNo
+        };
         switch (state.providerType) {
           case EXCHANGE:
-            const ewsEventObject = {
-              id: state.id,
-              title: state.title,
-              user,
-              location: state.place,
-              originalId: state.originalId,
-              recurringEventId: state.recurringEventId,
-              props,
-              firstOption: state.firstSelectedOption,
-              secondOption: state.selectedSecondRecurrOption,
-              recurrInterval: state.recurrInterval,
-              recurrPatternId: state.recurrPatternId,
-              untilType: state.thirdRecurrOptions,
-              untilDate: state.recurrEndDate,
-              untilAfter: state.thirdOptionAfter,
-              iCalUID: state.iCalUID,
-              byMonth: state.recurrByMonth,
-              byMonthDay: state.recurrByMonthDay,
-              byWeekDay: state.recurrByWeekDay,
-              byWeekNo: state.recurrByWeekNo
-            };
-            props.editEwsAllEventBegin(ewsEventObject);
+            props.editEwsAllEventBegin(allEventObj);
             break;
           case CALDAV:
-            const calDavEventObject = {
-              id: state.id,
-              title: state.title,
-              user,
-              location: state.place,
-              originalId: state.originalId,
-              recurringEventId: state.recurringEventId,
-              props,
-              firstOption: state.firstSelectedOption,
-              secondOption: state.selectedSecondRecurrOption,
-              recurrInterval: state.recurrInterval,
-              recurrPatternId: state.recurrPatternId,
-              untilType: state.thirdRecurrOptions,
-              untilDate: state.recurrEndDate,
-              untilAfter: state.thirdOptionAfter,
-              iCalUID: state.iCalUID,
-              byMonth: state.recurrByMonth,
-              byMonthDay: state.recurrByMonthDay,
-              byWeekDay: state.recurrByWeekDay,
-              byWeekNo: state.recurrByWeekNo
-            };
-            props.editCalDavAllEventBegin(calDavEventObject);
+            props.editCalDavAllEventBegin(allEventObj);
             break;
           default:
             console.log(`Have not handled ${state.providerType} updating of all recurring events.`);
@@ -297,61 +268,37 @@ export default class EditEvent extends React.Component {
         }
         break;
       case 'updateFuture':
+        const futureEventObj = {
+          id: state.id,
+          title: state.title,
+          user,
+          location: state.place,
+          originalId: state.originalId,
+          recurringEventId: state.recurringEventId,
+          props,
+          firstOption: state.firstSelectedOption,
+          secondOption: state.selectedSecondRecurrOption,
+          recurrInterval: state.recurrInterval,
+          recurrPatternId: state.recurrPatternId,
+          untilType: state.thirdRecurrOptions,
+          untilDate: state.recurrEndDate,
+          untilAfter: state.thirdOptionAfter,
+          iCalUID: state.iCalUID,
+          byMonth: state.recurrByMonth,
+          byMonthDay: state.recurrByMonthDay,
+          byWeekDay: state.recurrByWeekDay,
+          byWeekNo: state.recurrByWeekNo
+        };
         switch (state.providerType) {
           case EXCHANGE:
-            const ewsEventObject = {
-              id: state.id,
-              title: state.title,
-              user,
-              location: state.place,
-              originalId: state.originalId,
-              recurringEventId: state.recurringEventId,
-              props,
-              firstOption: state.firstSelectedOption,
-              secondOption: state.selectedSecondRecurrOption,
-              recurrInterval: state.recurrInterval,
-              recurrPatternId: state.recurrPatternId,
-              untilType: state.thirdRecurrOptions,
-              untilDate: state.recurrEndDate,
-              untilAfter: state.thirdOptionAfter,
-              iCalUID: state.iCalUID,
-              byMonth: state.recurrByMonth,
-              byMonthDay: state.recurrByMonthDay,
-              byWeekDay: state.recurrByWeekDay,
-              byWeekNo: state.recurrByWeekNo
-            };
-            props.editEwsFutureEventBegin(ewsEventObject);
+            props.editEwsFutureEventBegin(futureEventObj);
             break;
           case CALDAV:
-            const calDavEventObject = {
-              id: state.id,
-              title: state.title,
-              user,
-              location: state.place,
-              originalId: state.originalId,
-              recurringEventId: state.recurringEventId,
-              props,
-              firstOption: state.firstSelectedOption,
-              secondOption: state.selectedSecondRecurrOption,
-              recurrInterval: state.recurrInterval,
-              recurrPatternId: state.recurrPatternId,
-              untilType: state.thirdRecurrOptions,
-              untilDate: state.recurrEndDate,
-              untilAfter: state.thirdOptionAfter,
-              iCalUID: state.iCalUID,
-              byMonth: state.recurrByMonth,
-              byMonthDay: state.recurrByMonthDay,
-              byWeekDay: state.recurrByWeekDay,
-              byWeekNo: state.recurrByWeekNo
-            };
-            props.editCalDavFutureEventBegin(calDavEventObject);
+            props.editCalDavFutureEventBegin(futureEventObj);
             break;
           default:
             break;
         }
-        break;
-      case CALDAV:
-        // debugger;
         break;
       default:
         break;
@@ -457,7 +404,14 @@ export default class EditEvent extends React.Component {
         thirdOptionAfter: dbEventRecurrence.numberOfRepeats,
 
         recurrByMonth: dbEventRecurrence.byMonth,
-        recurrByMonthDay: dbEventRecurrence.byMonthDay,
+        recurrByMonthDay:
+          dbEventRecurrence.byMonthDay !== '()'
+            ? dbEventRecurrence.byMonthDay
+            : `(${moment(dbEventJSON.start).date()})`,
+        // recurrByWeekDay:
+        //   dbEventRecurrence.byWeekDay !== '()'
+        //     ? dbEventRecurrence.byWeekDay
+        //     : `(${moment(dbEventJSON.start).day()})`,
         recurrByWeekDay: dbEventRecurrence.byWeekDay,
         recurrByWeekNo: dbEventRecurrence.byWeekNo
       });
