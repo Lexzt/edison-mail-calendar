@@ -277,6 +277,7 @@ const editEwsAllRecurrenceEvents = async (payload) => {
         payload.recurringEventId
       );
 
+      debugger;
       const dbRecurrencePattern = parseEwsRecurringPatterns(
         updatedRecurrMasterAppointment.Id.UniqueId,
         updatedRecurrMasterAppointment.Recurrence,
@@ -284,6 +285,7 @@ const editEwsAllRecurrenceEvents = async (payload) => {
         updatedRecurrMasterAppointment.DeletedOccurrences,
         updatedRecurrMasterAppointment.ModifiedOccurrences
       );
+      debugger;
 
       const query = db.recurrencepatterns
         .find()

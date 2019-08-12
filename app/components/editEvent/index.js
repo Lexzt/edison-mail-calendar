@@ -441,7 +441,7 @@ export default class EditEvent extends React.Component {
         // console.log([0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]);
       }
 
-      // console.log(this.state);
+      console.log(dbEventRecurrence);
 
       this.setState({
         isRecurring: true,

@@ -338,52 +338,63 @@ export const parseEwsRecurringPatterns = (
   iCalUID,
   deletedOccurrences,
   editedOccurrences
-) => ({
-  id: uuidv4(),
-  originalId: id,
-  freq: parseEwsFreq(ews.XmlElementName),
-  interval: ews.Interval === undefined || ews.Interval === null ? 0 : parseInt(ews.Interval, 10),
-  recurringTypeId: ews.StartDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
-  until: ews.EndDate === null ? '' : ews.EndDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
-  iCalUID,
-  // TO-DO, actually populate this properly.
-  exDates:
-    deletedOccurrences === null
-      ? []
-      : deletedOccurrences.Items.map((deletedOccur) =>
-          deletedOccur.OriginalStart.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
-        ).filter(
-          (deletedRecurrString) =>
-            moment(deletedRecurrString).isAfter(ews.StartDate.getMomentDate()) &&
-            (ews.EndDate === null ||
-              moment(deletedRecurrString).isBefore(ews.EndDate.getMomentDate()))
-        ),
-  recurrenceIds:
-    editedOccurrences === null
-      ? []
-      : editedOccurrences.Items.map((editedOccur) =>
-          editedOccur.OriginalStart.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
-        ).filter(
-          (editedRecurrString) =>
-            moment(editedRecurrString).isAfter(ews.StartDate.getMomentDate()) &&
-            (ews.EndDate === null ||
-              moment(editedRecurrString).isBefore(ews.EndDate.getMomentDate()))
-        ),
-  modifiedThenDeleted: false,
-  weeklyPattern:
-    ews.XmlElementName === 'WeeklyRecurrence' ? convertDaysToArray(ews.DaysOfTheWeek.items) : [],
-  numberOfRepeats: ews.NumberOfOccurrences === null ? 0 : ews.NumberOfOccurrences,
-  byWeekNo:
-    ews.DayOfTheWeekIndex === undefined || ews.DayOfTheWeekIndex === null
-      ? '()'
-      : parseEwsWeekDayIndex(ews.DayOfTheWeekIndex),
-  byWeekDay:
-    ews.DayOfTheWeek === undefined || ews.DayOfTheWeek === null
-      ? '()'
-      : parseEwsWeekDay(ews.DayOfTheWeek),
-  byMonth: ews.Month === undefined || ews.Month === null ? '()' : parseEwsMonth(ews.Month),
-  byMonthDay: ews.DayOfMonth === undefined || ews.DayOfMonth === null ? '()' : `(${ews.DayOfMonth})`
-});
+) => {
+  console.log(ews);
+  // debugger;
+  return {
+    id: uuidv4(),
+    originalId: id,
+    freq: parseEwsFreq(ews.XmlElementName),
+    interval: ews.Interval === undefined || ews.Interval === null ? 0 : parseInt(ews.Interval, 10),
+    recurringTypeId: ews.StartDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
+    until: ews.EndDate === null ? '' : ews.EndDate.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ'),
+    iCalUID,
+    // TO-DO, actually populate this properly.
+    exDates:
+      deletedOccurrences === null
+        ? []
+        : deletedOccurrences.Items.map((deletedOccur) =>
+            deletedOccur.OriginalStart.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
+          ).filter(
+            (deletedRecurrString) =>
+              moment(deletedRecurrString).isAfter(ews.StartDate.getMomentDate()) &&
+              (ews.EndDate === null ||
+                moment(deletedRecurrString).isBefore(ews.EndDate.getMomentDate()))
+          ),
+    recurrenceIds:
+      editedOccurrences === null
+        ? []
+        : editedOccurrences.Items.map((editedOccur) =>
+            editedOccur.OriginalStart.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
+          ).filter(
+            (editedRecurrString) =>
+              moment(editedRecurrString).isAfter(ews.StartDate.getMomentDate()) &&
+              (ews.EndDate === null ||
+                moment(editedRecurrString).isBefore(ews.EndDate.getMomentDate()))
+          ),
+    modifiedThenDeleted: false,
+    weeklyPattern:
+      ews.XmlElementName === 'WeeklyRecurrence' ? convertDaysToArray(ews.DaysOfTheWeek.items) : [],
+    numberOfRepeats: ews.NumberOfOccurrences === null ? 0 : ews.NumberOfOccurrences,
+    byWeekNo:
+      ews.DayOfTheWeekIndex === undefined || ews.DayOfTheWeekIndex === null
+        ? '()'
+        : parseEwsWeekDayIndex(ews.DayOfTheWeekIndex),
+    byWeekDay:
+      // eslint-disable-next-line no-nested-ternary
+      ews.DaysOfTheWeek !== undefined && ews.DaysOfTheWeek !== null
+        ? parseEwsWeekDay(ews.DaysOfTheWeek)
+        : ews.DayOfTheWeek !== undefined && ews.DayOfTheWeek !== null
+        ? parseEwsWeekDay({ items: [ews.DayOfTheWeek] })
+        : '()',
+    // ews.DaysOfTheWeek === undefined || ews.DaysOfTheWeek === null
+    //   ? '()'
+    //   : parseEwsWeekDay(ews.DaysOfTheWeek),
+    byMonth: ews.Month === undefined || ews.Month === null ? '()' : parseEwsMonth(ews.Month),
+    byMonthDay:
+      ews.DayOfMonth === undefined || ews.DayOfMonth === null ? '()' : `(${ews.DayOfMonth})`
+  };
+};
 
 const convertDaysToArray = (arrayVals) => {
   const arr = [0, 0, 0, 0, 0, 0, 0];
@@ -392,6 +403,7 @@ const convertDaysToArray = (arrayVals) => {
 };
 
 const parseEwsWeekDayIndex = (ewsEnumDayOfTheWeekIndex) => {
+  debugger;
   let val = '';
   switch (ewsEnumDayOfTheWeekIndex) {
     case DayOfTheWeekIndex.First:
@@ -417,32 +429,38 @@ const parseEwsWeekDayIndex = (ewsEnumDayOfTheWeekIndex) => {
 
 const parseEwsWeekDay = (ewsEnumDayOfTheWeek) => {
   let val = '';
-  switch (ewsEnumDayOfTheWeek) {
-    case DayOfTheWeek.Monday:
-      val = 'MO';
-      break;
-    case DayOfTheWeek.Tuesday:
-      val = 'TU';
-      break;
-    case DayOfTheWeek.Wednesday:
-      val = 'WE';
-      break;
-    case DayOfTheWeek.Thursday:
-      val = 'TH';
-      break;
-    case DayOfTheWeek.Friday:
-      val = 'FR';
-      break;
-    case DayOfTheWeek.Saturday:
-      val = 'SA';
-      break;
-    case DayOfTheWeek.Sunday:
-      val = 'SU';
-      break;
-    default:
-      break;
-  }
-  return `(${val})`;
+  // debugger;
+  ewsEnumDayOfTheWeek.items.forEach((item) => {
+    let out = '';
+    switch (item) {
+      case DayOfTheWeek.Monday || 1:
+        out = 'MO';
+        break;
+      case DayOfTheWeek.Tuesday || 2:
+        out = 'TU';
+        break;
+      case DayOfTheWeek.Wednesday || 3:
+        out = 'WE';
+        break;
+      case DayOfTheWeek.Thursday || 4:
+        out = 'TH';
+        break;
+      case DayOfTheWeek.Friday || 5:
+        out = 'FR';
+        break;
+      case DayOfTheWeek.Saturday || 6:
+        out = 'SA';
+        break;
+      case DayOfTheWeek.Sunday || 0:
+        out = 'SU';
+        break;
+      default:
+        console.log('ERROR, WUT');
+        break;
+    }
+    val += `${out},`;
+  });
+  return `(${val.slice(0, -1)})`;
 };
 
 const parseEwsMonth = (ewsEnumMonth) => {
@@ -559,8 +577,12 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
             .filter((dbRecurrencePattern) => dbRecurrencePattern !== null)
             .filter((dbRecurrencePattern) => dbRecurrencePattern.iCalUID === eventId);
 
-          // console.log(prevDbObj, event, eventId, existInDb);
+          console.log(prevDbObj, event, eventId, existInDb);
           if (prevDbObj.length > 0) {
+            if (prevDbObj.length > 1) {
+              console.log('Duplicated database issue for recurrence pattern. Check please.');
+            }
+
             const recurrencePattern = parseEwsRecurringPatterns(
               event.Id.UniqueId,
               event.Recurrence,
@@ -572,7 +594,10 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
             const query = db.recurrencepatterns
               .findOne()
               .where('originalId')
-              .eq(existInDb.originalId);
+              .eq(prevDbObj[0].originalId);
+
+            console.log(recurrencePattern);
+            debugger;
 
             results.push(
               query.update({
