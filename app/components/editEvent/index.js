@@ -185,7 +185,7 @@ export default class EditEvent extends React.Component {
 
     debugger;
     switch (e.target.name) {
-      case 'updateOne':
+      case 'updateOne': {
         const oneEventObject = {
           id: state.id,
           title: state.title,
@@ -233,7 +233,8 @@ export default class EditEvent extends React.Component {
             break;
         }
         break;
-      case 'updateAll':
+      }
+      case 'updateAll': {
         const allEventObj = {
           id: state.id,
           title: state.title,
@@ -267,7 +268,8 @@ export default class EditEvent extends React.Component {
             break;
         }
         break;
-      case 'updateFuture':
+      }
+      case 'updateFuture': {
         const futureEventObj = {
           id: state.id,
           title: state.title,
@@ -300,6 +302,7 @@ export default class EditEvent extends React.Component {
             break;
         }
         break;
+      }
       default:
         break;
     }

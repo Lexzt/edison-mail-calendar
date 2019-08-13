@@ -222,12 +222,12 @@ export default class View extends React.Component {
   handleSubmit = async (e) => {
     e.preventDefault();
     const { state } = this;
-    this.authorizeExchangeCodeRequest({
-      username: state.exchangeEmail,
-      password: state.exchangePwd
-    });
+    // this.authorizeExchangeCodeRequest({
+    //   username: state.exchangeEmail,
+    //   password: state.exchangePwd
+    // });
 
-    // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
+    this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
   };
 
   // This filter user is used when the outlook first creates the object.

@@ -12,6 +12,10 @@ const parseRecurrenceEvents = (calEvents) => {
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
+      debugger;
+      const options = RRule.parseString(calEvent.recurData.rrule.stringFormat);
+      options.dtstart = new Date(moment(calEvent.eventData.start.dateTime));
+      const rrule = new RRule(options);
       recurringEvents.push({
         id: uuidv4(),
         recurringTypeId: calEvent.eventData.start.dateTime,
@@ -30,8 +34,22 @@ const parseRecurrenceEvents = (calEvents) => {
         byMonth: calEvent.recurData.rrule.bymonth,
         byMonthDay: calEvent.recurData.rrule.bymonthday,
         byYearDay: calEvent.recurData.rrule.byyearday,
-        byWeekNo: calEvent.recurData.rrule.byweekno,
-        byWeekDay: calEvent.recurData.rrule.byday,
+        byWeekNo:
+          rrule.origOptions.byweekday === undefined
+            ? '()'
+            : `(${rrule.origOptions.byweekday
+                .filter((e) => e.n !== undefined)
+                .map((e) => e.n)
+                .join(',')})`,
+        // byWeekDay: calEvent.recurData.rrule.byday
+        //   ? `(${calEvent.recurData.rrule.byday.toString()})`
+        //   : `(${parseWeekDayNoToString(moment(calEvent.eventData.start.dateTime).day() - 1)})`,
+        byWeekDay:
+          rrule.origOptions.byweekday === undefined
+            ? '()'
+            : `(${rrule.origOptions.byweekday
+                .map((e) => parseWeekDayNoToString(e.weekday))
+                .join(',')})`,
         byHour: calEvent.recurData.rrule.byhour,
         byMinute: calEvent.recurData.rrule.byminute,
         bySecond: calEvent.recurData.rrule.bysecond,
@@ -130,6 +148,8 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
       }
     }
 
+    debugger;
+
     // Recurring event
     results.push({
       recurData: { rrule, exDates, recurrenceIds, modifiedThenDeleted, iCALString },
@@ -227,7 +247,7 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
 };
 
 const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
-  debugger;
+  // debugger;
   const masterEvent = component.getFirstSubcomponent('vevent');
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
@@ -311,9 +331,11 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
 
 const getRuleJSON = (masterEvent, icalMasterEvent) => {
   let rruleJSON = {};
+  debugger;
   if (icalMasterEvent.isRecurring()) {
     const rrule = masterEvent.getFirstPropertyValue('rrule');
     rruleJSON = rrule.toJSON();
+    rruleJSON.stringFormat = rrule.toString();
     if (rruleJSON.byday !== undefined) {
       if (typeof rruleJSON.byday === 'string') {
         rruleJSON.byday = [rruleJSON.byday];
@@ -408,11 +430,12 @@ const expandSeries = async (recurringEvents, db) => {
 };
 
 const parseRecurrence = (pattern, recurMasterEvent) => {
+  debugger;
   const recurEvents = [];
   const ruleSet = buildRuleSet(pattern, recurMasterEvent.start.dateTime);
   const recurDates = ruleSet.all().map((date) => date.toJSON());
   const duration = getDuration(recurMasterEvent);
-
+  debugger;
   recurDates.forEach((recurDateTime) => {
     recurEvents.push({
       id: uuidv4(),
@@ -455,32 +478,144 @@ const getDuration = (master) => {
   return moment.duration(end.diff(start));
 };
 
+const parseStringToWeekDayNo = (stringEwsWeekDay) => {
+  switch (stringEwsWeekDay) {
+    case 'MO':
+      return 0;
+    case 'TU':
+      return 1;
+    case 'WE':
+      return 2;
+    case 'TH':
+      return 3;
+    case 'FR':
+      return 4;
+    case 'SA':
+      return 5;
+    case 'SU':
+      return 6;
+    default:
+      break;
+  }
+};
+
+const parseWeekDayNoToString = (stringEwsWeekDay) => {
+  switch (stringEwsWeekDay) {
+    case 0:
+      return 'MO';
+    case 1:
+      return 'TU';
+    case 2:
+      return 'WE';
+    case 3:
+      return 'TH';
+    case 4:
+      return 'FR';
+    case 5:
+      return 'SA';
+    case 6:
+      return 'SU';
+    default:
+      break;
+  }
+};
+
 const buildRuleObject = (pattern, startTime) => {
+  debugger;
   const ruleObject = {};
   ruleObject.interval = pattern.interval;
   ruleObject.dtstart = new Date(startTime);
-  ruleObject.bymonth = pattern.byMonth ? pattern.byMonth : null;
-  ruleObject.bysetpos = pattern.bySetPos ? pattern.bySetPos : null;
-  ruleObject.bymonthday = pattern.byMonthDay ? pattern.byMonthDay : null;
-  ruleObject.byyearday = pattern.byYearDay ? pattern.byYearDay : null;
-  ruleObject.byhour = pattern.byHour ? pattern.byHour : null;
-  ruleObject.byminute = pattern.byMinute ? pattern.byMinute : null;
-  ruleObject.bysecond = pattern.bySecond ? pattern.bySecond : null;
-  ruleObject.byeaster = pattern.byEaster ? pattern.byEaster : null;
-  ruleObject.until = pattern.until ? new Date(pattern.until) : TEMPORARY_RECURRENCE_END;
+  // ruleObject.byweekday =
+  //   pattern.byWeekDay !== '()'
+  //     ? pattern.byWeekDay
+  //         .slice(1, -1)
+  //         .split(',')
+  //         .map((day) => parseStringToWeekDayNo(day))
+  //     : null;
 
+  // ruleObject.byweekday = [{ weekday: 4, n: 2 }];
+  // ruleObject.byweekno =
+  //   pattern.byWeekNo !== '()'
+  //     ? pattern.byWeekNo
+  //         .slice(1, -1)
+  //         .split(',')
+  //         .map((weekNo) => parseInt(weekNo, 10))
+  //     : null;
+
+  // ruleObject.bymonth = pattern.byMonth ? pattern.byMonth : null;
+  // ruleObject.bymonthday = pattern.byMonthDay ? pattern.byMonthDay : null;
+  // ruleObject.byyearday = pattern.byYearDay ? pattern.byYearDay : null;
+
+  // // Probably not used. Too detailed and not needed.
+  // ruleObject.byhour = pattern.byHour ? pattern.byHour : null;
+  // ruleObject.bysetpos = pattern.bySetPos ? pattern.bySetPos : null;
+  // ruleObject.byminute = pattern.byMinute ? pattern.byMinute : null;
+  // ruleObject.bysecond = pattern.bySecond ? pattern.bySecond : null;
+  // ruleObject.byeaster = pattern.byEaster ? pattern.byEaster : null;
+
+  // This is where it gets really really tricky, fml.
+  // Due to RRule api limiation, if I set a byweekday/byweekno value and
+  // it is a monthly recurrence, it will become weekly when .all() is called.
+  // Resulting in a weird expansion of the recurrence series.
+  // So based off each freq, you need to set the proper variable accordingly.
   switch (pattern.freq) {
     case 'YEARLY':
-      ruleObject.freq = 0;
+      ruleObject.freq = RRule.YEARLY;
       break;
     case 'MONTHLY':
-      ruleObject.freq = 1;
+      ruleObject.freq = RRule.MONTHLY;
+
+      // Currently, I am facing a techincal limitation of the api.
+      // But the idea here is there are different types of monthly events.
+
+      // 1. Those that repeat on same (day of the week) and (week no)
+      // 2. Those that repeat on the same (day every month)
+
+      // Using the recurrence pattern, if it is blank which means '()',
+      // .all behavior is it will auto expand on the frequency alone.
+      // Therefore, I cannot even have a blank array, aka, ruleObject.byweekday.
+      const byWeekDay = pattern.byWeekDay
+        .slice(1, -1)
+        .split(',')
+        .filter((str) => str !== undefined && str !== null && str !== '')
+        .map((day) => parseStringToWeekDayNo(day));
+
+      const byWeekNo = pattern.byWeekNo
+        .slice(1, -1)
+        .split(',')
+        .filter((str) => str !== undefined && str !== null && str !== '')
+        .map((weekNo) => parseInt(weekNo, 10));
+
+      if (byWeekNo.length !== byWeekDay.length) {
+        console.log('WeekNo length not equals to WeekDay length!');
+      } else if (byWeekNo.length !== 0) {
+        // Both ways, you need to set the by week day number.
+        ruleObject.byweekday = [];
+        for (let i = 0; i < byWeekNo.length; i += 1) {
+          ruleObject.byweekday.push({ weekday: byWeekDay[i], n: byWeekNo[i] });
+        }
+      }
       break;
     case 'WEEKLY':
-      ruleObject.freq = 2;
+      ruleObject.freq = RRule.WEEKLY;
+
+      ruleObject.byweekday =
+        pattern.byWeekDay !== '()'
+          ? pattern.byWeekDay
+              .slice(1, -1)
+              .split(',')
+              .map((day) => parseStringToWeekDayNo(day))
+          : null;
+      ruleObject.byweekno =
+        pattern.byWeekNo !== '()'
+          ? pattern.byWeekNo
+              .slice(1, -1)
+              .split(',')
+              .map((weekNo) => parseInt(weekNo, 10))
+          : null;
       break;
     case 'DAILY':
-      ruleObject.freq = 3;
+      ruleObject.freq = RRule.DAILY;
       break;
     default:
   }
@@ -496,92 +631,31 @@ const buildRuleObject = (pattern, startTime) => {
     ruleObject.until = new Date(pattern.until);
   }
 
-  switch (pattern.wkst) {
-    case 'MO':
-      ruleObject.wkst = 0;
-      break;
-    case 'TU':
-      ruleObject.wkst = 1;
-      break;
-    case 'WE':
-      ruleObject.wkst = 2;
-      break;
-    case 'TH':
-      ruleObject.wkst = 3;
-      break;
-    case 'FR':
-      ruleObject.wkst = 4;
-      break;
-    case 'SA':
-      ruleObject.wkst = 5;
-      break;
-    case 'SU':
-      ruleObject.wkst = 6;
-      break;
-    default:
-      ruleObject.wkst = null;
-  }
-
-  if (pattern.byweekday) {
-    const weekdays = pattern.byweekday;
-    if (weekdays.length === 1) {
-      switch (pattern.byweekday) {
-        case 'MO':
-          ruleObject.byweekday = 0;
-          break;
-        case 'TU':
-          ruleObject.byweekday = 1;
-          break;
-        case 'WE':
-          ruleObject.byweekday = 2;
-          break;
-        case 'TH':
-          ruleObject.byweekday = 3;
-          break;
-        case 'FR':
-          ruleObject.byweekday = 4;
-          break;
-        case 'SA':
-          ruleObject.byweekday = 5;
-          break;
-        case 'SU':
-          ruleObject.byweekday = 6;
-          break;
-        default:
-          ruleObject.byweekday = null;
-      }
-    } else {
-      const byweekdays = [];
-      weekdays.forEach((weekday) => {
-        switch (weekday) {
-          case 'MO':
-            byweekdays.push(0);
-            break;
-          case 'TU':
-            byweekdays.push(1);
-            break;
-          case 'WE':
-            byweekdays.push(2);
-            break;
-          case 'TH':
-            byweekdays.push(3);
-            break;
-          case 'FR':
-            byweekdays.push(4);
-            break;
-          case 'SA':
-            byweekdays.push(5);
-            break;
-          case 'SU':
-            byweekdays.push(6);
-            break;
-          default:
-            break;
-        }
-      });
-      ruleObject.byweekday = byweekdays;
-    }
-  }
+  // switch (pattern.wkst) {
+  //   case 'MO':
+  //     ruleObject.wkst = 0;
+  //     break;
+  //   case 'TU':
+  //     ruleObject.wkst = 1;
+  //     break;
+  //   case 'WE':
+  //     ruleObject.wkst = 2;
+  //     break;
+  //   case 'TH':
+  //     ruleObject.wkst = 3;
+  //     break;
+  //   case 'FR':
+  //     ruleObject.wkst = 4;
+  //     break;
+  //   case 'SA':
+  //     ruleObject.wkst = 5;
+  //     break;
+  //   case 'SU':
+  //     ruleObject.wkst = 6;
+  //     break;
+  //   default:
+  //     ruleObject.wkst = null;
+  // }
   return ruleObject;
 };
 

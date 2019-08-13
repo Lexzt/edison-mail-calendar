@@ -79,6 +79,7 @@ export default {
       type: 'string',
       default: ''
     },
+
     byHour: {
       type: 'string',
       default: ''
