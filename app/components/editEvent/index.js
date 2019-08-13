@@ -355,7 +355,12 @@ export default class EditEvent extends React.Component {
       const firstSelected = recurrenceOptions.parseFreq(dbEventRecurrence.freq);
       const secondSelected = recurrenceOptions.parseFreqNumber(firstSelected);
 
-      // console.log(secondRecurrOptions, secondSelected, firstSelected, secondRecurrOptions[secondSelected]);
+      // console.log(
+      //   secondRecurrOptions,
+      //   secondSelected,
+      //   firstSelected,
+      //   secondRecurrOptions[secondSelected]
+      // );
       let monthlySelected = 0;
       let yearlySelected = 0;
       if (secondSelected === 'month') {

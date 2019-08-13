@@ -47,7 +47,8 @@ const parseRecurrenceEvents = (calEvents) => {
             : `(${rrule.origOptions.byweekday
                 .map((e) => parseWeekDayNoToString(e.weekday))
                 .join(',')})`,
-
+        weeklyPattern:
+          calEvent.recurData.rrule.freq !== 'WEEKLY' ? [] : convertiCalWeeklyPattern(rrule),
         // Too much details, Prob not needed
         bySetPos: calEvent.recurData.rrule.bysetpos,
         byHour: calEvent.recurData.rrule.byhour,
@@ -58,6 +59,26 @@ const parseRecurrenceEvents = (calEvents) => {
     }
   });
   return recurringEvents;
+};
+
+const convertiCalWeeklyPattern = (rrule) => {
+  debugger;
+  const weeklyPattern = [0, 0, 0, 0, 0, 0, 0];
+  if (rrule.origOptions.byweekday) {
+    console.log(rrule.origOptions.byweekday);
+    rrule.origOptions.byweekday.forEach((e) => {
+      // Need +1 here because weekday starts from 0
+      let index = e.weekday + 1;
+      if (index >= 7) {
+        index = 0;
+      }
+      weeklyPattern[index] = 1;
+    });
+  } else {
+    const date = moment(rrule.options.dtstart);
+    weeklyPattern[date.day()] = 1;
+  }
+  return weeklyPattern;
 };
 
 const parseEventPersons = (events) => {
@@ -452,6 +473,7 @@ const parseRecurrence = (pattern, recurMasterEvent) => {
       summary: recurMasterEvent.summary,
       // organizer: recurMasterEvent.organizer,
       // recurrence: recurMasterEvent.recurrence,
+      recurringEventId: recurMasterEvent.iCalUID,
       iCalUID: recurMasterEvent.iCalUID,
       iCALString: recurMasterEvent.iCALString,
       attendee: recurMasterEvent.attendee,
