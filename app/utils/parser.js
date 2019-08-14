@@ -12,10 +12,10 @@ const parseRecurrenceEvents = (calEvents) => {
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
-      debugger;
       const options = RRule.parseString(calEvent.recurData.rrule.stringFormat);
       options.dtstart = new Date(moment(calEvent.eventData.start.dateTime));
       const rrule = new RRule(options);
+      debugger;
       recurringEvents.push({
         id: uuidv4(),
         recurringTypeId: calEvent.eventData.start.dateTime,
@@ -32,8 +32,17 @@ const parseRecurrenceEvents = (calEvents) => {
         wkSt: calEvent.recurData.rrule.wkst, // Prob not working
         byMonth:
           rrule.origOptions.bymonth === undefined ? '' : rrule.origOptions.bymonth.toString(),
-        byMonthDay: calEvent.recurData.rrule.bymonthday, // Prob not working
-        byYearDay: calEvent.recurData.rrule.byyearday, // Prob not working
+        byMonthDay:
+          // eslint-disable-next-line no-nested-ternary
+          rrule.origOptions.bymonthday === undefined
+            ? ''
+            : rrule.origOptions.bymonthday === Array
+            ? `(${rrule.origOptions.bymonthday.join(',')})`
+            : `(${rrule.origOptions.bymonthday})`,
+        byYearDay:
+          rrule.origOptions.byyearday === undefined
+            ? ''
+            : `(${calEvent.recurData.rrule.byyearday.join(',')})`,
         byWeekNo:
           rrule.origOptions.byweekday === undefined
             ? '()'
@@ -543,7 +552,6 @@ const parseWeekDayNoToString = (stringEwsWeekDay) => {
 };
 
 const buildRuleObject = (pattern, startTime) => {
-  debugger;
   const ruleObject = {};
   ruleObject.interval = pattern.interval;
   ruleObject.dtstart = new Date(startTime);
@@ -633,6 +641,19 @@ const buildRuleObject = (pattern, startTime) => {
           ruleObject.byweekday.push({ weekday: byWeekDay[i], n: byWeekNo[i] });
         }
       }
+
+      const byMonthDay = pattern.byMonthDay
+        .slice(1, -1)
+        .split(',')
+        .filter((str) => str !== undefined && str !== null && str !== '')
+        .map((monthDay) => parseInt(monthDay, 10));
+
+      if (byMonthDay.length > 0) {
+        ruleObject.bymonthday = [];
+        for (let i = 0; i < byMonthDay.length; i += 1) {
+          ruleObject.bymonthday.push(byMonthDay[i]);
+        }
+      }
       break;
     case 'WEEKLY':
       ruleObject.freq = RRule.WEEKLY;
@@ -658,6 +679,7 @@ const buildRuleObject = (pattern, startTime) => {
     default:
   }
 
+  debugger;
   if (
     (pattern.until === undefined || pattern.until === null) &&
     (pattern.numberOfRepeats === undefined || pattern.numberOfRepeats === null)

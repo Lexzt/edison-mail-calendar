@@ -66,6 +66,8 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
     let i = 0;
     prevRPs.forEach((prevRP) => {
       const newRP = recurrenceEvents[i];
+      console.log(newRP, prevRP);
+      debugger;
       if (prevRP === null) {
         promises.push(db.recurrencepatterns.upsert(newRP));
       } else {

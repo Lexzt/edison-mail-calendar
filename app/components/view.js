@@ -10,7 +10,12 @@ import getDb from '../db';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
 import serverUrls from '../utils/serverUrls';
-import { FASTMAIL_USERNAME, FASTMAIL_PASSWORD } from '../utils/Credentials';
+import {
+  FASTMAIL_USERNAME,
+  FASTMAIL_PASSWORD,
+  ICLOUD_USERNAME,
+  ICLOUD_PASSWORD
+} from '../utils/Credentials';
 
 const dav = require('dav');
 
@@ -227,7 +232,9 @@ export default class View extends React.Component {
     //   password: state.exchangePwd
     // });
 
-    this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
+    // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
+
+    this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
   };
 
   // This filter user is used when the outlook first creates the object.

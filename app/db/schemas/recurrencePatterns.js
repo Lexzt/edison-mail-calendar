@@ -45,8 +45,7 @@ export default {
     },
 
     numberOfRepeats: {
-      type: 'number',
-      default: 0
+      type: 'number'
     },
     isCount: {
       type: 'boolean'
