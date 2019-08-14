@@ -9,6 +9,10 @@ export const GOOGLE = 'GOOGLE';
 export const EXCHANGE = 'EXCHANGE';
 export const CALDAV = 'CALDAV';
 
+export const ICLOUD = 'ICLOUD';
+export const FASTMAIL = 'FASTMAIL';
+export const YAHOO = 'YAHOO';
+
 export const dropDownTime = (currentTime) => {
   const timeOptions = [];
   let hour = 0;

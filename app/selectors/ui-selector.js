@@ -19,6 +19,7 @@ const getFilteredEvents = createSelector(
       iCalUID: eachEvent.iCalUID,
       isRecurring: eachEvent.isRecurring,
       providerType: eachEvent.providerType,
+      caldavType: eachEvent.caldavType,
       calendarId: eachEvent.calendarId
     }));
     return formatedEvents;

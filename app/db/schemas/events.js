@@ -155,6 +155,9 @@ export default {
     providerType: {
       type: 'string'
     },
+    caldavType: {
+      type: 'string'
+    },
     // ----------------------------------------------- //
     owner: {
       // email that it belongs to as exchange users might not have email

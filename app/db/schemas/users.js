@@ -28,6 +28,9 @@ export default {
     },
     url: {
       type: 'string'
+    },
+    caldavType: {
+      type: 'string'
     }
   },
   required: ['personId', 'originalId']

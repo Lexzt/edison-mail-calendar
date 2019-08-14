@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
     <!--Import Google Icon Font-->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
     <!-- Compiled and minified CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-alpha.3/css/materialize.min.css">
-    <link rel="stylesheet" href="./components/view.css">
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-alpha.3/css/materialize.min.css"
+    />
+    <link rel="stylesheet" href="./components/view.css" />
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.
@@ -26,7 +29,7 @@
           // HACK: Writing the script path should be done with webpack
           document.getElementsByTagName('head')[0].appendChild(link);
         }
-      }());
+      })();
     </script>
 
     <!-- <script src="https://secure.aadcdn.microsoftonline-p.com/lib/<version>/js/msal.js"></script>
@@ -81,15 +84,13 @@
         // Dynamically insert the bundled app script in the renderer process
         const port = process.env.PORT || 1212;
         scripts.push(
-          (process.env.HOT)
+          process.env.HOT
             ? 'http://localhost:' + port + '/dist/renderer.dev.js'
             : './dist/renderer.prod.js'
         );
 
         document.write(
-          scripts
-            .map(script => `<script defer src="${script}"><\/script>`)
-            .join('')
+          scripts.map((script) => `<script defer src="${script}"><\/script>`).join('')
         );
       }
     </script>

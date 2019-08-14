@@ -1105,6 +1105,13 @@
   dependencies:
     regenerator-runtime "^0.13.2"
 
+"@babel/runtime@^7.4.5":
+  version "7.5.5"
+  resolved "https://registry.yarnpkg.com/@babel/runtime/-/runtime-7.5.5.tgz#74fba56d35efbeca444091c7850ccd494fd2f132"
+  integrity sha512-28QvEGyQyNkB0/m2B4FU7IEZGK2NUrcMtT6BZEFALTguLk+AUT6ofsHtPk5QyjAdUkpMJ+/Em+quwz4HOt30AQ==
+  dependencies:
+    regenerator-runtime "^0.13.2"
+
 "@babel/template@^7.1.0", "@babel/template@^7.2.2", "@babel/template@^7.4.0":
   version "7.4.0"
   resolved "https://registry.yarnpkg.com/@babel/template/-/template-7.4.0.tgz#12474e9c077bae585c5d835a95c0b0b790c25c8b"
@@ -3303,6 +3310,11 @@ boolbase@^1.0.0, boolbase@~1.0.0:
   resolved "https://registry.yarnpkg.com/boolbase/-/boolbase-1.0.0.tgz#68dff5fbe60c51eb37725ea9e3ed310dcc1e776e"
   integrity sha1-aN/1++YMUes3cl6p4+0xDcwed24=
 
+bootstrap-sass@^3.4.1:
+  version "3.4.1"
+  resolved "https://registry.yarnpkg.com/bootstrap-sass/-/bootstrap-sass-3.4.1.tgz#6843c73b1c258a0ac5cb2cc6f6f5285b664a8e9a"
+  integrity sha512-p5rxsK/IyEDQm2CwiHxxUi0MZZtvVFbhWmyMOt4lLkA4bujDA1TGoKT0i1FKIWiugAdP+kK8T5KMDFIKQCLYIA==
+
 bootstrap@^4.3.1:
   version "4.3.1"
   resolved "https://registry.yarnpkg.com/bootstrap/-/bootstrap-4.3.1.tgz#280ca8f610504d99d7b6b4bfc4b68cec601704ac"
@@ -4988,10 +5000,10 @@ data-urls@^1.0.0:
     whatwg-mimetype "^2.2.0"
     whatwg-url "^7.0.0"
 
-date-arithmetic@^3.0.0:
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/date-arithmetic/-/date-arithmetic-3.1.0.tgz#1fcd03dbd504b9dbee2b9078c85a5f1c7d3cc2d3"
-  integrity sha1-H80D29UEudvuK5B4yFpfHH08wtM=
+date-arithmetic@^4.0.0:
+  version "4.0.1"
+  resolved "https://registry.yarnpkg.com/date-arithmetic/-/date-arithmetic-4.0.1.tgz#e7f94da8a14ebf4d2bbe4fb66598532c25dc1fb5"
+  integrity sha512-fawhJU3ajJud093das8L3PSXqDb+LjclKhRTIbVX1xC+QeHtL/30kNTkS8s/lOiKMGMngxKvwEzQhBEmK/KQnQ==
 
 date-fns@^1.23.0, date-fns@^1.27.2:
   version "1.30.1"
@@ -9756,6 +9768,11 @@ locate-path@^3.0.0:
     p-locate "^3.0.0"
     path-exists "^3.0.0"
 
+lodash-es@^4.17.11:
+  version "4.17.15"
+  resolved "https://registry.yarnpkg.com/lodash-es/-/lodash-es-4.17.15.tgz#21bd96839354412f23d7a10340e5eac6ee455d78"
+  integrity sha512-rlrc3yU3+JNOpZ9zj5pQtxnx2THmvRykwL4Xlxoa8I9lHBlVbbyPhgyPMioxVZ4NqyxaVVtaJnzsyOidQIhyyQ==
+
 lodash._getnative@^3.0.0:
   version "3.9.1"
   resolved "https://registry.yarnpkg.com/lodash._getnative/-/lodash._getnative-3.9.1.tgz#570bc7dede46d61cdcde687d65d3eecbaa3aaff5"
@@ -12770,7 +12787,7 @@ prop-types-exact@^1.2.0:
     object.assign "^4.1.0"
     reflect.ownkeys "^0.2.0"
 
-prop-types-extra@^1.0.1, prop-types-extra@^1.1.0:
+prop-types-extra@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/prop-types-extra/-/prop-types-extra-1.1.0.tgz#32609910ea2dcf190366bacd3490d5a6412a605f"
   integrity sha512-QFyuDxvMipmIVKD2TwxLVPzMnO4e5oOf1vr3tJIomL8E7d0lr6phTHd5nkPhFIzTD1idBLLEPeylL9g+rrTzRg==
@@ -13454,22 +13471,23 @@ rc@^1.0.1, rc@^1.1.6, rc@^1.2.1, rc@^1.2.7:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-react-big-calendar@^0.20.2:
-  version "0.20.4"
-  resolved "https://registry.yarnpkg.com/react-big-calendar/-/react-big-calendar-0.20.4.tgz#1ef73d3f162fca07ab987b726e706b6617b2d98b"
-  integrity sha512-HABwo8jZCvKsbUOH5U8fgO6msSsl6dHgSDH//T5OCtvX+S0onFZg9kDbU82x2AtF7lx5s2vAJxGmEA3uPQr0Xg==
+react-big-calendar@^0.22.0:
+  version "0.22.0"
+  resolved "https://registry.yarnpkg.com/react-big-calendar/-/react-big-calendar-0.22.0.tgz#cdc08c3d68842679d33b51acc05f339f02bfe691"
+  integrity sha512-SwyWLbfeCYP9lP4EhPTWle/8vycVYdVksU9HjJdjb3tgFbAzaYxZ4MvP3hyujqPWIc973KsLi7OkoB3LflSo8w==
   dependencies:
     "@babel/runtime" "^7.1.5"
+    bootstrap-sass "^3.4.1"
     classnames "^2.2.6"
-    date-arithmetic "^3.0.0"
+    date-arithmetic "^4.0.0"
     dom-helpers "^3.4.0"
     invariant "^2.2.4"
     lodash "^4.17.11"
+    lodash-es "^4.17.11"
     memoize-one "^4.0.3"
     prop-types "^15.6.2"
-    prop-types-extra "^1.1.0"
-    react-overlays "^0.8.3"
-    uncontrollable "^6.0.0"
+    react-overlays "^1.2.0"
+    uncontrollable "^6.2.3"
     warning "^4.0.2"
 
 react-bootstrap@^1.0.0-beta.8:
@@ -13574,18 +13592,6 @@ react-modal@^3.6.1:
     exenv "^1.2.0"
     prop-types "^15.5.10"
     react-lifecycles-compat "^3.0.0"
-    warning "^3.0.0"
-
-react-overlays@^0.8.3:
-  version "0.8.3"
-  resolved "https://registry.yarnpkg.com/react-overlays/-/react-overlays-0.8.3.tgz#fad65eea5b24301cca192a169f5dddb0b20d3ac5"
-  integrity sha512-h6GT3jgy90PgctleP39Yu3eK1v9vaJAW73GOA/UbN9dJ7aAN4BTZD6793eI1D5U+ukMk17qiqN/wl3diK1Z5LA==
-  dependencies:
-    classnames "^2.2.5"
-    dom-helpers "^3.2.1"
-    prop-types "^15.5.10"
-    prop-types-extra "^1.0.1"
-    react-transition-group "^2.2.0"
     warning "^3.0.0"
 
 react-overlays@^1.2.0:
@@ -13699,7 +13705,7 @@ react-test-renderer@^16.0.0-0, react-test-renderer@^16.6.3:
     react-is "^16.8.6"
     scheduler "^0.13.6"
 
-react-transition-group@^2.2.0, react-transition-group@^2.2.1, react-transition-group@^2.7.1:
+react-transition-group@^2.2.1, react-transition-group@^2.7.1:
   version "2.9.0"
   resolved "https://registry.yarnpkg.com/react-transition-group/-/react-transition-group-2.9.0.tgz#df9cdb025796211151a436c69a8f3b97b5b07c8d"
   integrity sha512-+HzNTCHpeQyl4MJ/bdE0u6XRMe9+XG/+aL4mCxVN4DnPBQ0/5bfHWPDuOZUzYdMj94daZaZdCCc1Dzt9R/xSSg==
@@ -16420,6 +16426,14 @@ uncontrollable@^6.0.0, uncontrollable@^6.1.0:
   resolved "https://registry.yarnpkg.com/uncontrollable/-/uncontrollable-6.1.0.tgz#45dcf54b76bf07e0ddf7c1a669caf935d2e101d5"
   integrity sha512-2TzEm0pLKauMBZfAZXsgQvLpZHEp95891frCZdGDrSG7dWYaIQhedwLAzi0X8pR8KHNqlmuYEb2cEgbQzr050A==
   dependencies:
+    invariant "^2.2.4"
+
+uncontrollable@^6.2.3:
+  version "6.2.3"
+  resolved "https://registry.yarnpkg.com/uncontrollable/-/uncontrollable-6.2.3.tgz#e7dba0d746e075122ed178f27ad2354d343196c7"
+  integrity sha512-VgOAoBU2ptCL2bfTG2Mra0I8i1u6Aq84AFonD5tmCAYSfs3hWvr2Rlw0q2ntoxXTHjcQOmZOh3FKaN+UZVyREQ==
+  dependencies:
+    "@babel/runtime" "^7.4.5"
     invariant "^2.2.4"
 
 unherit@^1.0.4:

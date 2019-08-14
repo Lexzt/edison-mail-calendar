@@ -79,7 +79,8 @@ export const retrieveEventsEpic = (action$) =>
                 isModifiedThenDeleted: singleEvent.isModifiedThenDeleted,
                 calendarId: singleEvent.calendarId,
                 providerType: singleEvent.providerType,
-                isMaster: singleEvent.isMaster
+                isMaster: singleEvent.isMaster,
+                caldavType: singleEvent.caldavType
               }))
             ),
             map((results) =>
@@ -106,6 +107,7 @@ export const storeEventsEpic = (action$) =>
 
 const mergeRecurringAndNonRecurringEvents = async (allEvents) => {
   // debugger;
+  console.log('allEvents:', allEvents);
   const expandedEvents = await parser.expandRecurEvents(allEvents);
 
   // const db = await getDb();
@@ -190,6 +192,7 @@ const storeEvents = async (payload) => {
   // Wait for all the promises to complete
   const results = await Promise.all(dbFindPromises);
   // console.log(results.map((e) => e.toJSON()));
+  debugger;
 
   // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
   // dbFindPromises must have same length as results, as its just an array of same size.
@@ -223,8 +226,13 @@ const storeEvents = async (payload) => {
     // This is for all the events, for UI.
     addedEvents.push(filteredEvent);
   }
-  await Promise.all(dbUpsertPromises);
-  console.log(addedEvents);
+  debugger;
+  try {
+    await Promise.all(dbUpsertPromises);
+    console.log(addedEvents);
+  } catch (e) {
+    console.log(e);
+  }
   return addedEvents;
 };
 

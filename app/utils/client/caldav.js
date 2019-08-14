@@ -1,9 +1,24 @@
 import md5 from 'md5';
 import * as ProviderTypes from '../constants';
+import ServerUrls from '../serverUrls';
 import PARSER from '../parser';
 import getDb from '../../db';
 
 const dav = require('dav');
+
+const getCalDavTypeFromURL = (url) => {
+  debugger;
+  switch (url) {
+    case ServerUrls.ICLOUD:
+      return ProviderTypes.ICLOUD;
+    case ServerUrls.FASTMAIL:
+      return ProviderTypes.FASTMAIL;
+    case ServerUrls.YAHOO:
+      return ProviderTypes.YAHOO;
+    default:
+      return ProviderTypes.CALDAV;
+  }
+};
 
 export const filterCaldavUser = (jsonObj, url) => ({
   personId: md5(jsonObj.username),
@@ -11,10 +26,11 @@ export const filterCaldavUser = (jsonObj, url) => ({
   email: jsonObj.username,
   providerType: ProviderTypes.CALDAV,
   password: jsonObj.password,
-  url
+  url,
+  caldavType: getCalDavTypeFromURL(url)
 });
 
-export const asyncGetAllCalDavEvents = async (username, password, url) => {
+export const asyncGetAllCalDavEvents = async (username, password, url, caldavType) => {
   const resp = await dav.createAccount({
     server: url,
     xhr: new dav.transport.Basic(
@@ -124,7 +140,10 @@ export const asyncGetAllCalDavEvents = async (username, password, url) => {
         .filter((e) => e.recurData === undefined || e.recurData === null)
         .map((e) => e.eventData)
     ];
-    finalResult.forEach((e) => (e.owner = username));
+    finalResult.forEach((e) => {
+      e.owner = username;
+      e.caldavType = caldavType;
+    });
     console.log(finalResult);
     return finalResult;
   } catch (e) {

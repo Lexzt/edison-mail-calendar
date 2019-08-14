@@ -1,9 +1,11 @@
-import React, { Component } from 'react';
-import BigCalendar from 'react-big-calendar';
+import React, { Children, Component } from 'react';
+// import BigCalendar from 'react-big-calendar';
+import { Calendar, momentLocalizer } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import Modal from 'react-modal';
 import './view.css';
+// import './providers.scss';
 import { ExchangeService, Uri, ExchangeCredentials, DateTime } from 'ews-javascript-api';
 
 import getDb from '../db';
@@ -17,10 +19,12 @@ import {
   ICLOUD_PASSWORD
 } from '../utils/Credentials';
 
+import * as ServerColors from '../utils/colors';
+
 const dav = require('dav');
 
-const localizer = BigCalendar.momentLocalizer(moment);
-const DragAndDropCalendar = withDragAndDrop(BigCalendar);
+const localizer = momentLocalizer(moment);
+const DragAndDropCalendar = withDragAndDrop(Calendar);
 
 const customStyles = {
   content: {
@@ -32,6 +36,15 @@ const customStyles = {
     transform: 'translate(-50%, -50%)'
   }
 };
+
+const CURRENT_DATE = moment().toDate();
+const dateClassStyleWrapper = ({ children, value }) =>
+  React.cloneElement(Children.only(children), {
+    style: {
+      ...children.style,
+      backgroundColor: value < CURRENT_DATE ? 'lightgreen' : 'lightblue'
+    }
+  });
 
 export default class View extends React.Component {
   constructor(props) {
@@ -227,13 +240,12 @@ export default class View extends React.Component {
   handleSubmit = async (e) => {
     e.preventDefault();
     const { state } = this;
-    // this.authorizeExchangeCodeRequest({
-    //   username: state.exchangeEmail,
-    //   password: state.exchangePwd
-    // });
 
-    // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
-
+    this.authorizeExchangeCodeRequest({
+      username: state.exchangeEmail,
+      password: state.exchangePwd
+    });
+    this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
     this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
   };
 
@@ -241,6 +253,7 @@ export default class View extends React.Component {
   // It takes the outlook user object, and map it to the common schema defined in db/person.js
   filterUserOnStart = (rxDoc, providerType) => ({
     user: {
+      caldavType: rxDoc.caldavType,
       personId: rxDoc.personId,
       originalId: rxDoc.originalId,
       email: rxDoc.email,
@@ -282,6 +295,45 @@ export default class View extends React.Component {
     return events;
   };
 
+  getColor = (event) => {
+    switch (event.providerType) {
+      case ProviderTypes.GOOGLE:
+        return ServerColors.GOOGLE_EVENT;
+      case ProviderTypes.OUTLOOK:
+        return ServerColors.OUTLOOK_EVENT;
+      case ProviderTypes.EXCHANGE:
+        return ServerColors.EXCHANGE_EVENT;
+      case ProviderTypes.CALDAV:
+        switch (event.caldavType) {
+          case ProviderTypes.ICLOUD:
+            return ServerColors.ICLOUD_EVENT;
+          case ProviderTypes.FASTMAIL:
+            return ServerColors.FASTMAIL_EVENT;
+          case ProviderTypes.YAHOO:
+            return ServerColors.YAHOO_EVENT;
+          default:
+            return ServerColors.DEFAULT_EVENT;
+        }
+      default:
+        return ServerColors.DEFAULT_EVENT;
+    }
+  };
+
+  eventStyleGetter = (event, start, end, isSelected) => {
+    const backgroundColor = this.getColor(event);
+    const style = {
+      backgroundColor
+      // borderRadius: '0px',
+      // opacity: 0.8,
+      // color: 'black',
+      // border: '0px',
+      // display: 'block'
+    };
+    return {
+      style
+    };
+  };
+
   /* Render functions */
   renderCalendar = (props) => {
     const visibleEvents = this.getVisibleEvents();
@@ -300,6 +352,10 @@ export default class View extends React.Component {
         onSelectEvent={(event) => this.handleEventClick(event)}
         popup
         resizable
+        eventPropGetter={this.eventStyleGetter}
+        components={{
+          dateCellWrapper: dateClassStyleWrapper
+        }}
       />
     );
   };
@@ -474,7 +530,7 @@ export default class View extends React.Component {
           role="button"
           tabIndex="0"
           className="waves-effect waves-light btn"
-          onClick={() => props.beginGetCaldavEvents(props.providers.CALDAV[0])}
+          onClick={() => props.beginGetCaldavEvents(props.providers.CALDAV)}
         >
           <i className="material-icons left">cloud_download</i>Get Caldav Events
         </a>

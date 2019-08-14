@@ -36,11 +36,17 @@ export const beginGetCaldavEventsEpics = (action$) =>
             reject(getEventsFailure('Caldav user undefined!!'));
           }
 
+          debugger;
+
           try {
-            const cdEvents = await asyncGetAllCalDavEvents(
-              action.payload.email,
-              action.payload.password,
-              action.payload.url
+            const allCalDavUserEvents = action.payload.map((user) =>
+              asyncGetAllCalDavEvents(user.email, user.password, user.url, user.caldavType)
+            );
+
+            const objOfCdEvents = await Promise.all(allCalDavUserEvents);
+            const cdEvents = [];
+            objOfCdEvents.forEach((indivCdProvider) =>
+              indivCdProvider.forEach((indivCdEvent) => cdEvents.push(indivCdEvent))
             );
             resolve(cdEvents);
           } catch (e) {

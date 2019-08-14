@@ -58,7 +58,8 @@ export default function eventsReducer(state = initialState, action) {
     case RETRIEVE_STORED_EVENTS:
       return Object.assign({}, state, { providerType: action.payload.user.providerType });
     case UPDATE_STORED_EVENTS:
-      return Object.assign({}, state, { calEvents: action.payload.resp });
+      const allEvents = mergeEvents(state.calEvents, action.payload.resp);
+      return Object.assign({}, state, { calEvents: allEvents });
     case SUCCESS_STORED_EVENTS: {
       const newEvents = mergeEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
