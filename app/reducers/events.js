@@ -64,7 +64,11 @@ export default function eventsReducer(state = initialState, action) {
       const newEvents = mergeEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
     }
+    // Sync stored events currently is not working.
+    // It is currently syncing for one user only.
+    // I need it to sync for every user that is valid.
     case SYNC_STORED_EVENTS: {
+      debugger;
       const newEvents = syncEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
     }

@@ -18,8 +18,12 @@ export const createDb = async () => {
   return db;
 };
 
+export const clearDb = async () => {
+  await dbPromise.remove();
+  await dbPromise.destroy();
+};
+
 export default () => {
-  // RxDB.removeDatabase('eventsdb', 'websql');
   if (!dbPromise) {
     dbPromise = createDb();
   }

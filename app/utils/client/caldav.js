@@ -7,7 +7,6 @@ import getDb from '../../db';
 const dav = require('dav');
 
 const getCalDavTypeFromURL = (url) => {
-  debugger;
   switch (url) {
     case ServerUrls.ICLOUD:
       return ProviderTypes.ICLOUD;

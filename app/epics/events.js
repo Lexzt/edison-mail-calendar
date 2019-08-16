@@ -417,7 +417,6 @@ const postEventsCalDav = async (payload) => {
   // Add it to the database
   const appendedResult = await db.events.upsert(data);
   return appendedResult.toJSON();
-  // #endregion
 };
 // #endregion
 
