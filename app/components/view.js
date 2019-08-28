@@ -8,7 +8,7 @@ import './view.css';
 // import './providers.scss';
 import { ExchangeService, Uri, ExchangeCredentials, DateTime } from 'ews-javascript-api';
 
-import getDb from '../db';
+import getDb from '../rxdb';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
 import serverUrls from '../utils/serverUrls';
@@ -20,6 +20,11 @@ import {
 } from '../utils/Credentials';
 
 import * as ServerColors from '../utils/colors';
+
+import UserBlock from '../sequelizeDB/schemas/users';
+import EventBlock from '../sequelizeDB/schemas/events';
+import RpBlock from '../sequelizeDB/schemas/recurrencePatterns';
+import * as dbRpOperations from '../sequelizeDB/operations/recurrencepatterns';
 
 const dav = require('dav');
 
@@ -78,7 +83,7 @@ export default class View extends React.Component {
     // exch.Credentials = new ExchangeCredentials(userName, password);
 
     const { props } = this;
-    props.beginPendingActions(props.providers);
+    // props.beginPendingActions(props.providers);
 
     const db = await getDb();
 
@@ -87,57 +92,131 @@ export default class View extends React.Component {
     const allE = await db.events.find().exec();
     console.log(allE.map((rp) => rp.toJSON()));
 
-    db.users
-      .find()
-      .exec()
-      .then((providerUserData) => {
-        providerUserData.forEach((singleProviderUserData) => {
-          if (singleProviderUserData.providerType === ProviderTypes.EXCHANGE) {
-            props.onStartGetExchangeAuth(
-              this.filterUserOnStart(singleProviderUserData, ProviderTypes.EXCHANGE)
-            );
-          } else if (singleProviderUserData.providerType === ProviderTypes.CALDAV) {
-            props.onStartGetCaldavAuth(
-              this.filterUserOnStart(singleProviderUserData, ProviderTypes.CALDAV)
-            );
-          } else {
-            const now = new Date().getTime();
-            const isExpired = now > parseInt(singleProviderUserData.accessTokenExpiry, 10);
+    // const data = await EventBlock.findAll();
+    // console.log(data.map((e) => e.toJSON()));
 
-            if (!isExpired) {
-              switch (singleProviderUserData.providerType) {
-                case ProviderTypes.GOOGLE:
-                  props.onStartGetGoogleAuth(
-                    this.filterUserOnStart(singleProviderUserData, ProviderTypes.GOOGLE)
-                  );
-                  break;
-                case ProviderTypes.OUTLOOK:
-                  props.onStartGetOutlookAuth(
-                    this.filterUserOnStart(singleProviderUserData, ProviderTypes.OUTLOOK)
-                  );
-                  break;
-                default:
-                  break;
-              }
-            } else {
-              switch (singleProviderUserData.providerType) {
-                case ProviderTypes.GOOGLE:
-                  props.onExpiredGoogle(
-                    this.filterUserOnStart(singleProviderUserData, ProviderTypes.GOOGLE)
-                  );
-                  break;
-                case ProviderTypes.OUTLOOK:
-                  props.onExpiredOutlook(
-                    this.filterUserOnStart(singleProviderUserData, ProviderTypes.OUTLOOK)
-                  );
-                  break;
-                default:
-                  break;
-              }
+    // await EventBlock.upsert({
+    //   // attendee: [],
+    //   caldavType: 'ICLOUD',
+    //   caldavUrl:
+    //     'https://caldav.icloud.com/10224008189/calendars/home/501A4D8E-D657-446D-A252-351F586F64C8.ics',
+    //   calendarId: 'https://caldav.icloud.com/10224008189/calendars/home/',
+    //   created: '2019-08-14T20:40:49.000Z',
+    //   description: '',
+    //   end: { dateTime: '2019-08-15T20:00:00.000Z', timezone: 'timezone' },
+    //   etag: 'C=120@U=aaab6e17-1599-4eea-88bc-f6c4bee62337',
+    //   iCALString: '',
+    //   iCalUID: '501A4D8E-D657-446D-A252-351F586F64C8',
+    //   id: '0e8c562c-e781-492e-a7e0-d0cdf1abeff8',
+    //   isRecurring: true,
+    //   location: '',
+    //   originalId: '501A4D8E-D657-446D-A252-351F586F64C8',
+    //   originalStartTime: { dateTime: '2019-08-14T19:00:00.000Z', timezone: 'timezone' },
+    //   owner: 'fongzhizhong@gmail.com',
+    //   providerType: 'CALDAV',
+    //   recurringEventId: '501A4D8E-D657-446D-A252-351F586F64C8',
+    //   start: { dateTime: '2019-08-15T19:00:00.000Z', timezone: 'timezone' },
+    //   summary: '(iCloud) Daily 5 times',
+    //   updated: '1970-01-01T00:00:00.000Z'
+    // });
+
+    const qwe = await UserBlock.findAll();
+    console.log(qwe.map((e) => e.toJSON()));
+    const newdata = await EventBlock.findAll();
+    console.log(newdata.map((e) => e.toJSON()));
+    const data = await RpBlock.findAll();
+    console.log(data.map((e) => e.toJSON()));
+
+    // await RpBlock.upsert({
+    //   byEaster: '',
+    //   byHour: '',
+    //   byMinute: '',
+    //   byMonth: '',
+    //   byMonthDay: '',
+    //   bySecond: '',
+    //   bySetPos: '',
+    //   byWeekDay: '()',
+    //   byWeekNo: '()',
+    //   byYearDay: '',
+    //   exDates: '',
+    //   freq: 'DAILY',
+    //   iCALString: 'FREQ=DAILY;COUNT=3',
+    //   iCalUID: '561EB503-D584-47F8-AA8C-A9CFFD36BBD7',
+    //   id: '6fbd3c45-2753-43ba-9b4b-a74e0bf9cbea',
+    //   interval: 1,
+    //   modifiedThenDeleted: false,
+    //   numberOfRepeats: 3,
+    //   originalId: '561EB503-D584-47F8-AA8C-A9CFFD36BBD7',
+    //   // recurrenceIds: [],
+    //   recurringTypeId: '2019-08-14T12:00:00'
+    //   // weeklyPattern: []
+    // });
+    // const rpdata = await RpBlock.findAll();
+    // console.log(rpdata.map((e) => e.toJSON()));
+
+    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'test');
+    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'again');
+
+    // const uprpdata = await RpBlock.findAll();
+    // console.log(uprpdata.map((e) => e.toJSON()));
+
+    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'test');
+    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'again');
+
+    // const again = await RpBlock.findAll();
+    // console.log(again.map((e) => e.toJSON()));
+
+    // db.users
+    //   .find()
+    //   .exec()
+    UserBlock.findAll().then((providerUserData) => {
+      providerUserData.forEach((singleProviderUserData) => {
+        if (singleProviderUserData.providerType === ProviderTypes.EXCHANGE) {
+          props.onStartGetExchangeAuth(
+            this.filterUserOnStart(singleProviderUserData, ProviderTypes.EXCHANGE)
+          );
+        } else if (singleProviderUserData.providerType === ProviderTypes.CALDAV) {
+          props.onStartGetCaldavAuth(
+            this.filterUserOnStart(singleProviderUserData, ProviderTypes.CALDAV)
+          );
+        } else {
+          const now = new Date().getTime();
+          const isExpired = now > parseInt(singleProviderUserData.accessTokenExpiry, 10);
+
+          if (!isExpired) {
+            switch (singleProviderUserData.providerType) {
+              case ProviderTypes.GOOGLE:
+                props.onStartGetGoogleAuth(
+                  this.filterUserOnStart(singleProviderUserData, ProviderTypes.GOOGLE)
+                );
+                break;
+              case ProviderTypes.OUTLOOK:
+                props.onStartGetOutlookAuth(
+                  this.filterUserOnStart(singleProviderUserData, ProviderTypes.OUTLOOK)
+                );
+                break;
+              default:
+                break;
+            }
+          } else {
+            switch (singleProviderUserData.providerType) {
+              case ProviderTypes.GOOGLE:
+                props.onExpiredGoogle(
+                  this.filterUserOnStart(singleProviderUserData, ProviderTypes.GOOGLE)
+                );
+                break;
+              case ProviderTypes.OUTLOOK:
+                props.onExpiredOutlook(
+                  this.filterUserOnStart(singleProviderUserData, ProviderTypes.OUTLOOK)
+                );
+                break;
+              default:
+                break;
             }
           }
-        });
+        }
       });
+    });
   }
 
   componentWillUnmount() {
@@ -245,7 +324,7 @@ export default class View extends React.Component {
       username: state.exchangeEmail,
       password: state.exchangePwd
     });
-    this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
+    // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
     this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
   };
 
@@ -522,7 +601,7 @@ export default class View extends React.Component {
           role="button"
           tabIndex="0"
           className="waves-effect waves-light btn"
-          onClick={() => props.beginGetExchangeEvents(props.providers.EXCHANGE[0])}
+          onClick={() => props.beginGetExchangeEvents(props.providers.EXCHANGE)}
         >
           <i className="material-icons left">cloud_download</i>Get Exchange Events
         </a>

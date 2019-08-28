@@ -2,7 +2,7 @@ import moment from 'moment';
 import md5 from 'md5';
 import { ExtendedPropertyDefinition, StringHelper } from 'ews-javascript-api';
 import uuidv4 from 'uuid';
-import db from '../db';
+import db from '../rxdb';
 
 export const OUTLOOK = 'OUTLOOK';
 export const GOOGLE = 'GOOGLE';
@@ -113,7 +113,7 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
       schemaCastedDbObject.visibility = 'default';
       schemaCastedDbObject.iCalUID = dbEvent.iCalUId;
       // schemaCastedDbObject.sequence = dbEvent.responseStatus;
-      schemaCastedDbObject.attendees = dbEvent.attendees;
+      // schemaCastedDbObject.attendees = dbEvent.attendees;
       schemaCastedDbObject.owner = dbEvent.owner;
 
       // schemaCastedDbObject.anyoneCanAddSelf = dbEvent.responseStatus;
@@ -189,7 +189,7 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
       schemaCastedDbObject.local = local;
       schemaCastedDbObject.hide = false;
       schemaCastedDbObject.isRecurring = dbEvent.AppointmentType !== 'Single';
-      schemaCastedDbObject.attendee = [];
+      // schemaCastedDbObject.attendee = [];
       schemaCastedDbObject.iCalUID = dbEvent.ICalUid;
       if (schemaCastedDbObject.isRecurring) {
         schemaCastedDbObject.recurringEventId = dbEvent.RecurrenceMasterId.UniqueId;

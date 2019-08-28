@@ -100,12 +100,12 @@ export const getEventsFailure = (error) => ({
   }
 });
 
-export const getEventsSuccess = (response, providerType, owner) => ({
+export const getEventsSuccess = (response, providerType, user) => ({
   type: GET_EVENTS_SUCCESS,
   payload: {
     data: response,
     providerType,
-    owner
+    user
   }
 });
 // #endregion

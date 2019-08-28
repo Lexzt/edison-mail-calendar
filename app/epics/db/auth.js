@@ -3,9 +3,11 @@ import { ofType } from 'redux-observable';
 import { from, of } from 'rxjs';
 import { successStoreAuth } from '../../actions/db/auth';
 import { retrieveStoreEvents } from '../../actions/db/events';
-import getDb from '../../db';
+import getDb from '../../rxdb';
 import * as AuthActionTypes from '../../actions/auth';
 import * as Providers from '../../utils/constants';
+
+import * as dbUserActions from '../../sequelizeDB/operations/users';
 
 export const storeGoogleAuthEpic = (action$) =>
   action$.pipe(
@@ -60,11 +62,12 @@ export const storeCaldavAuthEpic = (action$) =>
   );
 
 const storeUser = async (user) => {
-  // console.log(user);
+  console.log(user);
   const db = await getDb();
   let userDb = '';
   try {
     userDb = await db.users.upsert(user);
+    dbUserActions.insertUserIntoDatabase(user);
   } catch (e) {
     console.log('Store User err: ', e);
     return e;

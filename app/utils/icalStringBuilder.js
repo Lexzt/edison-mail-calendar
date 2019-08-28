@@ -90,7 +90,7 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
     .filter((e) => e.getFirstPropertyValue('recurrence-id') !== null);
 
   // Based off the ExDates, set the new event accordingly.
-  recurrencePattern.exDates.forEach((date) => {
+  recurrencePattern.exDates.split(',').forEach((date) => {
     const datetime = new ICAL.Time().fromJSDate(new Date(date));
     const timezone = new ICAL.Time().fromData(
       {
@@ -118,7 +118,7 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
   vcalendar.addSubcomponent(vevent);
 
   // For each edited event, find the right one to add.
-  recurrencePattern.recurrenceIds.forEach((date) => {
+  recurrencePattern.recurrenceIds.split(',').forEach((date) => {
     const editedEvent = moment(date);
     const findingEditedComp = allEditedEvent.filter((e2) =>
       moment(e2.getFirstPropertyValue().toJSDate()).isSame(editedEvent, 'day')
@@ -524,7 +524,7 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
   vevent.updatePropertyWithValue('class', 'PUBLIC');
 
   // Based off the ExDates in the recurrence pattern, set the new event ExDates accordingly.
-  recurrencePattern.exDates.forEach((date) => {
+  recurrencePattern.exDates.split(',').forEach((date) => {
     const datetime = new ICAL.Time().fromJSDate(new Date(date));
     const timezone = new ICAL.Time().fromData(
       {

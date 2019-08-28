@@ -28,7 +28,7 @@ import {
 } from '../../actions/events';
 import { deleteGoogleEvent, loadClient } from '../../utils/client/google';
 import { asyncGetSingleExchangeEvent, asyncDeleteExchangeEvent } from '../../utils/client/exchange';
-import getDb from '../../db';
+import getDb from '../../rxdb';
 import * as Providers from '../../utils/constants';
 import parser, { buildRuleSet } from '../../utils/parser';
 import * as IcalStringBuilder from '../../utils/icalStringBuilder';
@@ -45,49 +45,95 @@ import {
   deleteEwsFutureEventBegin
 } from '../../actions/providers/exchange';
 
+import * as dbEventActions from '../../sequelizeDB/operations/events';
+import * as dbUserActions from '../../sequelizeDB/operations/users';
+import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
+import * as dbPendingActionActions from '../../sequelizeDB/operations/pendingactions';
+import EventBlock from '../../sequelizeDB/schemas/events';
+
 const dav = require('dav');
 
 export const retrieveEventsEpic = (action$) =>
+  // action$.pipe(
+  //   ofType(RETRIEVE_STORED_EVENTS),
+  //   mergeMap((action) =>
+  //     from(getDb()).pipe(
+  //       mergeMap((db) =>
+  //         from(db.events.find().exec()).pipe(
+  //           map((events) =>
+  //             // console.log(action);
+  //             events.filter(
+  //               (singleEvent) => singleEvent.providerType === action.payload.user.providerType
+  //             )
+  //           ),
+  //           map((events) =>
+  //             // console.log(events.map((e) => e.toJSON()));
+  //             events.map((singleEvent) => ({
+  //               id: singleEvent.id,
+  //               end: singleEvent.end,
+  //               start: singleEvent.start,
+  //               summary: singleEvent.summary,
+  //               organizer: singleEvent.organizer,
+  //               recurrence: singleEvent.recurrence,
+  //               iCalUID: singleEvent.iCalUID,
+  //               iCALString: singleEvent.iCALString,
+  //               attendees: singleEvent.attendees,
+  //               originalId: singleEvent.originalId,
+  //               owner: singleEvent.owner,
+  //               hide: singleEvent.hide,
+  //               isRecurring: singleEvent.isRecurring,
+  //               isModifiedThenDeleted: singleEvent.isModifiedThenDeleted,
+  //               calendarId: singleEvent.calendarId,
+  //               providerType: singleEvent.providerType,
+  //               isMaster: singleEvent.isMaster,
+  //               caldavType: singleEvent.caldavType
+  //             }))
+  //           ),
+  //           map((results) =>
+  //             // console.log(results);
+  //             updateStoredEvents(results, action.payload.user)
+  //           )
+  //         )
+  //       )
+  //     )
+  //   )
+
   action$.pipe(
     ofType(RETRIEVE_STORED_EVENTS),
     mergeMap((action) =>
-      from(getDb()).pipe(
-        mergeMap((db) =>
-          from(db.events.find().exec()).pipe(
-            map((events) =>
-              // console.log(action);
-              events.filter(
-                (singleEvent) => singleEvent.providerType === action.payload.user.providerType
-              )
-            ),
-            map((events) =>
-              // console.log(events.map((e) => e.toJSON()));
-              events.map((singleEvent) => ({
-                id: singleEvent.id,
-                end: singleEvent.end,
-                start: singleEvent.start,
-                summary: singleEvent.summary,
-                organizer: singleEvent.organizer,
-                recurrence: singleEvent.recurrence,
-                iCalUID: singleEvent.iCalUID,
-                iCALString: singleEvent.iCALString,
-                attendees: singleEvent.attendees,
-                originalId: singleEvent.originalId,
-                owner: singleEvent.owner,
-                hide: singleEvent.hide,
-                isRecurring: singleEvent.isRecurring,
-                isModifiedThenDeleted: singleEvent.isModifiedThenDeleted,
-                calendarId: singleEvent.calendarId,
-                providerType: singleEvent.providerType,
-                isMaster: singleEvent.isMaster,
-                caldavType: singleEvent.caldavType
-              }))
-            ),
-            map((results) =>
-              // console.log(results);
-              updateStoredEvents(results, action.payload.user)
-            )
+      from(EventBlock.findAll()).pipe(
+        map((events) =>
+          // console.log(action);
+          events.filter(
+            (singleEvent) => singleEvent.providerType === action.payload.user.providerType
           )
+        ),
+        map((events) =>
+          // console.log(events.map((e) => e.toJSON()));
+          events.map((singleEvent) => ({
+            id: singleEvent.id,
+            end: singleEvent.end,
+            start: singleEvent.start,
+            summary: singleEvent.summary,
+            organizer: singleEvent.organizer,
+            recurrence: singleEvent.recurrence,
+            iCalUID: singleEvent.iCalUID,
+            iCALString: singleEvent.iCALString,
+            attendees: singleEvent.attendees,
+            originalId: singleEvent.originalId,
+            owner: singleEvent.owner,
+            hide: singleEvent.hide,
+            isRecurring: singleEvent.isRecurring,
+            isModifiedThenDeleted: singleEvent.isModifiedThenDeleted,
+            calendarId: singleEvent.calendarId,
+            providerType: singleEvent.providerType,
+            isMaster: singleEvent.isMaster,
+            caldavType: singleEvent.caldavType
+          }))
+        ),
+        map((results) =>
+          // console.log(results);
+          updateStoredEvents(results, action.payload.user)
         )
       )
     )
@@ -98,8 +144,8 @@ export const storeEventsEpic = (action$) =>
     ofType(BEGIN_STORE_EVENTS),
     mergeMap((action) =>
       from(storeEvents(action.payload)).pipe(
-        mergeMap((allEvents) => mergeRecurringAndNonRecurringEvents(allEvents)),
-        map((results) => successStoringEvents(results)),
+        // mergeMap((allEvents) => mergeRecurringAndNonRecurringEvents(allEvents)),
+        map((results) => successStoringEvents(results, action.payload.user)),
         catchError((error) => failStoringEvents(error))
       )
     )
@@ -154,133 +200,160 @@ export const deleteFutureRecurrenceEventEpics = (action$) =>
   );
 
 const storeEvents = async (payload) => {
-  const db = await getDb();
-  const addedEvents = [];
-  const dbFindPromises = [];
-  const dbUpsertPromises = [];
+  // const db = await getDb();
+  // const addedEvents = [];
+  // const dbFindPromises = [];
+  // const dbUpsertPromises = [];
   const { data } = payload;
   const debug = false;
+  // debugger;
+  // if (debug) {
+  //   console.log(data);
+  //   const alle = await db.events.find().exec();
+  //   console.log(alle.map((e) => e.toJSON().start));
+  // }
 
-  if (debug) {
-    console.log(data);
-    const alle = await db.events.find().exec();
-    console.log(alle.map((e) => e.toJSON().start));
-  }
+  // // Create a list of promises to retrieve previous event from db first if it does not exist.
+  // for (const dbEvent of data) {
+  //   // Filter into our schema object as we need to know how to deal with it for originalId.
+  //   const filteredEvent = Providers.filterIntoSchema(
+  //     dbEvent,
+  //     payload.providerType,
+  //     payload.owner,
+  //     false
+  //   );
 
-  // Create a list of promises to retrieve previous event from db first if it does not exist.
-  for (const dbEvent of data) {
-    // Filter into our schema object as we need to know how to deal with it for originalId.
-    const filteredEvent = Providers.filterIntoSchema(
-      dbEvent,
-      payload.providerType,
-      payload.owner,
-      false
-    );
+  //   // Unable to use origianlId as originalId is duplicated for CalDav. Argh.
+  //   dbFindPromises.push(
+  //     db.events
+  //       .findOne()
+  //       .where('iCalUID')
+  //       .eq(filteredEvent.iCalUID)
+  //       .where('start.dateTime')
+  //       .eq(filteredEvent.start.dateTime)
+  //       .exec()
+  //   );
+  // }
 
-    // Unable to use origianlId as originalId is duplicated for CalDav. Argh.
-    dbFindPromises.push(
-      db.events
-        .findOne()
-        .where('iCalUID')
-        .eq(filteredEvent.iCalUID)
-        .where('start.dateTime')
-        .eq(filteredEvent.start.dateTime)
-        .exec()
-    );
-  }
+  // // Wait for all the promises to complete
+  // const results = await Promise.all(dbFindPromises);
+  // // console.log(results.map((e) => e.toJSON()));
+  // debugger;
 
-  // Wait for all the promises to complete
-  const results = await Promise.all(dbFindPromises);
-  // console.log(results.map((e) => e.toJSON()));
-  debugger;
+  // // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
+  // // dbFindPromises must have same length as results, as its just an array of same size.
+  // // This ensure the index of data is the same with find query index.
+  // for (let i = 0; i < results.length; i += 1) {
+  //   // debugger;
+  //   const filteredEvent = Providers.filterIntoSchema(
+  //     data[i],
+  //     payload.providerType,
+  //     payload.owner,
+  //     false
+  //   );
 
-  // Assumtion here is that dbFindPromises is going to be the list of query that is our previous data accordingly.
-  // dbFindPromises must have same length as results, as its just an array of same size.
-  // This ensure the index of data is the same with find query index.
-  for (let i = 0; i < results.length; i += 1) {
-    // debugger;
-    const filteredEvent = Providers.filterIntoSchema(
-      data[i],
-      payload.providerType,
-      payload.owner,
-      false
-    );
+  //   // Means it is a new object, we upsert coz filtered event already is new.
+  //   if (results[i] === null) {
+  //     dbUpsertPromises.push(db.events.upsert(filteredEvent));
+  //   } else {
+  //     // Take back old primary ID, so we do not create another object.
+  //     filteredEvent.id = results[i].id;
 
-    // Means it is a new object, we upsert coz filtered event already is new.
-    if (results[i] === null) {
-      dbUpsertPromises.push(db.events.upsert(filteredEvent));
-    } else {
-      // Take back old primary ID, so we do not create another object.
-      filteredEvent.id = results[i].id;
+  //     // eslint-disable-next-line no-await-in-loop
+  //     await db.events
+  //       .findOne()
+  //       .where('iCalUID')
+  //       .eq(filteredEvent.iCalUID)
+  //       .where('start.dateTime')
+  //       .eq(filteredEvent.start.dateTime)
+  //       .update({ $set: filteredEvent });
+  //   }
 
-      // eslint-disable-next-line no-await-in-loop
-      await db.events
-        .findOne()
-        .where('iCalUID')
-        .eq(filteredEvent.iCalUID)
-        .where('start.dateTime')
-        .eq(filteredEvent.start.dateTime)
-        .update({ $set: filteredEvent });
-    }
+  //   // This is for all the events, for UI.
+  //   addedEvents.push(filteredEvent);
+  // }
+  // debugger;
+  // try {
+  //   await Promise.all(dbUpsertPromises);
+  //   console.log(addedEvents);
+  // } catch (e) {
+  //   console.log(e);
+  // }
+  // return addedEvents;
 
-    // This is for all the events, for UI.
-    addedEvents.push(filteredEvent);
-  }
-  debugger;
-  try {
-    await Promise.all(dbUpsertPromises);
-    console.log(addedEvents);
-  } catch (e) {
-    console.log(e);
-  }
-  return addedEvents;
+  const insertQueries = data
+    .map((dbEvent) =>
+      Providers.filterIntoSchema(dbEvent, payload.providerType, payload.owner, false)
+    )
+    .map((filteredEvent) => dbEventActions.insertEventsIntoDatabase(filteredEvent));
+  const insertResults = await Promise.all(insertQueries);
+  console.log(insertResults);
+
+  // debugger;
+  // const test = await EventBlock.findAll();
+  // console.log(test.map((e) => e.toJSON()));
+
+  // debugger;
+  return insertResults;
 };
 
 const deleteSingleEvent = async (id) => {
   const debug = true;
 
   // #region Getting information
-  // Get database
-  const db = await getDb();
-  const query = db.events
-    .find()
-    .where('id')
-    .eq(id);
 
-  // Find the proper item on database
-  const datas = await query.exec();
-  if (datas.length !== 1) {
-    console.error('Omg, actually a collision?');
-  }
-  const data = datas[0];
-  console.log(datas, data);
+  // // #region rxDb
+  // // Get database
+  // const db = await getDb();
+  // const query = db.events
+  //   .find()
+  //   .where('id')
+  //   .eq(id);
 
-  // Find the proper user on database
-  const users = await db.users
-    .find()
-    .where('providerType')
-    .eq(datas[0].providerType)
-    .where('email')
-    .eq(datas[0].owner)
-    .exec();
+  // // Find the proper item on database
+  // const datas = await query.exec();
+  // if (datas.length !== 1) {
+  //   console.error('Omg, actually a collision?');
+  // }
+  // const data = datas[0];
+  // console.log(datas, data);
 
-  if (users.length !== 1) {
-    console.error('Omg, actually a collision?');
-  }
-  const user = users[0];
-  console.log(user);
+  // // Find the proper user on database
+  // const users = await db.users
+  //   .find()
+  //   .where('providerType')
+  //   .eq(datas[0].providerType)
+  //   .where('email')
+  //   .eq(datas[0].owner)
+  //   .exec();
+
+  // if (users.length !== 1) {
+  //   console.error('Omg, actually a collision?');
+  // }
+  // const user = users[0];
+  // console.log(user);
+  // // #endregion
+
+  // Get Information
+  const data = await dbEventActions.getOneEventById(id);
+  const user = await dbUserActions.findUser(data.providerType, data.owner);
+  console.log(data, user);
+  debugger;
   // #endregion
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
   if (data.local === true) {
-    const pendingactionRemoval = db.pendingactions
-      .find()
-      .where('eventId')
-      .eq(data.originalId);
+    // const pendingactionRemoval = db.pendingactions
+    //   .find()
+    //   .where('eventId')
+    //   .eq(data.originalId);
 
-    await pendingactionRemoval.remove();
-    await query.remove();
+    // await pendingactionRemoval.remove();
+    await dbPendingActionActions.deletePendingActionById(data.originalId);
+
+    // await query.remove();
+    await dbEventActions.deleteEventById(id);
 
     return {
       providerType: data.providerType,
@@ -298,48 +371,50 @@ const deleteSingleEvent = async (id) => {
         console.log(data.providerType, ' not handling adding of exDates for recurring pattern');
         break;
       case Providers.EXCHANGE:
-        const addingIntoRpQuery = db.recurrencepatterns
-          .find()
-          .where('iCalUID')
-          .eq(data.iCalUID);
+        // const addingIntoRpQuery = db.recurrencepatterns
+        //   .find()
+        //   .where('iCalUID')
+        //   .eq(data.iCalUID);
 
-        if (debug) {
-          const result = await addingIntoRpQuery.exec();
-          console.log(result[0].toJSON());
-        }
+        // if (debug) {
+        //   const result = await addingIntoRpQuery.exec();
+        //   console.log(result[0].toJSON());
+        // }
 
-        addingIntoRpQuery.update({
-          $addToSet: {
-            exDates: data.start.dateTime
-          }
-        });
+        // addingIntoRpQuery.update({
+        //   $addToSet: {
+        //     exDates: data.start.dateTime
+        //   }
+        // });
 
-        if (debug) {
-          const addingIntoRpQuery2 = db.recurrencepatterns
-            .find()
-            .where('iCalUID')
-            .eq(data.iCalUID);
+        // if (debug) {
+        //   const addingIntoRpQuery2 = db.recurrencepatterns
+        //     .find()
+        //     .where('iCalUID')
+        //     .eq(data.iCalUID);
 
-          const result2 = await addingIntoRpQuery2.exec();
-          console.log(result2[0].toJSON());
-        }
+        //   const result2 = await addingIntoRpQuery2.exec();
+        //   console.log(result2[0].toJSON());
+        // }
+        await dbRpActions.addExDateByiCalUID(data.iCalUID, data.start.dateTime);
         break;
       case Providers.CALDAV:
-        const cdAddingIntoRpQuery = db.recurrencepatterns
-          .find()
-          .where('originalId')
-          .eq(data.iCalUID);
+        // const cdAddingIntoRpQuery = db.recurrencepatterns
+        //   .find()
+        //   .where('originalId')
+        //   .eq(data.iCalUID);
 
-        if (debug) {
-          const result = await cdAddingIntoRpQuery.exec();
-          console.log(result[0].toJSON());
-        }
+        // if (debug) {
+        //   const result = await cdAddingIntoRpQuery.exec();
+        //   console.log(result[0].toJSON());
+        // }
 
-        await cdAddingIntoRpQuery.update({
-          $addToSet: {
-            exDates: data.start.dateTime
-          }
-        });
+        // await cdAddingIntoRpQuery.update({
+        //   $addToSet: {
+        //     exDates: data.start.dateTime
+        //   }
+        // });
+        await dbRpActions.addExDateByOid(data.iCalUID, data.start.dateTime);
         break;
       default:
         console.log(
@@ -353,9 +428,8 @@ const deleteSingleEvent = async (id) => {
 
   // Set up the payload for the providers to handle.
   const payload = {
-    db,
-    data,
-    user
+    data: data.toJSON(),
+    user: user.toJSON()
   };
 
   // Based off which provider, we will have different delete functions.
@@ -384,21 +458,28 @@ const deleteSingleEvent = async (id) => {
         return deleteEwsSingleEventBegin(payload);
       } catch (exchangeError) {
         // Delete doc is meant for both offline and online actions.
-        const deleteDoc = db.events
-          .find()
-          .where('originalId')
-          .eq(data.get('originalId'));
+        // const deleteDoc = db.events
+        //   .find()
+        //   .where('originalId')
+        //   .eq(data.get('originalId'));
 
         // This means item has been deleted on server, maybe by another user
         // Handle this differently.
         if (exchangeError.ErrorCode === 249) {
           // Just remove it from database instead, and break;
-          await deleteDoc.remove();
+          // await deleteDoc.remove();
+          await dbEventActions.deleteEventById(data.id);
           break;
         }
 
-        // Upsert it to the pending action, let pending action automatically handle it.
-        db.pendingactions.upsert({
+        // // Upsert it to the pending action, let pending action automatically handle it.
+        // db.pendingactions.upsert({
+        //   uniqueId: uuidv4(),
+        //   eventId: data.get('originalId'),
+        //   status: 'pending',
+        //   type: 'delete'
+        // });
+        await dbPendingActionActions.insertPendingActionIntoDatabase({
           uniqueId: uuidv4(),
           eventId: data.get('originalId'),
           status: 'pending',
@@ -406,11 +487,15 @@ const deleteSingleEvent = async (id) => {
         });
 
         // Hide the item, and set it to local as it has been updated.
-        await deleteDoc.update({
-          $set: {
-            hide: true,
-            local: true
-          }
+        // await deleteDoc.update({
+        //   $set: {
+        //     hide: true,
+        //     local: true
+        //   }
+        // });
+        await dbEventActions.updateEventById(data.id, {
+          hide: true,
+          local: true
         });
       }
       break;
@@ -437,46 +522,54 @@ const deleteAllReccurenceEvent = async (id) => {
   const debug = false;
 
   // #region Getting information
-  // Get database
-  const db = await getDb();
-  const query = db.events
-    .find()
-    .where('id')
-    .eq(id);
+  // // Get database
+  // const db = await getDb();
+  // const query = db.events
+  //   .find()
+  //   .where('id')
+  //   .eq(id);
 
-  // Find the proper item on database
-  const datas = await query.exec();
-  if (datas.length !== 1) {
-    console.error('Omg, actually a collision?');
-  }
-  const data = datas[0];
-  console.log(data);
+  // // Find the proper item on database
+  // const datas = await query.exec();
+  // if (datas.length !== 1) {
+  //   console.error('Omg, actually a collision?');
+  // }
+  // const data = datas[0];
+  // console.log(data);
 
-  // Find the proper user on database
-  const users = await db.users
-    .find()
-    .where('providerType')
-    .eq(datas[0].providerType)
-    .where('email')
-    .eq(datas[0].owner)
-    .exec();
+  // // Find the proper user on database
+  // const users = await db.users
+  //   .find()
+  //   .where('providerType')
+  //   .eq(datas[0].providerType)
+  //   .where('email')
+  //   .eq(datas[0].owner)
+  //   .exec();
 
-  if (users.length !== 1) {
-    console.error('Omg, actually a collision?');
-  }
-  const user = users[0];
+  // if (users.length !== 1) {
+  //   console.error('Omg, actually a collision?');
+  // }
+  // const user = users[0];
+
+  // Get Information
+  const data = await dbEventActions.getOneEventById(id);
+  const user = await dbUserActions.findUser(data.providerType, data.owner);
+  console.log(data, user);
   // #endregion
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
   if (data.local === true) {
-    const pendingactionRemoval = db.pendingactions
-      .find()
-      .where('eventId')
-      .eq(data.originalId);
+    // const pendingactionRemoval = db.pendingactions
+    //   .find()
+    //   .where('eventId')
+    //   .eq(data.originalId);
 
-    await pendingactionRemoval.remove();
-    await query.remove();
+    // await pendingactionRemoval.remove();
+    await dbPendingActionActions.deletePendingActionById(data.originalId);
+
+    // await query.remove();
+    await dbEventActions.deleteEventById(data.id);
 
     return {
       providerType: data.providerType,
@@ -495,37 +588,43 @@ const deleteAllReccurenceEvent = async (id) => {
         break;
       case Providers.EXCHANGE:
         if (debug) {
-          const allRP = await db.recurrencepatterns.find().exec();
-          console.log(allRP);
+          // const allRP = await db.recurrencepatterns.find().exec();
+          const allRP = await dbRpActions.getAllRp();
+          console.log(allRP.map((e) => e.toJSON()));
         }
 
-        const removingRb = db.recurrencepatterns
-          .find()
-          .where('iCalUID')
-          .eq(data.iCalUID);
-        await removingRb.remove();
+        // const removingRb = db.recurrencepatterns
+        //   .find()
+        //   .where('iCalUID')
+        //   .eq(data.iCalUID);
+        // await removingRb.remove();
+        dbRpActions.deleteRpByiCalUID(data.iCalUID);
 
         if (debug) {
-          const newRp = await db.recurrencepatterns.find().exec();
-          console.log(newRp);
+          // const newRp = await db.recurrencepatterns.find().exec();
+          const newRp = await dbRpActions.getAllRp();
+          console.log(newRp.map((e) => e.toJSON()));
         }
         break;
       case Providers.CALDAV:
         // Duplicate now, I just wanna get it working
         if (debug) {
-          const allRP = await db.recurrencepatterns.find().exec();
-          console.log(allRP);
+          // const allRP = await db.recurrencepatterns.find().exec();
+          const allRP = await dbRpActions.getAllRp();
+          console.log(allRP.map((e) => e.toJSON()));
         }
 
-        const removingRbCd = db.recurrencepatterns
-          .find()
-          .where('iCalUID')
-          .eq(data.iCalUID);
-        await removingRbCd.remove();
+        // const removingRb = db.recurrencepatterns
+        //   .find()
+        //   .where('iCalUID')
+        //   .eq(data.iCalUID);
+        // await removingRb.remove();
+        dbRpActions.deleteRpByiCalUID(data.iCalUID);
 
         if (debug) {
-          const newRp = await db.recurrencepatterns.find().exec();
-          console.log(newRp);
+          // const newRp = await db.recurrencepatterns.find().exec();
+          const newRp = await dbRpActions.getAllRp();
+          console.log(newRp.map((e) => e.toJSON()));
         }
         break;
       default:
@@ -536,7 +635,6 @@ const deleteAllReccurenceEvent = async (id) => {
 
   // Set up the payload for the providers to handle.
   const payload = {
-    db,
     data,
     user
   };
@@ -546,7 +644,7 @@ const deleteAllReccurenceEvent = async (id) => {
     case Providers.GOOGLE:
       await loadClient();
       const responseFromAPI = await deleteGoogleEvent(data.get('originalId'));
-      await query.remove();
+      // await query.remove();
       break;
     case Providers.OUTLOOK:
       console.log('Outlook, To-Do delete feature');
@@ -555,21 +653,29 @@ const deleteAllReccurenceEvent = async (id) => {
       try {
         return deleteEwsAllEventBegin(payload);
       } catch (error) {
-        const deleteDoc = db.events
-          .find()
-          .where('recurringEventId')
-          .eq(data.get('recurringEventId'));
+        console.log('THIS IS BROKEN; FOR DB STUFF');
+        // const deleteDoc = db.events
+        //   .find()
+        //   .where('recurringEventId')
+        //   .eq(data.get('recurringEventId'));
 
         // This means item has been deleted on server, maybe by another user
         // Handle this differently.
         if (error.ErrorCode === 249) {
           // Just remove it from database instead, and break;
-          await deleteDoc.remove();
+          // await deleteDoc.remove();
+          dbRpActions.deleteAllEventByRecurringEventId(data.get('recurringEventId'));
           break;
         }
 
         // Upsert it to the pending action, let pending action automatically handle it.
-        db.pendingactions.upsert({
+        // db.pendingactions.upsert({
+        //   uniqueId: uuidv4(),
+        //   eventId: data.get('originalId'),
+        //   status: 'pending',
+        //   type: 'delete'
+        // });
+        await dbPendingActionActions.insertPendingActionIntoDatabase({
           uniqueId: uuidv4(),
           eventId: data.get('originalId'),
           status: 'pending',
@@ -577,11 +683,15 @@ const deleteAllReccurenceEvent = async (id) => {
         });
 
         // Hide the item, and set it to local as it has been updated.
-        await deleteDoc.update({
-          $set: {
-            hide: true,
-            local: true
-          }
+        // await deleteDoc.update({
+        //   $set: {
+        //     hide: true,
+        //     local: true
+        //   }
+        // });
+        await dbEventActions.updateEventById(data.id, {
+          hide: true,
+          local: true
         });
       }
       break;
@@ -608,46 +718,54 @@ const deleteFutureReccurenceEvent = async (id) => {
   const debug = true;
 
   // #region Getting information
-  // Get database
-  const db = await getDb();
-  const query = db.events
-    .find()
-    .where('id')
-    .eq(id);
+  // // Get database
+  // const db = await getDb();
+  // const query = db.events
+  //   .find()
+  //   .where('id')
+  //   .eq(id);
 
-  // Find the proper item on database
-  const datas = await query.exec();
-  if (datas.length !== 1) {
-    console.error('Omg, actually a collision?');
-  }
-  const data = datas[0];
-  console.log(data);
+  // // Find the proper item on database
+  // const datas = await query.exec();
+  // if (datas.length !== 1) {
+  //   console.error('Omg, actually a collision?');
+  // }
+  // const data = datas[0];
+  // console.log(data);
 
-  // Find the proper user on database
-  const users = await db.users
-    .find()
-    .where('providerType')
-    .eq(datas[0].providerType)
-    .where('email')
-    .eq(datas[0].owner)
-    .exec();
+  // // Find the proper user on database
+  // const users = await db.users
+  //   .find()
+  //   .where('providerType')
+  //   .eq(datas[0].providerType)
+  //   .where('email')
+  //   .eq(datas[0].owner)
+  //   .exec();
 
-  if (users.length !== 1) {
-    console.error('Omg, actually a collision?');
-  }
-  const user = users[0];
+  // if (users.length !== 1) {
+  //   console.error('Omg, actually a collision?');
+  // }
+  // const user = users[0];
+
+  // Get Information
+  const data = await dbEventActions.getOneEventById(id);
+  const user = await dbUserActions.findUser(data.providerType, data.owner);
+  console.log(data, user);
   // #endregion
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
   if (data.local === true) {
-    const pendingactionRemoval = db.pendingactions
-      .find()
-      .where('eventId')
-      .eq(data.originalId);
+    // const pendingactionRemoval = db.pendingactions
+    //   .find()
+    //   .where('eventId')
+    //   .eq(data.originalId);
 
-    await pendingactionRemoval.remove();
-    await query.remove();
+    // await pendingactionRemoval.remove();
+    await dbPendingActionActions.deletePendingActionById(data.originalId);
+
+    // await query.remove();
+    await dbEventActions.deleteEventById(data.id);
 
     return {
       providerType: data.providerType,
@@ -657,7 +775,6 @@ const deleteFutureReccurenceEvent = async (id) => {
 
   // Set up the payload for the providers to handle.
   const payload = {
-    db,
     data,
     user
   };
@@ -667,7 +784,7 @@ const deleteFutureReccurenceEvent = async (id) => {
     case Providers.GOOGLE:
       await loadClient();
       const responseFromAPI = await deleteGoogleEvent(data.get('originalId'));
-      await query.remove();
+      // await query.remove();
       break;
     case Providers.OUTLOOK:
       console.log('Outlook, To-Do delete feature');

@@ -7,7 +7,7 @@ import { successOutlookAuth } from '../../actions/auth';
 
 import { getAccessToken, filterUser } from '../../utils/client/outlook';
 
-import getDb from '../../db';
+import getDb from '../../rxdb';
 
 const mapDispatchToProps = (dispatch) => ({
   successOutlookAuth: (user) => dispatch(successOutlookAuth(user))

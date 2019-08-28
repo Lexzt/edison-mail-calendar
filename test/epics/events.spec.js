@@ -1,7 +1,7 @@
 import { TestScheduler } from 'rxjs/testing';
 import { clearAllEventsEpics } from '../../app/epics/events';
 
-import { createDb, clearDb } from '../../app/db';
+import { createDb, clearDb } from '../../app/rxdb';
 
 const testScheduler = new TestScheduler((actual, expected) => {
   console.log('here?!');

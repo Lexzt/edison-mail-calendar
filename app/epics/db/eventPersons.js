@@ -4,11 +4,12 @@ import { from } from 'rxjs';
 import uuidv4 from 'uuid';
 import { successStoreEventPerson, failureStoreEventPerson } from '../../actions/db/eventPerson';
 import { SUCCESS_STORED_EVENTS } from '../../actions/db/events';
-import getDb from '../../db';
+import getDb from '../../rxdb';
 
 const storeEventPersonEpic = (action$) =>
   action$.pipe(
-    ofType(SUCCESS_STORED_EVENTS),
+    // ofType(SUCCESS_STORED_EVENTS),
+    ofType(),
     mergeMap((action) =>
       from(storeEventPerson(action.payload)).pipe(
         map((resp) => successStoreEventPerson()),

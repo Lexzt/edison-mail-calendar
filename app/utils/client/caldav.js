@@ -1,8 +1,10 @@
 import md5 from 'md5';
+import uuidv4 from 'uuid';
 import * as ProviderTypes from '../constants';
 import ServerUrls from '../serverUrls';
 import PARSER from '../parser';
-import getDb from '../../db';
+// import getDb from '../../rxdb';
+import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 
 const dav = require('dav');
 
@@ -20,8 +22,16 @@ const getCalDavTypeFromURL = (url) => {
 };
 
 export const filterCaldavUser = (jsonObj, url) => ({
-  personId: md5(jsonObj.username),
-  originalId: jsonObj.username,
+  // personId: md5(jsonObj.username),
+  // originalId: jsonObj.username,
+  // email: jsonObj.username,
+  // providerType: ProviderTypes.CALDAV,
+  // password: jsonObj.password,
+  // url,
+  // caldavType: getCalDavTypeFromURL(url)
+
+  personId: uuidv4(),
+  originalId: md5(jsonObj.username),
   email: jsonObj.username,
   providerType: ProviderTypes.CALDAV,
   password: jsonObj.password,
@@ -41,7 +51,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     loadObjects: true
   });
 
-  const db = await getDb();
+  // const db = await getDb();
   // This breaks due to how our database works, with id being a uniqid.
   // so we need find it first then upsert. Yay, no checks again.
   try {
@@ -50,31 +60,32 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     const flatEvents = events.reduce((acc, val) => acc.concat(val), []);
     const filteredEvents = flatEvents.filter((event) => event !== '');
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
-    const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
+    // const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
 
     const promises = [];
     // This is broke, upsert makes no sense atm.
-    calendars.forEach((calendar) => {
-      promises.push(db.calendars.upsert(calendar));
-    });
+    // calendars.forEach((calendar) => {
+    //   promises.push(db.calendars.upsert(calendar));
+    // });
     // Do not upsert here, let the get event success upsert. But handle the rest.
     // flatFilteredEvents.forEach((calEvent) => {
     //   promises.push(db.events.upsert(calEvent.eventData));
     // });
 
-    // This has no use atm, upsert makes no sense atm.
-    eventPersons.forEach((eventPerson) => {
-      promises.push(db.eventpersons.upsert(eventPerson));
-    });
+    // // This has no use atm, upsert makes no sense atm.
+    // eventPersons.forEach((eventPerson) => {
+    //   promises.push(db.eventpersons.upsert(eventPerson));
+    // });
 
     const prevRPs = await Promise.all(
       recurrenceEvents.map((recurrenceEvent) =>
-        db.recurrencepatterns
-          .findOne()
-          .where('originalId')
-          .eq(recurrenceEvent.originalId)
-          .exec()
+        // db.recurrencepatterns
+        //   .findOne()
+        //   .where('originalId')
+        //   .eq(recurrenceEvent.originalId)
+        //   .exec()
+        dbRpActions.getOneRpByOId(recurrenceEvent.originalId)
       )
     );
 
@@ -82,43 +93,72 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     prevRPs.forEach((prevRP) => {
       const newRP = recurrenceEvents[i];
       console.log(newRP, prevRP);
-      debugger;
+      // debugger;
       if (prevRP === null) {
-        promises.push(db.recurrencepatterns.upsert(newRP));
+        // promises.push(db.recurrencepatterns.upsert(newRP));
+        promises.push(dbRpActions.insertOrUpdateRp(newRP));
       } else {
         // console.log(prevRP, newRP);
+        // promises.push(
+        //   db.recurrencepatterns
+        //     .findOne()
+        //     .where('originalId')
+        //     .eq(prevRP.originalId)
+        //     .update({
+        //       $set: {
+        //         id: prevRP.id,
+        //         originalId: newRP.originalId,
+        //         freq: newRP.freq,
+        //         interval: newRP.interval,
+        //         until: newRP.until,
+        //         exDates: newRP.exDates,
+        //         recurrenceIds: newRP.recurrenceIds,
+        //         modifiedThenDeleted: newRP.modifiedThenDeleted,
+        //         numberOfRepeats: newRP.numberOfRepeats,
+        //         isCount: newRP.isCount,
+        //         iCalUID: prevRP.iCalUID,
+        //         wkSt: newRP.wkSt,
+        //         byMonth: newRP.byMonth,
+        //         byMonthDay: newRP.byMonthDay,
+        //         byYearDay: newRP.byYearDay,
+        //         byWeekNo: newRP.byWeekNo,
+        //         byWeekDay: newRP.byWeekDay,
+        //         weeklyPattern: newRP.weeklyPattern,
+        //         bySetPos: newRP.bySetPos,
+        //         byHour: newRP.byHour,
+        //         byMinute: newRP.byMinute,
+        //         bySecond: newRP.bySecond,
+        //         byEaster: newRP.byEaster
+        //       }
+        //     })
+        // );
+
         promises.push(
-          db.recurrencepatterns
-            .findOne()
-            .where('originalId')
-            .eq(prevRP.originalId)
-            .update({
-              $set: {
-                id: prevRP.id,
-                originalId: newRP.originalId,
-                freq: newRP.freq,
-                interval: newRP.interval,
-                until: newRP.until,
-                exDates: newRP.exDates,
-                recurrenceIds: newRP.recurrenceIds,
-                modifiedThenDeleted: newRP.modifiedThenDeleted,
-                numberOfRepeats: newRP.numberOfRepeats,
-                isCount: newRP.isCount,
-                iCalUID: prevRP.iCalUID,
-                wkSt: newRP.wkSt,
-                byMonth: newRP.byMonth,
-                byMonthDay: newRP.byMonthDay,
-                byYearDay: newRP.byYearDay,
-                byWeekNo: newRP.byWeekNo,
-                byWeekDay: newRP.byWeekDay,
-                weeklyPattern: newRP.weeklyPattern,
-                bySetPos: newRP.bySetPos,
-                byHour: newRP.byHour,
-                byMinute: newRP.byMinute,
-                bySecond: newRP.bySecond,
-                byEaster: newRP.byEaster
-              }
-            })
+          dbRpActions.updateRpByOid(prevRP.originalId, {
+            id: prevRP.id,
+            originalId: newRP.originalId,
+            freq: newRP.freq,
+            interval: newRP.interval,
+            until: newRP.until,
+            exDates: newRP.exDates,
+            recurrenceIds: newRP.recurrenceIds,
+            modifiedThenDeleted: newRP.modifiedThenDeleted,
+            numberOfRepeats: newRP.numberOfRepeats,
+            isCount: newRP.isCount,
+            iCalUID: prevRP.iCalUID,
+            wkSt: newRP.wkSt,
+            byMonth: newRP.byMonth,
+            byMonthDay: newRP.byMonthDay,
+            byYearDay: newRP.byYearDay,
+            byWeekNo: newRP.byWeekNo,
+            byWeekDay: newRP.byWeekDay,
+            weeklyPattern: newRP.weeklyPattern,
+            bySetPos: newRP.bySetPos,
+            byHour: newRP.byHour,
+            byMinute: newRP.byMinute,
+            bySecond: newRP.bySecond,
+            byEaster: newRP.byEaster
+          })
         );
       }
       i += 1;

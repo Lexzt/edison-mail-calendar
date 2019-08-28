@@ -27,7 +27,7 @@ import Date from './date';
 import Time from './time';
 import Conference from './conference';
 import Checkbox from './checkbox';
-import getDb from '../../db';
+import getDb from '../../rxdb';
 import { loadClient, editGoogleEvent } from '../../utils/client/google';
 import {
   asyncGetSingleExchangeEvent,
@@ -53,6 +53,9 @@ import {
 import '../../bootstrap.css';
 import * as recurrenceOptions from '../../utils/recurrenceOptions';
 import { beginStoringEvents } from '../../actions/db/events';
+
+import * as dbEventActions from '../../sequelizeDB/operations/events';
+import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 
 export default class EditEvent extends React.Component {
   constructor(props) {
@@ -321,14 +324,16 @@ export default class EditEvent extends React.Component {
   // */
   retrieveEvent = async (id) => {
     console.log(id);
-    const db = await getDb();
-    const dbEvent = await db.events
-      .find()
-      .where('id')
-      .eq(id)
-      .exec();
+    // const db = await getDb();
+    // const dbEvent = await db.events
+    //   .find()
+    //   .where('id')
+    //   .eq(id)
+    //   .exec();
 
-    const dbEventJSON = dbEvent[0].toJSON();
+    const dbEvent = await dbEventActions.getOneEventById(id);
+    // const dbEventJSON = dbEvent[0].toJSON();
+    const dbEventJSON = dbEvent.toJSON();
     console.log(dbEventJSON);
 
     const text = recurrenceOptions.parseString(
@@ -338,11 +343,12 @@ export default class EditEvent extends React.Component {
     const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(dbEventJSON.start, text);
 
     if (dbEventJSON.isRecurring) {
-      const dbEventRecurrence = await db.recurrencepatterns
-        .findOne()
-        .where('originalId')
-        .eq(dbEventJSON.recurringEventId)
-        .exec();
+      // const dbEventRecurrence = await db.recurrencepatterns
+      //   .findOne()
+      //   .where('originalId')
+      //   .eq(dbEventJSON.recurringEventId)
+      //   .exec();
+      const dbEventRecurrence = await dbRpActions.getOneRpByOId(dbEventJSON.recurringEventId);
 
       console.log(dbEventJSON.recurringEventId);
       console.log(dbEventRecurrence.toJSON());

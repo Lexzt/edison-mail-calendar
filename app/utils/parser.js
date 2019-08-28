@@ -3,7 +3,8 @@ import ICAL from 'ical.js';
 import moment from 'moment';
 import uuidv4 from 'uuid';
 import { RRule, RRuleSet, rrulestr } from 'rrule';
-import getDb from '../db';
+// import getDb from '../rxdb';
+import * as dbRpActions from '../sequelizeDB/operations/recurrencepatterns';
 
 const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
@@ -15,7 +16,7 @@ const parseRecurrenceEvents = (calEvents) => {
       const options = RRule.parseString(calEvent.recurData.rrule.stringFormat);
       options.dtstart = new Date(moment(calEvent.eventData.start.dateTime));
       const rrule = new RRule(options);
-      debugger;
+      // debugger;
       recurringEvents.push({
         id: uuidv4(),
         recurringTypeId: calEvent.eventData.start.dateTime,
@@ -23,8 +24,8 @@ const parseRecurrenceEvents = (calEvents) => {
         freq: calEvent.recurData.rrule.freq,
         interval: calEvent.recurData.rrule.interval,
         until: calEvent.recurData.rrule.until,
-        exDates: calEvent.recurData.exDates,
-        recurrenceIds: calEvent.recurData.recurrenceIds,
+        exDates: calEvent.recurData.exDates.join(','),
+        recurrenceIds: calEvent.recurData.recurrenceIds.join(','),
         modifiedThenDeleted: calEvent.recurData.modifiedThenDeleted,
         numberOfRepeats: calEvent.recurData.rrule.count,
         iCalUID: calEvent.eventData.iCalUID,
@@ -57,7 +58,7 @@ const parseRecurrenceEvents = (calEvents) => {
                 .map((e) => parseWeekDayNoToString(e.weekday))
                 .join(',')})`,
         weeklyPattern:
-          calEvent.recurData.rrule.freq !== 'WEEKLY' ? [] : convertiCalWeeklyPattern(rrule),
+          calEvent.recurData.rrule.freq !== 'WEEKLY' ? '' : convertiCalWeeklyPattern(rrule),
         // Too much details, Prob not needed
         bySetPos: calEvent.recurData.rrule.bysetpos,
         byHour: calEvent.recurData.rrule.byhour,
@@ -71,7 +72,7 @@ const parseRecurrenceEvents = (calEvents) => {
 };
 
 const convertiCalWeeklyPattern = (rrule) => {
-  debugger;
+  // debugger;
   const weeklyPattern = [0, 0, 0, 0, 0, 0, 0];
   if (rrule.origOptions.byweekday) {
     console.log(rrule.origOptions.byweekday);
@@ -87,7 +88,7 @@ const convertiCalWeeklyPattern = (rrule) => {
     const date = moment(rrule.options.dtstart);
     weeklyPattern[date.day()] = 1;
   }
-  return weeklyPattern;
+  return weeklyPattern.join(',');
 };
 
 const parseEventPersons = (events) => {
@@ -178,7 +179,7 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
       }
     }
 
-    debugger;
+    // debugger;
 
     // Recurring event
     results.push({
@@ -264,7 +265,7 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
       dateTime: new Date(dtstart).toISOString(),
       timezone: 'timezone'
     },
-    attendee: getAttendees(modifiedEvent),
+    // attendee: getAttendees(modifiedEvent),
     // calendarId,
     providerType: 'CALDAV',
     isRecurring: true,
@@ -346,7 +347,7 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
       dateTime: new Date(dtstart).toISOString(),
       timezone: 'timezone'
     },
-    attendee: getAttendees(masterEvent),
+    // attendee: getAttendees(masterEvent),
     providerType: 'CALDAV',
     isRecurring,
     // isModifiedThenDeleted: mtd,
@@ -361,7 +362,7 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
 
 const getRuleJSON = (masterEvent, icalMasterEvent) => {
   let rruleJSON = {};
-  debugger;
+  // debugger;
   if (icalMasterEvent.isRecurring()) {
     const rrule = masterEvent.getFirstPropertyValue('rrule');
     rruleJSON = rrule.toJSON();
@@ -427,7 +428,7 @@ const parseAttendees = (properties) =>
   }));
 
 const expandRecurEvents = async (results) => {
-  const db = await getDb();
+  // const db = await getDb();
   const nonMTDresults = results.filter((result) => !result.isModifiedThenDeleted);
   const recurringEvents = nonMTDresults.filter(
     (nonMTDresult) =>
@@ -439,20 +440,22 @@ const expandRecurEvents = async (results) => {
   if (recurringEvents.length === 0) {
     finalResults = nonMTDresults;
   } else {
-    finalResults = expandSeries(recurringEvents, db);
+    finalResults = expandSeries(recurringEvents);
   }
   return finalResults;
 };
 
-const expandSeries = async (recurringEvents, db) => {
+const expandSeries = async (recurringEvents) => {
   const resolved = await Promise.all(
     recurringEvents.map(async (recurMasterEvent) => {
-      const recurPatternRecurId = await db.recurrencepatterns
-        .find()
-        .where('originalId')
-        .eq(recurMasterEvent.iCalUID)
-        .exec();
-      return parseRecurrence(recurPatternRecurId[0].toJSON(), recurMasterEvent);
+      // const recurPatternRecurId = await db.recurrencepatterns
+      //   .find()
+      //   .where('originalId')
+      //   .eq(recurMasterEvent.iCalUID)
+      //   .exec();
+      // return parseRecurrence(recurPatternRecurId[0].toJSON(), recurMasterEvent);
+      const recurPatternRecurId = await dbRpActions.getOneRpByOId(recurMasterEvent.iCalUID);
+      return parseRecurrence(recurPatternRecurId.toJSON(), recurMasterEvent);
     })
   );
   const expandedSeries = resolved.reduce((acc, val) => acc.concat(val), []);
@@ -460,12 +463,12 @@ const expandSeries = async (recurringEvents, db) => {
 };
 
 const parseRecurrence = (pattern, recurMasterEvent) => {
-  debugger;
+  // debugger;
   const recurEvents = [];
   const ruleSet = buildRuleSet(pattern, recurMasterEvent.start.dateTime);
   const recurDates = ruleSet.all().map((date) => date.toJSON());
   const duration = getDuration(recurMasterEvent);
-  debugger;
+  // debugger;
   recurDates.forEach((recurDateTime) => {
     recurEvents.push({
       id: uuidv4(),
@@ -485,7 +488,7 @@ const parseRecurrence = (pattern, recurMasterEvent) => {
       recurringEventId: recurMasterEvent.iCalUID,
       iCalUID: recurMasterEvent.iCalUID,
       iCALString: recurMasterEvent.iCALString,
-      attendee: recurMasterEvent.attendee,
+      // attendee: recurMasterEvent.attendee,
       originalId: recurMasterEvent.originalId,
       // creator: recurMasterEvent.creator,
       isRecurring: recurMasterEvent.isRecurring,
@@ -679,7 +682,7 @@ const buildRuleObject = (pattern, startTime) => {
     default:
   }
 
-  debugger;
+  // debugger;
   if (
     (pattern.until === undefined || pattern.until === null) &&
     (pattern.numberOfRepeats === undefined || pattern.numberOfRepeats === null)
@@ -742,12 +745,12 @@ export const buildRuleSet = (pattern, start) => {
 
   // For each of them, set the ex date so to not include them in the list.
   if (exDates !== undefined) {
-    exDates.forEach((exdate) => rruleSet.exdate(new Date(exdate)));
+    exDates.split(',').forEach((exdate) => rruleSet.exdate(new Date(exdate)));
   }
   // Here, I am unsure if I am handling it correctly as
   // an edited occurance is also a exdate techincally speaking
   if (recurrenceIds !== undefined) {
-    recurrenceIds.forEach((recurDate) => rruleSet.exdate(new Date(recurDate)));
+    recurrenceIds.split(',').forEach((recurDate) => rruleSet.exdate(new Date(recurDate)));
   }
 
   // const modifiedThenDeletedDates = getModifiedThenDeletedDates(exDates, recurrenceIds);

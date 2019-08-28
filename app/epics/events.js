@@ -65,11 +65,16 @@ import {
   endPollingEvents,
   EDIT_EVENT_BEGIN
 } from '../actions/events';
-import getDb from '../db';
+import getDb from '../rxdb';
 import * as Credentials from '../utils/Credentials';
 import ServerUrls from '../utils/serverUrls';
 import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
 import * as IcalStringBuilder from '../utils/icalStringBuilder';
+
+import * as dbGeneralActions from '../sequelizeDB/operations/general';
+
+import * as dbEventActions from '../sequelizeDB/operations/events';
+import * as dbPendingActionActions from '../sequelizeDB/operations/pendingactions';
 
 const dav = require('dav');
 const uuidv1 = require('uuid/v1');
@@ -266,8 +271,11 @@ const postEventsExchange = (payload) =>
           const item = await Item.Bind(exch, newEvent.Id);
 
           // Update database by filtering the new item into our schema.
-          const db = await getDb();
-          await db.events.upsert(
+          // const db = await getDb();
+          // await db.events.upsert(
+          //   Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
+          // );
+          await dbEventActions.insertEventsIntoDatabase(
             Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
           );
           resolve(item);
@@ -294,8 +302,10 @@ const postEventsExchange = (payload) =>
           savedObj.createdOffline = true;
 
           // Append pending actions for retrying and events for UI display.
-          await db.events.upsert(savedObj);
-          await db.pendingactions.upsert(obj);
+          // await db.events.upsert(savedObj);
+          await dbEventActions.insertEventsIntoDatabase(savedObj);
+          // await db.pendingactions.upsert(obj);
+          await dbPendingActionActions.insertPendingActionIntoDatabase(obj);
           throw error;
         }
       )
@@ -412,11 +422,12 @@ const postEventsCalDav = async (payload) => {
 
   // If it reaches here, it means we managed to push the object into the provider!
   // Update database by filtering the new item into our schema.
-  const db = await getDb();
+  // const db = await getDb();
 
-  // Add it to the database
-  const appendedResult = await db.events.upsert(data);
-  return appendedResult.toJSON();
+  // // Add it to the database
+  // const appendedResult = await db.events.upsert(data);
+  const appendedResult = await dbEventActions.insertEventsIntoDatabase(data);
+  return appendedResult;
 };
 // #endregion
 
@@ -427,6 +438,8 @@ export const clearAllEventsEpics = (action$) =>
     map(() => {
       localStorage.clear();
       RxDB.removeDatabase('eventsdb', 'websql');
+      // cleardb();
+      dbGeneralActions.cleardb();
       return clearAllEventsSuccess();
     })
   );
@@ -439,7 +452,7 @@ export const pollingEventsEpics = (action$) => {
     // ofType(BEGIN_POLLING_EVENTS, UPDATE_STORED_EVENTS),
     ofType(BEGIN_POLLING_EVENTS),
     switchMap((action) =>
-      interval(20 * 1000).pipe(
+      interval(10 * 1000).pipe(
         takeUntil(stopPolling$),
         switchMap(() => from(syncEvents(action))),
         map((results) => syncStoredEvents(results))
@@ -452,9 +465,9 @@ const syncEvents = async (action) => {
   // Based off which user it is supposed to sync
   // const { user } = action.payload;
   const user = {
-    username: Credentials.FASTMAIL_USERNAME,
-    password: Credentials.FASTMAIL_PASSWORD,
-    url: 'https://caldav.fastmail.com/dav/',
+    username: Credentials.ICLOUD_USERNAME,
+    password: Credentials.ICLOUD_PASSWORD,
+    url: 'https://caldav.icloud.com/',
     providerType: Providers.CALDAV
   };
 
@@ -477,8 +490,9 @@ const syncEvents = async (action) => {
 
         // However, we need to get all items from database too, as created offline events
         // does not exist on the server yet.
-        const db = await getDb();
-        const dbEvents = await db.events.find().exec();
+        // const db = await getDb();
+        // const dbEvents = await db.events.find().exec();
+        const dbEvents = await dbEventActions.getAllEvents();
         const updatedEvents = [];
         const listOfPriomises = [];
 
@@ -496,7 +510,8 @@ const syncEvents = async (action) => {
           if (dbObj.length === 0) {
             // New object from server, add and move on to next one.
             updatedEvents.push({ event: filteredEvent, type: 'create' });
-            listOfPriomises.push(db.events.upsert(filteredEvent));
+            // listOfPriomises.push(db.events.upsert(filteredEvent));
+            listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
           } else {
             // Sync old objects and compare in case.
             const dbEvent = dbObj[0];
@@ -520,14 +535,17 @@ const syncEvents = async (action) => {
               // but keep the primary key.
 
               filteredEvent.id = dbEvent.id;
-              const query = db.events
-                .findOne()
-                .where('originalId')
-                .eq(filteredEvent.originalId);
+              // const query = db.events
+              //   .findOne()
+              //   .where('originalId')
+              //   .eq(filteredEvent.originalId);
+              // listOfPriomises.push(
+              //   query.update({
+              //     $set: filteredEvent
+              //   })
+              // );
               listOfPriomises.push(
-                query.update({
-                  $set: filteredEvent
-                })
+                dbEventActions.updateEventByOriginalId(filteredEvent.originalId, filteredEvent)
               );
             }
           }
@@ -549,11 +567,12 @@ const syncEvents = async (action) => {
             type: 'delete'
           });
 
-          const query = db.events
-            .find()
-            .where('originalId')
-            .eq(dbEvent.originalId);
-          listOfPriomises.push(query.remove());
+          // const query = db.events
+          //   .find()
+          //   .where('originalId')
+          //   .eq(dbEvent.originalId);
+          // listOfPriomises.push(query.remove());
+          listOfPriomises.push(dbEventActions.deleteEventByOriginalId(dbEvent.originalId));
         }
         await Promise.all(listOfPriomises);
         console.log(updatedEvents);
@@ -566,10 +585,12 @@ const syncEvents = async (action) => {
       try {
         const events = await asyncGetAllCalDavEvents(user.username, user.password, user.url);
 
-        const db = await getDb();
-        const dbEvents = await db.events.find().exec();
+        // const db = await getDb();
+        // const dbEvents = await db.events.find().exec();
+        const dbEvents = await dbEventActions.getAllEvents();
         const updatedEvents = [];
         const listOfPriomises = [];
+        debugger;
 
         for (const event of events) {
           const dbObj = dbEvents.filter(
@@ -584,12 +605,11 @@ const syncEvents = async (action) => {
             false
           );
 
-          debugger;
-
           if (dbObj.length === 0) {
             // New object from server, add and move on to next one.
             updatedEvents.push({ event: filteredEvent, type: 'create' });
-            listOfPriomises.push(db.events.upsert(filteredEvent));
+            // listOfPriomises.push(db.events.upsert(filteredEvent));
+            listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
           } else {
             // Sync old objects and compare in case.
             const dbEvent = dbObj[0];
@@ -599,21 +619,28 @@ const syncEvents = async (action) => {
             updatedEvents.push({ event: filteredEvent, type: 'update' });
             filteredEvent.id = dbEvent.id;
 
-            const query = db.events
-              .findOne()
-              .where('originalId')
-              .eq(filteredEvent.originalId)
-              .where('start.dateTime')
-              .eq(event.start.dateTime);
+            // const query = db.events
+            //   .findOne()
+            //   .where('originalId')
+            //   .eq(filteredEvent.originalId)
+            //   .where('start.dateTime')
+            //   .eq(event.start.dateTime);
 
+            // listOfPriomises.push(
+            //   query.update({
+            //     $set: filteredEvent
+            //   })
+            // );
             listOfPriomises.push(
-              query.update({
-                $set: filteredEvent
-              })
+              dbEventActions.updateEventByiCalUIDandStartDateTime(
+                filteredEvent.iCalUID,
+                event.start.dateTime,
+                filteredEvent
+              )
             );
           }
         }
-
+        debugger;
         // Check for deleted events, as if it not in the set, it means that it could be deleted.
         // In database, but not on server, as we are taking server, we just assume delete.
         for (const dbEvent of dbEvents) {
@@ -634,11 +661,17 @@ const syncEvents = async (action) => {
             type: 'delete'
           });
 
-          const query = db.events
-            .find()
-            .where('originalId')
-            .eq(dbEvent.originalId);
-          listOfPriomises.push(query.remove());
+          // const query = db.events
+          //   .find()
+          //   .where('originalId')
+          //   .eq(dbEvent.originalId);
+          // listOfPriomises.push(query.remove());
+          listOfPriomises.push(
+            dbEventActions.deleteEventByiCalUIDandStartDateTime(
+              dbEvent.originalId,
+              dbEvent.start.dateTime
+            )
+          );
         }
         await Promise.all(listOfPriomises);
         console.log(updatedEvents);
@@ -665,22 +698,23 @@ export const pendingActionsEpics = (action$) => {
       interval(5 * 1000).pipe(
         // Stop when epics see a end pending action
         takeUntil(stopPolling$),
-        concatMap(() =>
-          // Get the db
-          from(getDb()).pipe(
-            exhaustMap((db) =>
-              // Get all the pending actions
-              from(db.pendingactions.find().exec()).pipe(
-                // For each pending action, run the correct result
-                mergeMap((actions) =>
-                  from(handlePendingActions(action.payload, actions, db)).pipe(
-                    // Return an array of result, reduced accordingly.
-                    mergeMap((result) => of(...result))
-                  )
+        concatMap(
+          () =>
+            // Get the db
+            // from(getDb()).pipe(
+            // exhaustMap((db) =>
+            // Get all the pending actions
+            from(dbPendingActionActions.getAllPendingActions()).pipe(
+              // For each pending action, run the correct result
+              mergeMap((actions) =>
+                from(handlePendingActions(action.payload, actions)).pipe(
+                  // Return an array of result, reduced accordingly.
+                  mergeMap((result) => of(...result))
                 )
               )
             )
-          )
+          // )
+          // )
         )
       )
     )
@@ -690,9 +724,10 @@ export const pendingActionsEpics = (action$) => {
 const reflect = (p) =>
   p.then((v) => ({ v, status: 'fulfilled' }), (e) => ({ e, status: 'rejected' }));
 
-const handlePendingActions = async (users, actions, db) => {
+const handlePendingActions = async (users, actions) => {
   // Get all events for resolving conflict.
-  const docs = await db.events.find().exec();
+  // const docs = await db.events.find().exec();
+  const docs = await dbEventActions.getAllEvents();
 
   // Promises array for each of our async action.
   const promisesArr = actions.map(async (action) => {
@@ -730,7 +765,7 @@ const handlePendingActions = async (users, actions, db) => {
       }
 
       // Get a resulting action from the merge function.
-      const resultingAction = await handleMergeEvents(rxDbObj, serverObj, db, action.type, user);
+      const resultingAction = await handleMergeEvents(rxDbObj, serverObj, action.type, user);
 
       // Return object to be reduced down later on, with the proper user information.
       return { result: resultingAction, user };
@@ -778,7 +813,7 @@ const handlePendingActions = async (users, actions, db) => {
   return resultingAction;
 };
 
-const handleMergeEvents = async (localObj, serverObj, db, type, user) => {
+const handleMergeEvents = async (localObj, serverObj, type, user) => {
   let result = '';
 
   // Create is a specific type, as it assumes local is the source of truth.
@@ -806,18 +841,20 @@ const handleMergeEvents = async (localObj, serverObj, db, type, user) => {
     // Only if success
     if (result.type === 'POST_EVENT_SUCCESS') {
       // Remove the pending action first
-      const query = db.pendingactions
-        .find()
-        .where('eventId')
-        .eq(localObj.originalId);
-      await query.remove();
+      // const query = db.pendingactions
+      //   .find()
+      //   .where('eventId')
+      //   .eq(localObj.originalId);
+      // await query.remove();
+      await dbPendingActionActions.deletePendingActionById(localObj.originalId);
 
-      // Remove the temp event if it exists. For newly created events.
-      const removeFromEvents = db.events
-        .find()
-        .where('originalId')
-        .eq(localObj.originalId);
-      await removeFromEvents.remove();
+      // // Remove the temp event if it exists. For newly created events.
+      // const removeFromEvents = db.events
+      //   .find()
+      //   .where('originalId')
+      //   .eq(localObj.originalId);
+      // await removeFromEvents.remove();
+      await dbEventActions.deleteEventByOriginalId(localObj.originalId);
 
       return result;
     }
@@ -864,11 +901,13 @@ const handleMergeEvents = async (localObj, serverObj, db, type, user) => {
               });
 
               if (result.type === 'EDIT_EVENT_SUCCESS') {
-                const query = db.pendingactions
-                  .find()
-                  .where('eventId')
-                  .eq(filteredServerObj.originalId);
-                await query.remove();
+                // const query = db.pendingactions
+                //   .find()
+                //   .where('eventId')
+                //   .eq(filteredServerObj.originalId);
+                // await query.remove();
+
+                await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
               }
               return result;
             case 'delete':
@@ -877,11 +916,12 @@ const handleMergeEvents = async (localObj, serverObj, db, type, user) => {
               });
 
               if (result.type === 'DELETE_EVENT_SUCCESS') {
-                const query = db.pendingactions
-                  .find()
-                  .where('eventId')
-                  .eq(filteredServerObj.originalId);
-                await query.remove();
+                // const query = db.pendingactions
+                //   .find()
+                //   .where('eventId')
+                //   .eq(filteredServerObj.originalId);
+                // await query.remove();
+                await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
               }
               return result;
             default:
@@ -899,24 +939,29 @@ const handleMergeEvents = async (localObj, serverObj, db, type, user) => {
       // );
 
       // Keep server
-      await db.events.upsert(filteredServerObj);
-      const query = db.pendingactions
-        .find()
-        .where('eventId')
-        .eq(filteredServerObj.originalId);
-      await query.remove();
+      // await db.events.upsert(filteredServerObj);
+      await dbEventActions.insertEventsIntoDatabase(filteredServerObj);
+
+      // const query = db.pendingactions
+      //   .find()
+      //   .where('eventId')
+      //   .eq(filteredServerObj.originalId);
+      // await query.remove();
+      await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
 
       return editEventSuccess(serverObj);
     }
   } else {
     // Keep server
-    db.events.upsert(filteredServerObj);
+    // db.events.upsert(filteredServerObj);
+    await dbEventActions.insertEventsIntoDatabase(filteredServerObj);
 
-    const query = db.pendingactions
-      .find()
-      .where('eventId')
-      .eq(filteredServerObj.originalId);
-    await query.remove();
+    // const query = db.pendingactions
+    //   .find()
+    //   .where('eventId')
+    //   .eq(filteredServerObj.originalId);
+    // await query.remove();
+    await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
 
     return editEventSuccess(serverObj);
   }
