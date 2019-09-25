@@ -122,7 +122,6 @@ const editCalDavSingle = async (payload) => {
     // #region Getting information
     // Get Information (Sequlize)
     const data = await dbEventActions.getOneEventById(payload.id);
-
     const { user } = payload;
     // #endregion
 

@@ -163,8 +163,6 @@ const deleteSingleEvent = async (id) => {
   // In that case, we shuld remove it from pending action if it exists.
   if (data.local === true) {
     await dbPendingActionActions.deletePendingActionById(data.originalId);
-
-    // await query.remove();
     await dbEventActions.deleteEventById(id);
 
     return {
@@ -284,8 +282,6 @@ const deleteAllReccurenceEvent = async (id) => {
   // In that case, we shuld remove it from pending action if it exists.
   if (data.local === true) {
     await dbPendingActionActions.deletePendingActionById(data.originalId);
-
-    // await query.remove();
     await dbEventActions.deleteEventById(data.id);
 
     return {

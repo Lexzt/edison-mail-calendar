@@ -114,26 +114,11 @@ export default class EditEvent extends React.Component {
 
   // find a way to handle all different inputs
   handleChange = (event) => {
-    debugger;
-    // console.log(event.name);
     if (event.target !== undefined) {
-      // console.log(event.target.name);
-      // console.log(event.target.value);
       this.setState({
         [event.target.name]: event.target.value
       });
-      // if(event.target.checked !== undefined) {
-      //   this.setState({ allDay: event.target.checked })
-      // } else {
-      //   const target = event.target;
-      //   const value = target.value;
-      //   const name = target.name;
-      //   this.setState({
-      //     [name]: value
-      //   });
-      // }
     } else {
-      // console.log(event.name);
       this.setState({
         [event.name]: event.value
       });
@@ -180,11 +165,6 @@ export default class EditEvent extends React.Component {
   handleSubmit = async (e) => {
     e.preventDefault();
     const { props, state } = this;
-
-    console.log(e.target.name, state);
-    console.log(this.createDbRecurrenceObj());
-
-    // debugger;
 
     if (e.target.name === 'return') {
       props.history.push('/');
@@ -331,36 +311,16 @@ export default class EditEvent extends React.Component {
   //     In order to retrive the event, I need to make a query from the script to get the javascript ews object. However, once I have it, I can update it easily.
   // */
   retrieveEvent = async (id) => {
-    console.log(id);
-    // const db = await getDb();
-    // const dbEvent = await db.events
-    //   .find()
-    //   .where('id')
-    //   .eq(id)
-    //   .exec();
-
     const dbEvent = await dbEventActions.getOneEventById(id);
-    // const dbEventJSON = dbEvent[0].toJSON();
     const dbEventJSON = dbEvent.toJSON();
-    console.log(dbEventJSON);
 
     const text = recurrenceOptions.parseString(
       Math.ceil(moment(dbEventJSON.start.dateTime).date() / 7)
     );
-    debugger;
     const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(dbEventJSON.start, text);
 
     if (dbEventJSON.isRecurring) {
-      // const dbEventRecurrence = await db.recurrencepatterns
-      //   .findOne()
-      //   .where('originalId')
-      //   .eq(dbEventJSON.recurringEventId)
-      //   .exec();
       const dbEventRecurrence = await dbRpActions.getOneRpByOId(dbEventJSON.recurringEventId);
-
-      console.log(dbEventJSON.recurringEventId);
-      console.log(dbEventRecurrence.toJSON());
-
       const thirdRecurrChoice = recurrenceOptions.parseThirdRecurrOption(
         dbEventRecurrence.until,
         dbEventRecurrence.numberOfRepeats
@@ -369,12 +329,6 @@ export default class EditEvent extends React.Component {
       const firstSelected = recurrenceOptions.parseFreq(dbEventRecurrence.freq);
       const secondSelected = recurrenceOptions.parseFreqNumber(firstSelected);
 
-      // console.log(
-      //   secondRecurrOptions,
-      //   secondSelected,
-      //   firstSelected,
-      //   secondRecurrOptions[secondSelected]
-      // );
       let monthlySelected = 0;
       let yearlySelected = 0;
       if (secondSelected === 'month') {
@@ -384,7 +338,6 @@ export default class EditEvent extends React.Component {
           monthlySelected = 0;
         }
       } else if (secondSelected === 'year') {
-        // yet to do, figure out later!!
         if (dbEventRecurrence.byMonthDay === '()') {
           yearlySelected = 1;
         } else {
@@ -514,7 +467,7 @@ export default class EditEvent extends React.Component {
     const newVal = state.selectedSecondRecurrOption[state.firstSelectedOption];
     const newArr = state.selectedSecondRecurrOption;
     newArr[state.firstSelectedOption] = event.index;
-    console.log(newVal, newArr, state);
+    // console.log(newVal, newArr, state);
 
     this.setState({
       selectedSecondRecurrOption: newArr
@@ -547,25 +500,8 @@ export default class EditEvent extends React.Component {
   };
 
   render() {
-    // // All Day option will help out here.
-    // let parseStart = '';
-    // let parseEnd = '';
-
     const { props, state } = this;
-    // console.log(state);
-
     // ----------------------------------- HACKING OUT RECURRENCE UI FIRST ----------------------------------- //
-    // const text = recurrenceOptions.parseString(Math.ceil(moment(state.start.dateTime).date() / 7));
-    // const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(state.start, text);
-    debugger;
-    // if (state.start.dateTime !== undefined) {
-    //   parseStart = state.start.dateTime.substring(0, 16);
-    //   parseEnd = state.end.dateTime.substring(0, 16);
-    // } else {
-    //   parseStart = state.start.date;
-    //   parseEnd = state.end.date;
-    // }
-
     const recurrence = [];
     recurrence.push(
       <div key="">

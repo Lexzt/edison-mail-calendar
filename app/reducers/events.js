@@ -67,7 +67,6 @@ const storeEvents = (oldEvents, newEvents, users) => {
   });
 
   userEvents.forEach((v, k) => {
-    console.log(k, v);
     const oldUserEventsId = v.map((object) => object.id);
     // if there is an old user event that is
     // 1. not in the new events and in the old events, it is an added event
@@ -128,7 +127,6 @@ export default function eventsReducer(state = initialState, action) {
     // It is currently syncing for one user only.
     // I need it to sync for every user that is valid.
     case SYNC_STORED_EVENTS: {
-      // debugger;
       const newEvents = syncEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
     }

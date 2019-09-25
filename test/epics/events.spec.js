@@ -17,7 +17,6 @@ import { beginGetExchangeEventsEpics } from '../../app/epics/providers/exchange'
 import * as ExchangeActions from '../../app/utils/client/exchange';
 import { getEventsSuccess, postEventSuccess } from '../../app/actions/events';
 import { filterIntoSchema } from '../../app/utils/constants';
-// import { createDb, clearDb } from '../../app/rxdb';
 
 const testScheduler = new TestScheduler((actual, expected) => {
   expect(actual).toEqual(expected);
