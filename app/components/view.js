@@ -8,6 +8,9 @@ import './view.css';
 // import './providers.scss';
 import { ExchangeService, Uri, ExchangeCredentials, DateTime } from 'ews-javascript-api';
 
+import RRule from 'rrule';
+// import * as icalTookKit from 'ical-toolkit';
+
 import getDb from '../rxdb';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
@@ -16,7 +19,9 @@ import {
   FASTMAIL_USERNAME,
   FASTMAIL_PASSWORD,
   ICLOUD_USERNAME,
-  ICLOUD_PASSWORD
+  ICLOUD_PASSWORD,
+  YAHOO_USERNAME,
+  YAHOO_PASSWORD
 } from '../utils/Credentials';
 
 import * as ServerColors from '../utils/colors';
@@ -60,12 +65,14 @@ export default class View extends React.Component {
       currentEventStartDateTime: '',
       currentEventEndDateTime: '',
       exchangeEmail: 'e0176993@u.nus.edu',
-      exchangePwd: 'Ggrfw4406@nus41'
+      exchangePwd: 'Ggrfw4406@nus6'
     };
     let incrementalSync;
 
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
+
+    dav.debug.enabled = true;
   }
 
   componentWillMount() {
@@ -82,15 +89,65 @@ export default class View extends React.Component {
     // exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
     // exch.Credentials = new ExchangeCredentials(userName, password);
 
+    // const rrule = new RRule({
+    //   freq: RRule.WEEKLY,
+    //   dtstart: new Date(Date.UTC(2020, 2, 2, 12, 0, 0)),
+    //   until: new Date(Date.UTC(2020, 2, 17, 6, 59, 0)),
+    //   tzid: 'America/Los_Angeles',
+    //   count: 3,
+    //   interval: 1
+    // });
+
+    // const builder = icalTookKit.createIcsFileBuilder();
+    // builder.calname = 'Yo Cal';
+    // builder.tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // const startDate = new Date();
+    // const endDate = new Date();
+    // endDate.setHours(new Date().getHours() + 1);
+
+    // // Add events
+    // builder.events.push({
+    //   // Event start time, Required: type Date()
+    //   start: startDate,
+
+    //   // Event end time, Required: type Date()
+    //   end: endDate,
+
+    //   // transp. Will add TRANSP:OPAQUE to block calendar.
+    //   transp: 'OPAQUE',
+
+    //   // Event summary, Required: type String
+    //   summary: 'Test Event'
+    // });
+
+    // builder.additionalTags = {
+    //   'X-APPLE-TRAVEL-ADVISORY-BEHAVIOR': 'AUTOMATIC'
+    // };
+
+    // // Try to build
+    // const icsFileContent = builder.toString();
+    // console.log(icsFileContent);
+    // debugger;
+
+    const rrule = new RRule({
+      freq: RRule.WEEKLY,
+      dtstart: new Date(Date.UTC(2020, 2, 7, 0, 0, 0)),
+      count: 4,
+      interval: 1
+    });
+    console.log(rrule.all());
+    // debugger;
+
     const { props } = this;
     // props.beginPendingActions(props.providers);
 
-    const db = await getDb();
+    // const db = await getDb();
 
-    const allRP = await db.recurrencepatterns.find().exec();
-    console.log(allRP.map((rp) => rp.toJSON()));
-    const allE = await db.events.find().exec();
-    console.log(allE.map((rp) => rp.toJSON()));
+    // const allRP = await db.recurrencepatterns.find().exec();
+    // console.log(allRP.map((rp) => rp.toJSON()));
+    // const allE = await db.events.find().exec();
+    // console.log(allE.map((rp) => rp.toJSON()));
 
     // const data = await EventBlock.findAll();
     // console.log(data.map((e) => e.toJSON()));
@@ -126,6 +183,7 @@ export default class View extends React.Component {
     console.log(newdata.map((e) => e.toJSON()));
     const data = await RpBlock.findAll();
     console.log(data.map((e) => e.toJSON()));
+    // debugger;
 
     // await RpBlock.upsert({
     //   byEaster: '',
@@ -325,7 +383,8 @@ export default class View extends React.Component {
       password: state.exchangePwd
     });
     // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
-    this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
+    // this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
+    this.authorizeCaldavCodeRequest(YAHOO_USERNAME, YAHOO_PASSWORD, 'YAHOO');
   };
 
   // This filter user is used when the outlook first creates the object.
@@ -621,23 +680,23 @@ export default class View extends React.Component {
         >
           <i className="material-icons left">close</i>Clear all Events
         </a>
-        <a
-          role="button"
-          tabIndex="0"
-          className="waves-effect waves-light btn"
-          onClick={() => props.beginRetrieveCalDavEvents()}
-        >
-          <i className="material-icons left">cloud_download</i>Populate Caldav
-        </a>
-        <a
-          role="button"
-          tabIndex="0"
-          className="waves-effect waves-light btn"
-          onClick={() => props.resetCaldavAccount()}
-        >
-          <i className="material-icons left">cloud_download</i>Get Caldav
-        </a>
       </div>
+      // <a
+      //   role="button"
+      //   tabIndex="0"
+      //   className="waves-effect waves-light btn"
+      //   onClick={() => props.beginRetrieveCalDavEvents()}
+      // >
+      //   <i className="material-icons left">cloud_download</i>Populate Caldav
+      // </a>
+      // <a
+      //   role="button"
+      //   tabIndex="0"
+      //   className="waves-effect waves-light btn"
+      //   onClick={() => props.resetCaldavAccount()}
+      // >
+      //   <i className="material-icons left">cloud_download</i>Get Caldav
+      // </a>
     );
   };
 

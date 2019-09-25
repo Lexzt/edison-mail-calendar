@@ -1,14 +1,16 @@
+/* eslint-disable no-lone-blocks */
 import React from 'react';
 import ICAL from 'ical.js';
 import moment from 'moment';
 import uuidv4 from 'uuid';
+import { DateTime } from 'luxon';
 import { RRule, RRuleSet, rrulestr } from 'rrule';
 // import getDb from '../rxdb';
 import * as dbRpActions from '../sequelizeDB/operations/recurrencepatterns';
 
 const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
-const parseRecurrenceEvents = (calEvents) => {
+export const parseRecurrenceEvents = (calEvents) => {
   const recurringEvents = [];
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
@@ -16,14 +18,18 @@ const parseRecurrenceEvents = (calEvents) => {
       const options = RRule.parseString(calEvent.recurData.rrule.stringFormat);
       options.dtstart = new Date(moment(calEvent.eventData.start.dateTime));
       const rrule = new RRule(options);
-      // debugger;
       recurringEvents.push({
         id: uuidv4(),
-        recurringTypeId: calEvent.eventData.start.dateTime,
+        recurringTypeId: calEvent.eventData.start.dateTime, // datetime here is alr unix
         originalId: calEvent.eventData.originalId,
         freq: calEvent.recurData.rrule.freq,
         interval: calEvent.recurData.rrule.interval,
-        until: calEvent.recurData.rrule.until,
+        until:
+          calEvent.recurData.rrule.until !== undefined
+            ? moment(calEvent.recurData.rrule.until)
+                .unix()
+                .toString()
+            : undefined,
         exDates: calEvent.recurData.exDates.join(','),
         recurrenceIds: calEvent.recurData.recurrenceIds.join(','),
         modifiedThenDeleted: calEvent.recurData.modifiedThenDeleted,
@@ -68,10 +74,11 @@ const parseRecurrenceEvents = (calEvents) => {
       });
     }
   });
+  // debugger;
   return recurringEvents;
 };
 
-const convertiCalWeeklyPattern = (rrule) => {
+export const convertiCalWeeklyPattern = (rrule) => {
   // debugger;
   const weeklyPattern = [0, 0, 0, 0, 0, 0, 0];
   if (rrule.origOptions.byweekday) {
@@ -91,7 +98,7 @@ const convertiCalWeeklyPattern = (rrule) => {
   return weeklyPattern.join(',');
 };
 
-const parseEventPersons = (events) => {
+export const parseEventPersons = (events) => {
   const eventPersons = [];
   events.forEach((calEvent) => {
     const attendees = calEvent.eventData.attendee;
@@ -111,7 +118,7 @@ const parseEventPersons = (events) => {
   return eventPersons;
 };
 
-const parseCal = (calendars) => {
+export const parseCal = (calendars) => {
   const parsedCalendars = calendars.map((calendar) => ({
     calendarId: calendar.data.href,
     ownerId: calendar.account.credentials.username,
@@ -123,7 +130,7 @@ const parseCal = (calendars) => {
   return parsedCalendars;
 };
 
-const parseCalEvents = (calendars) => {
+export const parseCalEvents = (calendars) => {
   const events = [];
   calendars.forEach((calendar) => {
     events.push(newParseCalendarObjects(calendar));
@@ -134,16 +141,16 @@ const parseCalEvents = (calendars) => {
   return flatFilteredEvents;
 };
 
-const newParseCalendarObjects = (calendar) => {
+export const newParseCalendarObjects = (calendar) => {
   const calendarObjects = calendar.objects;
   const calendarId = calendar.url;
   return calendarObjects.map((calendarObject) => parseCalendarObject(calendarObject, calendarId));
 };
 
-const parseCalendarObject = (calendarObject, calendarId) => {
+export const parseCalendarObject = (calendarObject, calendarId) => {
   const { etag, url, calendarData } = calendarObject;
   const etagClean = etag.slice(1, -1);
-
+  // debugger;
   let edisonEvent = {};
   if (calendarData !== undefined && calendarData !== '') {
     edisonEvent = parseCalendarData(calendarData, etagClean, url, calendarId);
@@ -153,7 +160,8 @@ const parseCalendarObject = (calendarObject, calendarId) => {
   return edisonEvent;
 };
 
-const parseCalendarData = (calendarData, etag, url, calendarId) => {
+export const parseCalendarData = (calendarData, etag, url, calendarId) => {
+  // debugger;
   const results = [];
   const jCalData = ICAL.parse(calendarData);
   const comp = new ICAL.Component(jCalData);
@@ -195,11 +203,25 @@ const parseCalendarData = (calendarData, etag, url, calendarId) => {
   return results;
 };
 
-const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
-  const dtstart = modifiedEvent
-    .getFirstPropertyValue('dtstart')
-    .toJSDate()
-    .toISOString();
+export const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
+  // const dtstart = modifiedEvent
+  //   .getFirstPropertyValue('dtstart')
+  //   .toJSDate()
+  //   .toISOString();
+
+  if (modifiedEvent.getFirstPropertyValue('summary') === '(ICloud) Weekly, 3 Dates, 1 Edited') {
+    debugger;
+  }
+
+  // debugger;
+  const dtstart =
+    modifiedEvent.getFirstPropertyValue('dtstart') == null
+      ? ''
+      : modifiedEvent.getFirstPropertyValue('dtstart');
+
+  const tz = modifiedEvent.getFirstPropertyValue('tzid');
+  let dtstartMoment = moment.tz(dtstart.toUnixTime() * 1000, tz);
+  dtstartMoment = dtstartMoment.tz('GMT').tz(tz, true);
 
   // // Cannot just set it to dtend, as dtend might not exist.
   // // Refer to RFC4791, PG 90.
@@ -208,18 +230,52 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
   //   .toJSDate()
   //   .toISOString();
 
+  // let dtendMoment;
+  // if (modifiedEvent.hasProperty('dtend')) {
+  //   if (!modifiedEvent.hasProperty('duration')) {
+  //     // dtend = modifiedEvent
+  //     //   .getFirstPropertyValue('dtend')
+  //     //   .toJSDate()
+  //     //   .toISOString();
+  //     // dtend = modifiedEvent.getFirstPropertyValue('dtend');
+  //     dtendMoment = moment.tz(modifiedEvent.getFirstPropertyValue('dtend').toUnixTime() * 1000, tz);
+  //     dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
+  //   }
+  // } else if (modifiedEvent.hasProperty('duration')) {
+  //   if (modifiedEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
+  //     dtend = modifiedEvent.getFirstPropertyValue('dtstart').clone();
+  //     dtend.addDuration(modifiedEvent.getFirstPropertyValue('duration'));
+  //   }
+  // } else {
+  //   // According to documentation, it ask me to add one day if both duration and dtend does not exist.
+  //   dtend = modifiedEvent
+  //     .getFirstPropertyValue('dtstart')
+  //     .clone()
+  //     .addDuration(
+  //       new ICAL.Duration({
+  //         days: 1
+  //       })
+  //     );
+  // }
+
   let dtend;
+  let dtendMoment;
   if (modifiedEvent.hasProperty('dtend')) {
     if (!modifiedEvent.hasProperty('duration')) {
-      dtend = modifiedEvent
-        .getFirstPropertyValue('dtend')
-        .toJSDate()
-        .toISOString();
+      // dtend = masterEvent
+      //   .getFirstPropertyValue('dtend')
+      //   .toJSDate()
+      //   .toISOString();
+
+      dtendMoment = moment.tz(modifiedEvent.getFirstPropertyValue('dtend').toUnixTime() * 1000, tz);
+      dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
     }
   } else if (modifiedEvent.hasProperty('duration')) {
     if (modifiedEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
       dtend = modifiedEvent.getFirstPropertyValue('dtstart').clone();
       dtend.addDuration(modifiedEvent.getFirstPropertyValue('duration'));
+      dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
+      dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
     }
   } else {
     // According to documentation, it ask me to add one day if both duration and dtend does not exist.
@@ -231,23 +287,40 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
           days: 1
         })
       );
+    dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
+    dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
   }
-  dtend = dtend.toJSDate().toISOString();
 
+  // debugger;
   return {
     id: uuidv4(),
     start: {
-      dateTime: dtstart,
-      timezone: 'timezone'
+      // dateTime: dtstart,
+      // dateTime: moment(dtstart).unix(),
+      dateTime: dtstartMoment.unix(),
+      timezone: 'America/Los_Angeles'
     },
     end: {
-      dateTime: dtend,
-      timezone: 'timezone'
+      // dateTime: dtend,
+      // dateTime: moment(dtend).unix(),
+      dateTime: dtendMoment.unix(),
+      timezone: 'America/Los_Angeles'
     },
     originalId: modifiedEvent.getFirstPropertyValue('uid'),
     iCalUID: modifiedEvent.getFirstPropertyValue('uid'),
-    created: new Date(modifiedEvent.getFirstPropertyValue('created')).toISOString(),
-    updated: new Date(modifiedEvent.getFirstPropertyValue('last-modified')).toISOString(),
+    created:
+      modifiedEvent.getFirstPropertyValue('created') !== null
+        ? moment(modifiedEvent.getFirstPropertyValue('created')).unix()
+        : 0,
+    // new Date(modifiedEvent.getFirstPropertyValue('created')).toISOString(),
+    updated:
+      // modifiedEvent.getFirstPropertyValue('last-modified') !== null
+      //   ? moment(modifiedEvent.getFirstPropertyValue('last-modified').toJSDate()).unix()
+      //   : 0,
+      modifiedEvent.getFirstPropertyValue('last-modified') !== null
+        ? moment(modifiedEvent.getFirstPropertyValue('last-modified').toJSDate()).unix()
+        : 0,
+    // updated: new Date(modifiedEvent.getFirstPropertyValue('last-modified')).toISOString(),
     summary: modifiedEvent.getFirstPropertyValue('summary'),
     description:
       modifiedEvent.getFirstPropertyValue('description') == null
@@ -262,8 +335,9 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
     //     ? modifiedEvent
     //     : modifiedEvent.getFirstPropertyValue('organizer'),
     originalStartTime: {
-      dateTime: new Date(dtstart).toISOString(),
-      timezone: 'timezone'
+      // dateTime: new Date(dtstart).toISOString(),
+      dateTime: moment(dtstart).unix(),
+      timezone: 'America/Los_Angeles'
     },
     // attendee: getAttendees(modifiedEvent),
     // calendarId,
@@ -277,26 +351,52 @@ const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) => {
   };
 };
 
-const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
+export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
   // debugger;
   const masterEvent = component.getFirstSubcomponent('vevent');
+  if (masterEvent.getFirstPropertyValue('summary') === '(ICloud) Weekly, 3 Dates, 1 Edited') {
+    debugger;
+  }
+  // if (masterEvent.getFirstPropertyValue('summary') === 'Single 1') {
+  //   debugger;
+  // } else if (masterEvent.getFirstPropertyValue('summary') === 'non dst') {
+  //   debugger;
+  // } else if (masterEvent.getFirstPropertyValue('summary') === '(ICloud) Daily, 7 times') {
+  //   debugger;
+  // } else if (masterEvent.getFirstPropertyValue('summary') === 'before dst') {
+  //   debugger;
+  // } else if (masterEvent.getFirstPropertyValue('summary') === 'after dst') {
+  //   debugger;
+  // }
+  const tz = component.getFirstSubcomponent('vtimezone').getFirstPropertyValue('tzid');
+
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
       ? ''
       : masterEvent.getFirstPropertyValue('dtstart');
 
+  let dtstartMoment = moment.tz(dtstart.toUnixTime() * 1000, tz);
+  dtstartMoment = dtstartMoment.tz('GMT').tz(tz, true);
+  // const expectedOutcome = moment(dtstart.toJSDate()).unix();
+
   let dtend;
+  let dtendMoment;
   if (masterEvent.hasProperty('dtend')) {
     if (!masterEvent.hasProperty('duration')) {
-      dtend = masterEvent
-        .getFirstPropertyValue('dtend')
-        .toJSDate()
-        .toISOString();
+      // dtend = masterEvent
+      //   .getFirstPropertyValue('dtend')
+      //   .toJSDate()
+      //   .toISOString();
+
+      dtendMoment = moment.tz(masterEvent.getFirstPropertyValue('dtend').toUnixTime() * 1000, tz);
+      dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
     }
   } else if (masterEvent.hasProperty('duration')) {
     if (masterEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
       dtend = masterEvent.getFirstPropertyValue('dtstart').clone();
       dtend.addDuration(masterEvent.getFirstPropertyValue('duration'));
+      dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
+      dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
     }
   } else {
     // According to documentation, it ask me to add one day if both duration and dtend does not exist.
@@ -308,6 +408,8 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
           days: 1
         })
       );
+    dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
+    dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
   }
   // const dtend =
   //   masterEvent.getFirstPropertyValue('dtend') == null
@@ -319,17 +421,29 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
   const event = {
     id: uuidv4(),
     start: {
-      dateTime: dtstart.toString(),
-      timezone: 'timezone'
+      // dateTime: dtstart.toString(),
+      // dateTime: moment(dtstart.toJSDate()).unix(),
+      dateTime: dtstartMoment.unix(),
+      timezone: 'America/Los_Angeles'
     },
     end: {
-      dateTime: dtend.toString(),
-      timezone: 'timezone'
+      // dateTime: moment(dtend).unix(),
+      // dateTime: dtend.toString(),
+      dateTime: dtendMoment.unix(),
+      timezone: 'America/Los_Angeles'
     },
     originalId: masterEvent.getFirstPropertyValue('uid'),
     iCalUID: masterEvent.getFirstPropertyValue('uid'),
-    created: new Date(masterEvent.getFirstPropertyValue('created')).toISOString(),
-    updated: new Date(masterEvent.getFirstPropertyValue('last-modified')).toISOString(),
+    created:
+      masterEvent.getFirstPropertyValue('created') !== null
+        ? moment(masterEvent.getFirstPropertyValue('created')).unix()
+        : 0,
+    // created: new Date(masterEvent.getFirstPropertyValue('created')).toISOString(),
+    updated:
+      masterEvent.getFirstPropertyValue('last-modified') !== null
+        ? moment(masterEvent.getFirstPropertyValue('last-modified').toJSDate()).unix()
+        : 0,
+    // updated: new Date(masterEvent.getFirstPropertyValue('last-modified')).toISOString(),
     summary: masterEvent.getFirstPropertyValue('summary'),
     description:
       masterEvent.getFirstPropertyValue('description') == null
@@ -344,8 +458,9 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
     //     ? masterEvent
     //     : masterEvent.getFirstPropertyValue('organizer'),
     originalStartTime: {
-      dateTime: new Date(dtstart).toISOString(),
-      timezone: 'timezone'
+      dateTime: moment(dtstart).unix(),
+      // dateTime: new Date(dtstart).toISOString(),
+      timezone: 'America/Los_Angeles'
     },
     // attendee: getAttendees(masterEvent),
     providerType: 'CALDAV',
@@ -360,7 +475,7 @@ const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) =
   return event;
 };
 
-const getRuleJSON = (masterEvent, icalMasterEvent) => {
+export const getRuleJSON = (masterEvent, icalMasterEvent) => {
   let rruleJSON = {};
   // debugger;
   if (icalMasterEvent.isRecurring()) {
@@ -376,7 +491,7 @@ const getRuleJSON = (masterEvent, icalMasterEvent) => {
   return rruleJSON;
 };
 
-const getAttendees = (masterEvent) => {
+export const getAttendees = (masterEvent) => {
   let attendees = [];
   if (masterEvent.hasProperty('attendee')) {
     attendees = parseAttendees(masterEvent.getAllProperties('attendee'));
@@ -384,26 +499,73 @@ const getAttendees = (masterEvent) => {
   return attendees;
 };
 
-const getExDates = (masterEvent) => {
+export const getExDates = (masterEvent) => {
   const exDates = [];
+  if (masterEvent.getFirstPropertyValue('summary') === '(ICloud) Daily, 7 Times, 1 Deleted') {
+    debugger;
+  }
   if (masterEvent.hasProperty('exdate')) {
+    // debugger;
+
     const exdateProps = masterEvent.getAllProperties('exdate');
-    exdateProps.forEach((exdate) => exDates.push(exdate.jCal[3]));
+    exdateProps.forEach((exdate) => {
+      // const momentTz = moment(exdate.jCal[3]);
+      // momentTz.tz(exdate.tzid);
+
+      // const jsDt = momentTz.toDate();
+      // const convertedDt = jsDt.getTime() / 1000 - jsDt.getTimezoneOffset() * 60;
+      // exDates.push(momentTz.unix().toString());
+
+      const tz = exdate.getParameter('tzid');
+      let deletedEventMoment = moment.tz(exdate.getFirstValue().toUnixTime() * 1000, tz);
+      deletedEventMoment = deletedEventMoment.tz('GMT').tz(tz, true);
+
+      exDates.push(deletedEventMoment.unix().toString());
+    });
   }
   return exDates;
 };
 
-const getRecurrenceIds = (vevents) => {
+export const getRecurrenceIds = (vevents) => {
   const recurrenceIds = [];
+  // debugger;
   vevents.forEach((evt, index) => {
+    if (evt.getFirstPropertyValue('summary') === '(ICloud) Weekly, 3 Dates, 1 Edited') {
+      debugger;
+    }
+
+    if (evt.getFirstPropertyValue('summary') === '(ICloud) Daily, 7 Times, 1 Edited') {
+      debugger;
+    }
     if (evt.getFirstPropertyValue('recurrence-id')) {
-      recurrenceIds.push(evt.getFirstProperty('recurrence-id').jCal[3]);
+      // const momentTz = moment(evt.getFirstProperty('recurrence-id').jCal[3]);
+      // momentTz.tz(evt.getFirstProperty('recurrence-id').jCal[1].tzid);
+      // const jsDt = momentTz.toDate();
+      // const convertedDt = jsDt.getTime() / 1000 - jsDt.getTimezoneOffset() * 60;
+      // recurrenceIds.push(
+      //   evt
+      //     .getFirstPropertyValue('recurrence-id')
+      //     .toUnixTime()
+      //     .toString()
+      // );
+
+      // const momentTz = moment(evt.getFirstProperty('recurrence-id').jCal[3]);
+      // momentTz.tz(evt.getFirstPropertyValue('tzid'));
+
+      const tz = evt.getFirstPropertyValue('tzid');
+      let editedIdMoment = moment.tz(
+        evt.getFirstPropertyValue('recurrence-id').toUnixTime() * 1000,
+        tz
+      );
+      editedIdMoment = editedIdMoment.tz('GMT').tz(tz, true);
+
+      recurrenceIds.push(editedIdMoment.unix().toString());
     }
   });
   return recurrenceIds;
 };
 
-const isModifiedThenDeleted = (recurEvent, exDates) => {
+export const isModifiedThenDeleted = (recurEvent, exDates) => {
   let isMtd = false;
   if (exDates === 0 || !recurEvent.hasProperty('recurrence-id')) {
     return isMtd;
@@ -419,7 +581,7 @@ const isModifiedThenDeleted = (recurEvent, exDates) => {
 };
 
 /* Take Note that attendees with unconfirmed status do not have names */
-const parseAttendees = (properties) =>
+export const parseAttendees = (properties) =>
   properties.map((property) => ({
     status: property.jCal[1].partstat,
     action: property.jCal[3],
@@ -427,7 +589,7 @@ const parseAttendees = (properties) =>
     displayName: property.jCal[1].cn !== undefined ? property.jCal[1].cn : property.jCal[1].email
   }));
 
-const expandRecurEvents = async (results) => {
+export const expandRecurEvents = async (results) => {
   // const db = await getDb();
   const nonMTDresults = results.filter((result) => !result.isModifiedThenDeleted);
   const recurringEvents = nonMTDresults.filter(
@@ -445,7 +607,7 @@ const expandRecurEvents = async (results) => {
   return finalResults;
 };
 
-const expandSeries = async (recurringEvents) => {
+export const expandSeries = async (recurringEvents) => {
   const resolved = await Promise.all(
     recurringEvents.map(async (recurMasterEvent) => {
       // const recurPatternRecurId = await db.recurrencepatterns
@@ -455,6 +617,8 @@ const expandSeries = async (recurringEvents) => {
       //   .exec();
       // return parseRecurrence(recurPatternRecurId[0].toJSON(), recurMasterEvent);
       const recurPatternRecurId = await dbRpActions.getOneRpByOId(recurMasterEvent.iCalUID);
+      console.log(recurPatternRecurId);
+      // debugger;
       return parseRecurrence(recurPatternRecurId.toJSON(), recurMasterEvent);
     })
   );
@@ -462,25 +626,155 @@ const expandSeries = async (recurringEvents) => {
   return expandedSeries;
 };
 
-const parseRecurrence = (pattern, recurMasterEvent) => {
-  // debugger;
+export const parseRecurrence = (pattern, recurMasterEvent) => {
+  // if (recurMasterEvent.summary === '(ICloud) Weekly, 3 Dates, 1 Edited') {
+  //   const testdate = moment(pattern.recurrenceIds);
+  //   debugger;
+  // } else if (recurMasterEvent.summary === '(ICloud) Daily, 7 Times, Multiple Edited, 1 Deleted') {
+  //   debugger;
+  //   const testdate = moment(pattern.recurrenceIds);
+  // }
+  if (recurMasterEvent.summary === '(ICloud) Weekly, 3 Dates, 1 Edited') {
+    debugger;
+  }
+  // if (recurMasterEvent.summary === '(ICloud) Daily, 7 Times, 1 Edited') {
+  //   debugger;
+  // }
+  // if (recurMasterEvent.summary === '(ICloud) Daily, 7 Times, 1 Deleted') {
+  //   debugger;
+  // }
+  if (recurMasterEvent.summary === '(ICloud) Daily, 7 times') {
+    debugger;
+  }
+
   const recurEvents = [];
   const ruleSet = buildRuleSet(pattern, recurMasterEvent.start.dateTime);
-  const recurDates = ruleSet.all().map((date) => date.toJSON());
+
+  // Edge case for when there is two timezones due to daylight savings
+  // e.g. you will get one -800, and one -700 due to change of daylight savings
+  // resulting in ruleSet generating wrong values as it does an === check.
+  // In order to fix, just run a fitler on the recurDates as a safety net check.
+  const mergedList = [
+    ...pattern.recurrenceIds
+      .split(',')
+      .filter((str) => str !== '')
+      .map((str) => {
+        console.log('');
+        return parseInt(str, 10);
+        // const jsDt = moment.unix(parseInt(str, 10)).toDate();
+        // const convertedDt = jsDt.getTime() / 1000 - jsDt.getTimezoneOffset() * 60;
+        // return convertedDt;
+      }),
+    ...pattern.exDates
+      .split(',')
+      .filter((str) => str !== '')
+      .map((str) => {
+        console.log('');
+        return parseInt(str, 10);
+        // const jsDt = moment.unix(parseInt(str, 10)).toDate();
+        // const convertedDt = jsDt.getTime() / 1000 - jsDt.getTimezoneOffset() * 60;
+        // return convertedDt;
+      })
+  ];
+  // ].map(
+  //   (date) => DateTime.fromMillis(date * 1000, { zone: 'America/Los_Angeles' }).toMillis() / 1000
+  // );
+
+  // let recurDates = ruleSet.all().map((date) => moment(date.toJSON()).unix());
+  // recurDates = recurDates.filter((date) => !mergedList.includes(date));
+  // recurDates = recurDates
+  //   .filter(
+  //     (date) =>
+  //       !mergedList
+  //         .map((deletedAndEdited) => moment(deletedAndEdited))
+  //         .filter((momentDate) => momentDate.isSame(date, 'day')).length > 0
+  //   )
+  //   .map((date) => date.unix());
+
+  // recurDates = ruleSet
+  //   .all()
+  //   .map((e) => {
+  //     const epoch = DateTime.fromISO(e.toISOString());
+  //     // .toUTC()
+  //     // .setZone('local', { keepLocalTime: true });
+  //     if (recurMasterEvent.summary === '(ICloud) Weekly, 3 Dates, 1 Edited') {
+  //       debugger;
+  //     }
+  //     // console.log(e.getTime() / 1000, e.getTimezoneOffset(), e.getTime() / 1000 - 480 * 60);
+  //     return (
+  //       epoch
+  //         .toUTC()
+  //         .setZone('local', { keepLocalTime: false })
+  //         .toMillis() / 1000
+  //     );
+  //   })
+  //   .filter((date) => !mergedList.includes(date));
+  // console.log(recurDates.map((unixtime) => moment.unix(unixtime).toISOString()));
+
+  // const recurDates = ruleSet
+  //   .all()
+  //   .map((date) => DateTime.fromMillis(date.getTime() * 1000).toMillis() / 1000);
+
+  const allDates = ruleSet.all();
+  if (allDates.length <= 0) {
+    console.log('IDK WHAT THE FK IS GOING ON ANYMORE');
+    console.log(pattern, recurMasterEvent);
+    debugger;
+    return [];
+  }
+  const base = allDates[0];
+  const isNormalizedTz = ruleSet
+    .all()
+    .every((element) => element.getTimezoneOffset() === base.getTimezoneOffset());
+  let recurDates = [];
+  const serverTz = 'US/Pacific';
+  const clientTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  if (!isNormalizedTz) {
+    // SUPER FUNKY WEIRD EDGE CASE, rulestring breaks across timezones.
+    // The pattern here is to always take the master time.
+    console.log(moment(base).toString(), recurMasterEvent.summary);
+    recurDates.push(moment(base.toJSON()).unix());
+    for (let i = 1; i < allDates.length; i += 1) {
+      recurDates.push(
+        moment.unix(allDates[i].setHours(base.getHours(), base.getMinutes())).unix() / 1000
+      );
+    }
+    // debugger;
+  } else if (serverTz !== clientTz) {
+    const tzedRuleset = ruleSet.all().map((date) => moment.tz(date.getTime(), serverTz));
+    if (tzedRuleset.length > 0) {
+      const newBase = tzedRuleset[0];
+      console.log(newBase);
+      recurDates.push(moment(newBase.toJSON()).unix());
+      for (let i = 1; i < tzedRuleset.length; i += 1) {
+        tzedRuleset[i].hour(newBase.hour());
+        tzedRuleset[i].minute(newBase.minute());
+        recurDates.push(tzedRuleset[i].unix());
+      }
+    } else {
+      debugger;
+    }
+  } else {
+    recurDates = ruleSet.all().map((date) => moment(date.toJSON()).unix());
+  }
+  recurDates = recurDates.filter((date) => !mergedList.includes(date));
+
   const duration = getDuration(recurMasterEvent);
   // debugger;
   recurDates.forEach((recurDateTime) => {
     recurEvents.push({
       id: uuidv4(),
       end: {
-        dateTime: moment(recurDateTime)
+        dateTime: moment
+          .unix(recurDateTime)
           .add(duration)
-          .toISOString(),
-        timezone: 'timezone'
+          .unix(),
+        // .toISOString(),
+        timezone: 'America/Los_Angeles'
       },
       start: {
         dateTime: recurDateTime,
-        timezone: 'timezone'
+        timezone: 'America/Los_Angeles'
       },
       summary: recurMasterEvent.summary,
       // organizer: recurMasterEvent.organizer,
@@ -506,13 +800,13 @@ const parseRecurrence = (pattern, recurMasterEvent) => {
   return recurEvents;
 };
 
-const getDuration = (master) => {
-  const start = moment(master.start.dateTime);
-  const end = moment(master.end.dateTime);
+export const getDuration = (master) => {
+  const start = moment.unix(master.start.dateTime);
+  const end = moment.unix(master.end.dateTime);
   return moment.duration(end.diff(start));
 };
 
-const parseStringToWeekDayNo = (stringEwsWeekDay) => {
+export const parseStringToWeekDayNo = (stringEwsWeekDay) => {
   switch (stringEwsWeekDay) {
     case 'MO':
       return 0;
@@ -533,7 +827,7 @@ const parseStringToWeekDayNo = (stringEwsWeekDay) => {
   }
 };
 
-const parseWeekDayNoToString = (stringEwsWeekDay) => {
+export const parseWeekDayNoToString = (stringEwsWeekDay) => {
   switch (stringEwsWeekDay) {
     case 0:
       return 'MO';
@@ -554,10 +848,22 @@ const parseWeekDayNoToString = (stringEwsWeekDay) => {
   }
 };
 
-const buildRuleObject = (pattern, startTime) => {
+export const buildRuleObject = (pattern, startTime) => {
   const ruleObject = {};
   ruleObject.interval = pattern.interval;
-  ruleObject.dtstart = new Date(startTime);
+  // ruleObject.tzid = 'America/Los_Angeles';
+  // ruleObject.tzid = 'utc';
+
+  // const jsonObj = moment.unix(startTime);
+  // ruleObject.dtstart = jsonObj.toDate();
+
+  const jsonObj = moment.tz(startTime * 1000, 'US/Pacific');
+  ruleObject.dtstart = jsonObj.toDate();
+  // ruleObject.dtstart = new Date(
+  //   Date.UTC(jsonObj.years(), jsonObj.months(), jsonObj.date(), jsonObj.hours(), jsonObj.minutes())
+  // );
+  // ruleObject.tzid = 'America/Los_Angeles';
+
   // // Not used at the moment, Need to ensure other providers do not use them too.
   // ruleObject.bymonthday = pattern.byMonthDay ? pattern.byMonthDay : null;
   // ruleObject.byyearday = pattern.byYearDay ? pattern.byYearDay : null;
@@ -579,15 +885,53 @@ const buildRuleObject = (pattern, startTime) => {
   // Therefore, DO NOT SET THEM, even a blank array breaks something.
   switch (pattern.freq) {
     case 'YEARLY':
-      ruleObject.freq = RRule.YEARLY;
+      {
+        ruleObject.freq = RRule.YEARLY;
 
-      // Using the recurrence pattern, if it is blank which means '()',
-      // .all behavior is it will auto expand on the frequency alone.
-      // Therefore, I cannot even have a blank array, aka, ruleObject.byweekday.
-      const byMonth = parseInt(pattern.byMonth, 10);
+        // Using the recurrence pattern, if it is blank which means '()',
+        // .all behavior is it will auto expand on the frequency alone.
+        // Therefore, I cannot even have a blank array, aka, ruleObject.byweekday.
+        const byMonth = parseInt(pattern.byMonth, 10);
 
-      if (byMonth) {
-        ruleObject.bymonth = byMonth;
+        if (byMonth) {
+          ruleObject.bymonth = byMonth;
+          const byWeekDay = pattern.byWeekDay
+            .slice(1, -1)
+            .split(',')
+            .filter((str) => str !== undefined && str !== null && str !== '')
+            .map((day) => parseStringToWeekDayNo(day));
+
+          const byWeekNo = pattern.byWeekNo
+            .slice(1, -1)
+            .split(',')
+            .filter((str) => str !== undefined && str !== null && str !== '')
+            .map((weekNo) => parseInt(weekNo, 10));
+
+          if (byWeekNo.length !== byWeekDay.length) {
+            console.log('(Yearly) WeekNo length not equals to WeekDay length!');
+          } else if (byWeekNo.length !== 0) {
+            // Both ways, you need to set the by week day number.
+            ruleObject.byweekday = [];
+            for (let i = 0; i < byWeekNo.length; i += 1) {
+              ruleObject.byweekday.push({ weekday: byWeekDay[i], n: byWeekNo[i] });
+            }
+          }
+        }
+      }
+      break;
+    case 'MONTHLY':
+      {
+        ruleObject.freq = RRule.MONTHLY;
+
+        // Currently, I am facing a techincal limitation of the api.
+        // But the idea here is there are different types of monthly events.
+
+        // 1. Those that repeat on same (day of the week) and (week no)
+        // 2. Those that repeat on the same (day every month)
+
+        // Using the recurrence pattern, if it is blank which means '()',
+        // .all behavior is it will auto expand on the frequency alone.
+        // Therefore, I cannot even have a blank array, aka, ruleObject.byweekday.
         const byWeekDay = pattern.byWeekDay
           .slice(1, -1)
           .split(',')
@@ -601,7 +945,7 @@ const buildRuleObject = (pattern, startTime) => {
           .map((weekNo) => parseInt(weekNo, 10));
 
         if (byWeekNo.length !== byWeekDay.length) {
-          console.log('(Yearly) WeekNo length not equals to WeekDay length!');
+          console.log('(Monthly) WeekNo length not equals to WeekDay length!');
         } else if (byWeekNo.length !== 0) {
           // Both ways, you need to set the by week day number.
           ruleObject.byweekday = [];
@@ -609,75 +953,45 @@ const buildRuleObject = (pattern, startTime) => {
             ruleObject.byweekday.push({ weekday: byWeekDay[i], n: byWeekNo[i] });
           }
         }
-      }
-      break;
-    case 'MONTHLY':
-      ruleObject.freq = RRule.MONTHLY;
 
-      // Currently, I am facing a techincal limitation of the api.
-      // But the idea here is there are different types of monthly events.
+        const byMonthDay = pattern.byMonthDay
+          .slice(1, -1)
+          .split(',')
+          .filter((str) => str !== undefined && str !== null && str !== '')
+          .map((monthDay) => parseInt(monthDay, 10));
 
-      // 1. Those that repeat on same (day of the week) and (week no)
-      // 2. Those that repeat on the same (day every month)
-
-      // Using the recurrence pattern, if it is blank which means '()',
-      // .all behavior is it will auto expand on the frequency alone.
-      // Therefore, I cannot even have a blank array, aka, ruleObject.byweekday.
-      const byWeekDay = pattern.byWeekDay
-        .slice(1, -1)
-        .split(',')
-        .filter((str) => str !== undefined && str !== null && str !== '')
-        .map((day) => parseStringToWeekDayNo(day));
-
-      const byWeekNo = pattern.byWeekNo
-        .slice(1, -1)
-        .split(',')
-        .filter((str) => str !== undefined && str !== null && str !== '')
-        .map((weekNo) => parseInt(weekNo, 10));
-
-      if (byWeekNo.length !== byWeekDay.length) {
-        console.log('(Monthly) WeekNo length not equals to WeekDay length!');
-      } else if (byWeekNo.length !== 0) {
-        // Both ways, you need to set the by week day number.
-        ruleObject.byweekday = [];
-        for (let i = 0; i < byWeekNo.length; i += 1) {
-          ruleObject.byweekday.push({ weekday: byWeekDay[i], n: byWeekNo[i] });
-        }
-      }
-
-      const byMonthDay = pattern.byMonthDay
-        .slice(1, -1)
-        .split(',')
-        .filter((str) => str !== undefined && str !== null && str !== '')
-        .map((monthDay) => parseInt(monthDay, 10));
-
-      if (byMonthDay.length > 0) {
-        ruleObject.bymonthday = [];
-        for (let i = 0; i < byMonthDay.length; i += 1) {
-          ruleObject.bymonthday.push(byMonthDay[i]);
+        if (byMonthDay.length > 0) {
+          ruleObject.bymonthday = [];
+          for (let i = 0; i < byMonthDay.length; i += 1) {
+            ruleObject.bymonthday.push(byMonthDay[i]);
+          }
         }
       }
       break;
     case 'WEEKLY':
-      ruleObject.freq = RRule.WEEKLY;
+      {
+        ruleObject.freq = RRule.WEEKLY;
 
-      ruleObject.byweekday =
-        pattern.byWeekDay !== '()'
-          ? pattern.byWeekDay
-              .slice(1, -1)
-              .split(',')
-              .map((day) => parseStringToWeekDayNo(day))
-          : null;
-      ruleObject.byweekno =
-        pattern.byWeekNo !== '()'
-          ? pattern.byWeekNo
-              .slice(1, -1)
-              .split(',')
-              .map((weekNo) => parseInt(weekNo, 10))
-          : null;
+        ruleObject.byweekday =
+          pattern.byWeekDay !== '()'
+            ? pattern.byWeekDay
+                .slice(1, -1)
+                .split(',')
+                .map((day) => parseStringToWeekDayNo(day))
+            : null;
+        ruleObject.byweekno =
+          pattern.byWeekNo !== '()'
+            ? pattern.byWeekNo
+                .slice(1, -1)
+                .split(',')
+                .map((weekNo) => parseInt(weekNo, 10))
+            : null;
+      }
       break;
     case 'DAILY':
-      ruleObject.freq = RRule.DAILY;
+      {
+        ruleObject.freq = RRule.DAILY;
+      }
       break;
     default:
   }
@@ -691,7 +1005,20 @@ const buildRuleObject = (pattern, startTime) => {
   } else if (pattern.until === undefined || pattern.until === null) {
     ruleObject.count = pattern.numberOfRepeats;
   } else {
-    ruleObject.until = new Date(pattern.until);
+    // ruleObject.until = moment.unix(pattern.until).toDate();
+    // ruleObject.until = new Date(pattern.until * 1000);
+    // ruleObject.until = new Date(pattern.until);
+    // const patternJson = moment.unix(pattern.until).toObject();
+    const patternJson = moment.tz(pattern.until * 1000, 'US/Pacific').toObject();
+    ruleObject.until = new Date(
+      Date.UTC(
+        patternJson.years,
+        patternJson.months,
+        patternJson.date,
+        patternJson.hours,
+        patternJson.minutes
+      )
+    );
   }
 
   // switch (pattern.wkst) {
@@ -722,7 +1049,7 @@ const buildRuleObject = (pattern, startTime) => {
   return ruleObject;
 };
 
-const getModifiedThenDeletedDates = (exDates, recurDates) => {
+export const getModifiedThenDeletedDates = (exDates, recurDates) => {
   const modifiedThenDeletedDates = [];
   exDates.forEach((exdate) => {
     recurDates.forEach((recurDate) => {
@@ -739,18 +1066,49 @@ export const buildRuleSet = (pattern, start) => {
   const rruleSet = new RRuleSet();
   const ruleObject = buildRuleObject(pattern, start);
   rruleSet.rrule(new RRule(ruleObject));
-
   // Get the deleted and updated occurances from the recurrence pattern.
   const { exDates, recurrenceIds } = pattern;
 
   // For each of them, set the ex date so to not include them in the list.
   if (exDates !== undefined) {
-    exDates.split(',').forEach((exdate) => rruleSet.exdate(new Date(exdate)));
+    console.log(exDates);
+    // debugger;
+    exDates
+      .split(',')
+      .filter((s) => s !== '')
+      .forEach((exdate) => {
+        const momentdate = moment.unix(exdate);
+        rruleSet.exdate(momentdate.toDate());
+      });
   }
   // Here, I am unsure if I am handling it correctly as
   // an edited occurance is also a exdate techincally speaking
   if (recurrenceIds !== undefined) {
-    recurrenceIds.split(',').forEach((recurDate) => rruleSet.exdate(new Date(recurDate)));
+    // recurrenceIds
+    //   .split(',')
+    //   .filter((s) => s !== '')
+    //   .forEach((recurDate) => {
+    //     const momentdate = moment.unix(recurDate);
+    //     // debugger;
+    //     rruleSet.exdate(
+    //       new Date(
+    //         Date.UTC(
+    //           momentdate.year(),
+    //           momentdate.month(),
+    //           momentdate.date(),
+    //           momentdate.hour(),
+    //           momentdate.minute()
+    //         )
+    //       )
+    //     );
+    //   });
+    recurrenceIds
+      .split(',')
+      .filter((s) => s !== '')
+      .forEach((recurDate) => {
+        const momentdate = moment.unix(recurDate);
+        rruleSet.exdate(momentdate.toDate());
+      });
   }
 
   // const modifiedThenDeletedDates = getModifiedThenDeletedDates(exDates, recurrenceIds);
@@ -759,11 +1117,36 @@ export const buildRuleSet = (pattern, start) => {
 };
 
 export default {
+  // parseCal,
+  // parseCalEvents,
+  // parseCalendarData,
+  // parseEventPersons,
+  // parseRecurrenceEvents,
+  // expandRecurEvents,
+  // parseRecurrence
+  parseRecurrenceEvents,
+  convertiCalWeeklyPattern,
+  parseEventPersons,
   parseCal,
   parseCalEvents,
+  newParseCalendarObjects,
+  parseCalendarObject,
   parseCalendarData,
-  parseEventPersons,
-  parseRecurrenceEvents,
+  parseModifiedEvent,
+  parseEvent,
+  getRuleJSON,
+  getAttendees,
+  getExDates,
+  getRecurrenceIds,
+  isModifiedThenDeleted,
+  parseAttendees,
   expandRecurEvents,
-  parseRecurrence
+  expandSeries,
+  parseRecurrence,
+  getDuration,
+  parseStringToWeekDayNo,
+  parseWeekDayNoToString,
+  buildRuleObject,
+  getModifiedThenDeletedDates,
+  buildRuleSet
 };

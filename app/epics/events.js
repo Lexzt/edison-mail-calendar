@@ -26,6 +26,7 @@ import moment from 'moment';
 import _ from 'lodash';
 import uuidv4 from 'uuid';
 // import { uuidv1 } from 'uuid/v1';
+import ICAL from 'ical.js';
 
 import { syncStoredEvents, retrieveStoreEvents, UPDATE_STORED_EVENTS } from '../actions/db/events';
 // import {
@@ -43,9 +44,11 @@ import {
   asyncCreateExchangeEvent,
   asyncDeleteExchangeEvent,
   asyncGetRecurrAndSingleExchangeEvents,
-  asyncGetSingleExchangeEvent,
   asyncUpdateExchangeEvent
 } from '../utils/client/exchange';
+
+import { asyncGetSingleExchangeEvent } from '../utils/client/exchangebasics';
+
 import {
   // GET_EVENTS_BEGIN,
   // EDIT_EVENT_BEGIN,
@@ -197,7 +200,12 @@ export const beginPostEventEpics = (action$) =>
       if (action.payload.providerType === Providers.CALDAV) {
         return from(postEventsCalDav(action.payload)).pipe(
           map((resp) =>
-            postEventSuccess([resp], action.payload.providerType, action.payload.auth.email)
+            postEventSuccess(
+              [resp],
+              [action.payload.auth],
+              action.payload.providerType,
+              action.payload.auth.email
+            )
           ),
           catchError((error) => apiFailure(error))
         );
@@ -323,9 +331,19 @@ const postEventsCalDav = async (payload) => {
     })
   );
 
+  debugger;
+
+  // Final iCalString to post out
   let newiCalString = '';
+
+  // // Need calendar system to handle what URL is being parsed. For now, we hard code.
+  // ICloud Calendar link
+  // const caldavUrl =
+  //   'https://caldav.icloud.com/10224008189/calendars/F669E46B-E8BB-44C5-A714-2AE82012AE65/';
+
+  // Yahoo Calendar Link
   const caldavUrl =
-    'https://caldav.fastmail.com/dav/calendars/user/fongzhizhong@fastmail.com/f6bf2b4a-d0d3-43d4-85bd-90e7858e5f9e/';
+    'https://caldav.calendar.yahoo.com/dav/oj242dvo2jivt6lfbyxqfherdqulvbiaprtaw5kv/Calendar/Fong%20Zhi%20Zhong/';
 
   const newETag = uuidv1();
   // console.log(caldavUrl, newETag);
@@ -339,18 +357,24 @@ const postEventsCalDav = async (payload) => {
   // Repopulate certain fields that are missing
   data.attendee = [];
   data.caldavUrl = caldavUrl;
-  data.created = moment().format('YYYY-MM-DDTHH:mm:ssZ');
-  data.updated = moment().format('YYYY-MM-DDTHH:mm:ssZ');
+  // data.created = moment().format('YYYY-MM-DDTHH:mm:ssZ');
+  // data.updated = moment().format('YYYY-MM-DDTHH:mm:ssZ');
   data.iCalUID = data.originalId;
-  data.owner = payload.auth.email;
+  // data.owner = payload.auth.email;
   data.providerType = Providers.CALDAV;
+  data.caldavType = payload.auth.caldavType;
+  data.isRecurring = data.rrule !== '';
 
   if (payload.data.isRecurring) {
     const newRecurrencePattern = {};
     const updatedId = uuidv1();
     const updatedUid = uuidv1();
 
-    data.isRecurring = true;
+    // data.isRecurring = true;
+
+    debugger;
+    // eslint-disable-next-line no-underscore-dangle
+    const jsonRecurr = ICAL.Recur._stringToData(data.rrule);
 
     Object.assign(newRecurrencePattern, {
       id: updatedId,
@@ -358,33 +382,35 @@ const postEventsCalDav = async (payload) => {
       // // // Temp take from the recurrence master first, will take from the UI in future.
       // // freq: payload.options.rrule.freq,
       // // interval: payload.options.rrule.interval,
-      // freq: pattern.freq,
-      // interval: pattern.interval,
+      freq: jsonRecurr['rrule:freq'],
+      interval: jsonRecurr.interval,
+      numberOfRepeat: jsonRecurr.count !== undefined ? jsonRecurr.count : 0,
+      until: jsonRecurr.until !== undefined ? jsonRecurr.until : null,
       // exDates: pattern.exDates.filter((exDate) =>
       //   moment(exDate).isAfter(moment(data.start.dateTime))
       // ),
       // recurrenceIds: pattern.recurrenceIds.filter((recurrId) =>
       //   moment(recurrId).isAfter(moment(data.start.dateTime))
       // ),
-      recurringTypeId: moment(data.start.dateTime).format('YYYY-MM-DDTHH:mm:ss'),
+      recurringTypeId: data.start.dateTime.unix(),
       iCalUID: updatedUid,
-      byEaster: '',
-      byHour: '',
-      byMinute: '',
+      // byHour: '',
+      // byMinute: '',
+      // bySecond: '',
+      // byEaster: '',
+      // bySetPos: '',
+      byWeekNo: '',
+      byWeekDay: `${Array.isArray(jsonRecurr.BYDAY) ? jsonRecurr.BYDAY.join(',') : ''}`,
       byMonth: '',
       byMonthDay: '',
-      bySecond: '',
-      bySetPos: '',
-      byWeekDay: '',
-      byWeekNo: '',
       byYearDay: ''
     });
 
     // Creates Recurring event.
     // This does not work atm. isRecurring is not defined too.
     newiCalString = IcalStringBuilder.buildICALStringCreateRecurEvent(
-      newRecurrencePattern,
-      payload.data
+      payload.data,
+      newRecurrencePattern
     );
   } else {
     data.isRecurring = false;
@@ -412,13 +438,26 @@ const postEventsCalDav = async (payload) => {
   const allEvents = await asyncGetAllCalDavEvents(
     payload.auth.email,
     payload.auth.password,
-    payload.auth.url
+    payload.auth.url,
+    payload.auth.caldavType
   );
+  // const req = dav.request.basic({
+  //   method: 'GET'
+  // });
+  // if (addResult.status !== 201) {
+  //   console.error('XHR Request error!!');
+  //   return {};
+  // }
+  // const newData = await xhrObject
+  //   .send(req, caldavUrl + newETag + '.ics')
+  //   .then((response) => console.log(response));
+
+  // debugger;
 
   // Etag is a real problem here LOL. This does NOT WORK
   const justCreatedEvent = allEvents.filter((e) => e.originalId === data.originalId)[0];
-  data.etag = justCreatedEvent.etag;
-  data.caldavUrl = justCreatedEvent.caldavUrl;
+  // data.etag = justCreatedEvent.etag;
+  // data.caldavUrl = justCreatedEvent.caldavUrl;
 
   // If it reaches here, it means we managed to push the object into the provider!
   // Update database by filtering the new item into our schema.
@@ -426,8 +465,9 @@ const postEventsCalDav = async (payload) => {
 
   // // Add it to the database
   // const appendedResult = await db.events.upsert(data);
-  const appendedResult = await dbEventActions.insertEventsIntoDatabase(data);
-  return appendedResult;
+  const appendedResult = await dbEventActions.insertEventsIntoDatabase(justCreatedEvent);
+  debugger;
+  return allEvents;
 };
 // #endregion
 

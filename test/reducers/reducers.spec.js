@@ -7,7 +7,7 @@ import * as EventActionTypes from '../../app/actions/events';
 import * as ProviderTypes from '../../app/utils/constants';
 import ServerUrls from '../../app/utils/serverUrls';
 
-import mockEventData from './mockEventData';
+import { mockEventData } from './mockEventData';
 
 // Mocked Initial State data
 const authInitialState = {

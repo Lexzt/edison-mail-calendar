@@ -32,13 +32,15 @@ import {
   asyncCreateExchangeEvent,
   asyncDeleteExchangeEvent,
   asyncGetRecurrAndSingleExchangeEvents,
-  asyncGetSingleExchangeEvent,
-  asyncGetAllExchangeEvents,
   asyncUpdateExchangeEvent,
   asyncUpdateRecurrExchangeSeries,
   createEwsRecurrenceObj,
   parseEwsRecurringPatterns
 } from '../../utils/client/exchange';
+import {
+  asyncGetSingleExchangeEvent,
+  asyncGetAllExchangeEvents
+} from '../../utils/client/exchangebasics';
 import getDb from '../../rxdb';
 import * as Providers from '../../utils/constants';
 
@@ -65,7 +67,8 @@ export const beginGetExchangeEventsEpics = (action$) =>
               return asyncGetRecurrAndSingleExchangeEvents(exch);
             });
             const allExchangeUserEvents = await Promise.all(allExchangeUserEventsPromise);
-            resolve(...allExchangeUserEvents);
+            debugger;
+            resolve(allExchangeUserEvents);
           } catch (e) {
             console.log(e);
             throw e;
@@ -271,6 +274,7 @@ const editEwsAllRecurrenceEvents = async (payload) => {
     singleAppointment.Subject = payload.title;
 
     console.log(singleAppointment);
+    debugger;
     const newRecurrence = createEwsRecurrenceObj(
       payload.firstOption,
       payload.secondOption,
@@ -722,8 +726,6 @@ const editEwsAllFutureRecurrenceEvents = async (payload) => {
       );
       console.log('recurring event delete is broken here');
 
-      // const removedDeletedEventsLocally = await dbEventActions.
-
       if (debug) {
         // const allEvents = await db.events.find().exec();
         // console.log(removedDeletedEventsLocally, allEvents);
@@ -821,7 +823,7 @@ const deleteEwsSingle = async (payload) => {
       user.email,
       user.password,
       'https://outlook.office365.com/Ews/Exchange.asmx',
-      data.get('originalId')
+      data.originalId
     );
 
     await asyncDeleteExchangeEvent(singleAppointment, user, () => {
@@ -829,14 +831,14 @@ const deleteEwsSingle = async (payload) => {
     });
 
     // await deleteDoc.remove();
-    await dbEventActions.deleteEventByOriginalId(data.get('originalId'));
+    await dbEventActions.deleteEventByOriginalId(data.originalId);
   } catch (exchangeError) {
     // This means item has been deleted on server, maybe by another user
     // Handle this differently.
     if (exchangeError.ErrorCode === 249) {
       // Just remove it from database instead, and break;
       // await deleteDoc.remove();
-      await dbEventActions.deleteEventByOriginalId(data.get('originalId'));
+      await dbEventActions.deleteEventByOriginalId(data.originalId);
       // break;
     }
 
@@ -849,7 +851,7 @@ const deleteEwsSingle = async (payload) => {
     // });
     await dbPendingActionsActions.insertPendingActionIntoDatabase({
       uniqueId: uuidv4(),
-      eventId: data.get('originalId'),
+      eventId: data.originalId,
       status: 'pending',
       type: 'delete'
     });
@@ -862,7 +864,7 @@ const deleteEwsSingle = async (payload) => {
     //   }
     // });
 
-    await dbEventActions.updateEventByOriginalId(data.get('originalId'), {
+    await dbEventActions.updateEventByOriginalId(data.originalId, {
       hide: true,
       local: true
     });
@@ -886,7 +888,7 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
       user.email,
       user.password,
       'https://outlook.office365.com/Ews/Exchange.asmx',
-      data.get('recurringEventId')
+      data.recurringEventId
     );
 
     console.log(singleAppointment);
@@ -896,13 +898,15 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
     });
 
     // await deleteDoc.remove();
-    await dbRpActions.deleteAllEventByRecurringEventId(data.get('recurringEventId'));
+    await dbEventActions.deleteAllEventByRecurringEventId(data.recurringEventId);
   } catch (error) {
+    console.log(error);
+    debugger;
     // This means item has been deleted on server, maybe by another user
     // Handle this differently.
     if (error.ErrorCode === 249) {
       // Just remove it from database instead, and break;
-      await dbRpActions.deleteAllEventByRecurringEventId(data.get('recurringEventId'));
+      await dbEventActions.deleteAllEventByRecurringEventId(data.recurringEventId);
       // await deleteDoc.remove();
       // break;
     }
@@ -916,7 +920,7 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
     // });
     await dbPendingActionsActions.insertPendingActionIntoDatabase({
       uniqueId: uuidv4(),
-      eventId: data.get('originalId'),
+      eventId: data.originalId,
       status: 'pending',
       type: 'delete'
     });
@@ -929,7 +933,7 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
     //   }
     // });
 
-    await dbEventActions.updateEventRecurringEventId(data.get('recurringEventId'), {
+    await dbEventActions.updateEventRecurringEventId(data.recurringEventId, {
       hide: true,
       local: true
     });
@@ -948,14 +952,14 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
       user.email,
       user.password,
       'https://outlook.office365.com/Ews/Exchange.asmx',
-      data.get('recurringEventId')
+      data.recurringEventId
     );
 
     const singleAppointment = await asyncGetSingleExchangeEvent(
       user.email,
       user.password,
       'https://outlook.office365.com/Ews/Exchange.asmx',
-      data.get('originalId')
+      data.originalId
     );
 
     console.log(recurrMasterAppointment, data, singleAppointment);
@@ -998,7 +1002,7 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
         .Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsMode.SendToNone)
         .then(async () => {
           if (debug) {
-            console.log('here', data.get('recurringEventId'));
+            console.log('here', data.recurringEventId);
             // const allevents = await db.events.find().exec();
             const allevents = await dbEventActions.getAllEvents();
             console.log(allevents);
@@ -1010,7 +1014,7 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
           //   .eq(data.get('recurringEventId'))
           //   .exec();
           const removedDeletedEventsLocally = await dbRpActions.getAllEventsByRecurringEventId(
-            data.get('recurringEventId')
+            data.recurringEventId
           );
 
           console.log(
@@ -1047,7 +1051,7 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
           if (debug) {
             const checkingData = await dbRpActions.getOneRpByiCalUID(data.iCalUID);
             console.log('Before ', checkingData);
-            console.log(updateDbVals[0].exDates);
+            console.log(updateDbVals.exDates);
           }
 
           // // Filter ex dates down so that when we scale, ex dates does not constantly expand.

@@ -1,0 +1,2 @@
+yarn run v1.17.3
+$ cross-env NODE_ENV=test BABEL_DISABLE_CACHE=1 jest

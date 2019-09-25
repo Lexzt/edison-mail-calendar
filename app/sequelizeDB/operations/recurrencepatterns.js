@@ -11,6 +11,14 @@ export const getOneRpByiCalUID = async (iCalUID) => {
       }
     }
   });
+  if (rp !== null && rp !== undefined) {
+    if (typeof rp.exDates === 'number') {
+      rp.exDates = rp.exDates.toString();
+    }
+    if (typeof rp.recurrenceIds === 'number') {
+      rp.recurrenceIds = rp.recurrenceIds.toString();
+    }
+  }
   return rp;
 };
 
@@ -24,11 +32,28 @@ export const getOneRpByOId = async (originalId) => {
       }
     }
   });
+  if (rp !== null && rp !== undefined) {
+    if (typeof rp.exDates === 'number') {
+      rp.exDates = rp.exDates.toString();
+    }
+    if (typeof rp.recurrenceIds === 'number') {
+      rp.recurrenceIds = rp.recurrenceIds.toString();
+    }
+  }
   return rp;
 };
 
 export const getAllRp = async (iCalUID) => {
   const rps = await RecurrencePatternsBlock.findAll();
+  rps.map((rp) => {
+    if (typeof rp.exDates === 'number') {
+      rp.exDates = rp.exDates.toString();
+    }
+    if (typeof rp.recurrenceIds === 'number') {
+      rp.recurrenceIds = rp.recurrenceIds.toString();
+    }
+    return rp;
+  });
   return rps;
 };
 
@@ -165,7 +190,9 @@ export const insertOrUpdateRp = async (rp) => {
   const debug = true;
   // debugger;
 
-  console.log(rp);
+  if (debug) {
+    console.log(rp);
+  }
   // As we are inserting a new user into the database, and personId being the priamry key
   // that is uuidv4 generated, meaning unique each time, we need to check based off the
   // user information before we decide to upsert or update accrordingly.

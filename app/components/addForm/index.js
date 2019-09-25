@@ -3,6 +3,8 @@ import TextField from '@material-ui/core/TextField';
 import { FormControl } from 'react-bootstrap';
 import moment from 'moment';
 import ICAL from 'ical.js';
+import RRuleGenerator from 'react-rrule-generator';
+
 import DescBox from './descBox';
 import EndTime from './endTime';
 import StartTime from './startTime';
@@ -47,6 +49,18 @@ export default class AddEvent extends Component {
           <StartTime start={this.start} />
           <EndTime end={this.end} />
           <DescBox description="Event Description" />
+
+          <RRuleGenerator
+            onChange={(rrule) => console.log(`RRule changed, now it's ${rrule}`)}
+            config={{
+              repeat: ['Monthly', 'Weekly'],
+              yearly: 'on the',
+              monthly: 'on',
+              end: ['Never', 'On date'],
+              weekStartsOnSunday: true,
+              hideError: true
+            }}
+          />
 
           <input type="submit" value="Submit" />
         </form>

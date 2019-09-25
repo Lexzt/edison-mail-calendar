@@ -18,16 +18,16 @@ export const getOneEventById = async (id) => {
   return event;
 };
 
-// export const getOneEventByOriginalId = async (originalId) => {
-//   const event = await EventsBlock.findOne({
-//     where: {
-//       originalId: {
-//         [Op.eq]: originalId
-//       }
-//     }
-//   });
-//   return event;
-// };
+export const getOneEventByOriginalId = async (originalId) => {
+  const event = await EventsBlock.findOne({
+    where: {
+      originalId: {
+        [Op.eq]: originalId
+      }
+    }
+  });
+  return event;
+};
 
 export const getOneEventByiCalUID = async (iCalUid) => {
   const event = await EventsBlock.findOne({
@@ -78,10 +78,12 @@ export const getAllEventsByRecurringEventId = async (recurringEventId) => {
 
 // #region Inserting Events
 export const insertEventsIntoDatabase = async (event) => {
-  const debug = true;
+  const debug = false;
   // debugger;
 
-  console.log(event);
+  if (debug) {
+    console.log(event);
+  }
   // As we are inserting a new user into the database, and personId being the priamry key
   // that is uuidv4 generated, meaning unique each time, we need to check based off the
   // user information before we decide to upsert or update accrordingly.
@@ -103,7 +105,7 @@ export const insertEventsIntoDatabase = async (event) => {
 
     await EventsBlock.upsert(event);
   } else if (dbEvent.length === 1) {
-    debugger;
+    // debugger;
     if (debug) {
       console.log('(Log) Found Event of ', dbEvent, ', Updating');
     }
@@ -127,13 +129,15 @@ export const insertEventsIntoDatabase = async (event) => {
 export const deleteEventById = async (id) => {
   const debug = true;
 
-  await EventsBlock.destroy({
+  const test = await EventsBlock.destroy({
     where: {
       id: {
         [Op.eq]: id
       }
     }
   });
+
+  debugger;
 };
 
 export const deleteEventByOriginalId = async (originalId) => {

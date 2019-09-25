@@ -208,13 +208,13 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
             data: caldavData
           }
         });
-      },
-      (error) => {
-        console.log(error);
-        next({
-          type: AuthActionTypes.FAIL_CALDAV_AUTH
-        });
       }
+      // (error) => {
+      //   console.log(error);
+      //   next({
+      //     type: AuthActionTypes.FAIL_CALDAV_AUTH
+      //   });
+      // }
     );
   }
   return next(action);

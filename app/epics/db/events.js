@@ -27,10 +27,10 @@ import {
   DELETE_FUTURE_RECURRENCE_SERIES_BEGIN
 } from '../../actions/events';
 import { deleteGoogleEvent, loadClient } from '../../utils/client/google';
-import { asyncGetSingleExchangeEvent, asyncDeleteExchangeEvent } from '../../utils/client/exchange';
+import { asyncDeleteExchangeEvent } from '../../utils/client/exchange';
 import getDb from '../../rxdb';
 import * as Providers from '../../utils/constants';
-import parser, { buildRuleSet } from '../../utils/parser';
+import * as parser from '../../utils/parser';
 import * as IcalStringBuilder from '../../utils/icalStringBuilder';
 import serverUrls from '../../utils/serverUrls';
 import credentials from '../../utils/Credentials';
@@ -145,7 +145,7 @@ export const storeEventsEpic = (action$) =>
     mergeMap((action) =>
       from(storeEvents(action.payload)).pipe(
         // mergeMap((allEvents) => mergeRecurringAndNonRecurringEvents(allEvents)),
-        map((results) => successStoringEvents(results, action.payload.user)),
+        map((results) => successStoringEvents(results, action.payload.users)),
         catchError((error) => failStoringEvents(error))
       )
     )
@@ -204,9 +204,9 @@ const storeEvents = async (payload) => {
   // const addedEvents = [];
   // const dbFindPromises = [];
   // const dbUpsertPromises = [];
-  const { data } = payload;
+  const { data, users } = payload;
   const debug = false;
-  // debugger;
+  debugger;
   // if (debug) {
   //   console.log(data);
   //   const alle = await db.events.find().exec();
@@ -281,13 +281,34 @@ const storeEvents = async (payload) => {
   // }
   // return addedEvents;
 
-  const insertQueries = data
-    .map((dbEvent) =>
-      Providers.filterIntoSchema(dbEvent, payload.providerType, payload.owner, false)
-    )
-    .map((filteredEvent) => dbEventActions.insertEventsIntoDatabase(filteredEvent));
-  const insertResults = await Promise.all(insertQueries);
-  console.log(insertResults);
+  const allPromises = [];
+
+  if (data.length !== users.length) {
+    console.log('something is wrong');
+    return [];
+  }
+
+  for (let i = 0; i < data.length; i += 1) {
+    for (let j = 0; j < data[i].length; j += 1) {
+      const newEvent = Providers.filterIntoSchema(
+        data[i][j],
+        users[i].providerType,
+        users[i].email,
+        false
+      );
+      allPromises.push(dbEventActions.insertEventsIntoDatabase(newEvent));
+    }
+  }
+  debugger;
+  const insertResults = await Promise.all(allPromises);
+  debugger;
+  // const insertQueries = data
+  //   .map((dbEvent) =>
+  //     Providers.filterIntoSchema(dbEvent, payload.providerType, payload.user.email, false)
+  //   )
+  //   .map((filteredEvent) => dbEventActions.insertEventsIntoDatabase(filteredEvent));
+  // const insertResults = await Promise.all(insertQueries);
+  // console.log(insertResults);
 
   // debugger;
   // const test = await EventBlock.findAll();
@@ -481,7 +502,7 @@ const deleteSingleEvent = async (id) => {
         // });
         await dbPendingActionActions.insertPendingActionIntoDatabase({
           uniqueId: uuidv4(),
-          eventId: data.get('originalId'),
+          eventId: data.originalId,
           status: 'pending',
           type: 'delete'
         });
@@ -501,6 +522,7 @@ const deleteSingleEvent = async (id) => {
       break;
     case Providers.CALDAV:
       try {
+        debugger;
         return deleteCalDavSingleEventBegin(payload);
       } catch (caldavError) {
         console.log('Handle Caldav pending action here', caldavError);
@@ -664,7 +686,7 @@ const deleteAllReccurenceEvent = async (id) => {
         if (error.ErrorCode === 249) {
           // Just remove it from database instead, and break;
           // await deleteDoc.remove();
-          dbRpActions.deleteAllEventByRecurringEventId(data.get('recurringEventId'));
+          await dbEventActions.deleteAllEventByRecurringEventId(data.recurringEventId);
           break;
         }
 
@@ -677,7 +699,7 @@ const deleteAllReccurenceEvent = async (id) => {
         // });
         await dbPendingActionActions.insertPendingActionIntoDatabase({
           uniqueId: uuidv4(),
-          eventId: data.get('originalId'),
+          eventId: data.originalId,
           status: 'pending',
           type: 'delete'
         });

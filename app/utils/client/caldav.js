@@ -1,12 +1,14 @@
 import md5 from 'md5';
 import uuidv4 from 'uuid';
+import * as dav from 'dav'; // caldav library
 import * as ProviderTypes from '../constants';
 import ServerUrls from '../serverUrls';
-import PARSER from '../parser';
+import * as PARSER from '../parser';
 // import getDb from '../../rxdb';
 import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
+import * as caldavBasics from './caldavbasics';
 
-const dav = require('dav');
+// const dav = require('dav');
 
 const getCalDavTypeFromURL = (url) => {
   switch (url) {
@@ -40,16 +42,8 @@ export const filterCaldavUser = (jsonObj, url) => ({
 });
 
 export const asyncGetAllCalDavEvents = async (username, password, url, caldavType) => {
-  const resp = await dav.createAccount({
-    server: url,
-    xhr: new dav.transport.Basic(
-      new dav.Credentials({
-        username,
-        password
-      })
-    ),
-    loadObjects: true
-  });
+  const resp = await caldavBasics.getCaldavAccount(username, password, url, caldavType);
+  debugger;
 
   // const db = await getDb();
   // This breaks due to how our database works, with id being a uniqid.
@@ -62,6 +56,8 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
     // const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
+
+    debugger;
 
     const promises = [];
     // This is broke, upsert makes no sense atm.
@@ -165,14 +161,18 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     });
 
     const results = await Promise.all(promises);
+    debugger;
+    const wtf = await dbRpActions.getAllRp();
+    console.log(wtf);
+    debugger;
     const expanded = await PARSER.expandRecurEvents(
       flatFilteredEvents.map((calEvent) => calEvent.eventData)
     );
-    console.log(
-      expanded,
-      flatFilteredEvents,
-      flatFilteredEvents.map((calEvent) => calEvent.eventData)
-    );
+    // console.log(
+    //   expanded,
+    //   flatFilteredEvents,
+    //   flatFilteredEvents.map((calEvent) => calEvent.eventData)
+    // );
     const finalResult = [
       ...expanded.filter((e) => e.isRecurring === true),
       ...flatFilteredEvents
@@ -183,6 +183,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
       e.owner = username;
       e.caldavType = caldavType;
     });
+    debugger;
     console.log(finalResult);
     return finalResult;
   } catch (e) {

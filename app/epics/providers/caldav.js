@@ -20,7 +20,7 @@ import { retrieveStoreEvents } from '../../actions/db/events';
 import * as Credentials from '../../utils/Credentials';
 import { asyncGetAllCalDavEvents } from '../../utils/client/caldav';
 import * as IcalStringBuilder from '../../utils/icalStringBuilder';
-import PARSER, { buildRuleSet } from '../../utils/parser';
+import * as PARSER from '../../utils/parser';
 import getDb from '../../rxdb';
 import * as Providers from '../../utils/constants';
 import * as dbEventActions from '../../sequelizeDB/operations/events';
@@ -41,18 +41,18 @@ export const beginGetCaldavEventsEpics = (action$) =>
           // debugger;
 
           try {
-            const allCalDavUserEvents = action.payload.map((user) =>
+            const allCalDavUserEventsPromise = action.payload.map((user) =>
               asyncGetAllCalDavEvents(user.email, user.password, user.url, user.caldavType)
             );
 
-            const objOfCdEvents = await Promise.all(allCalDavUserEvents);
-            const cdEvents = [];
-            objOfCdEvents.forEach((indivCdProvider) =>
-              indivCdProvider.forEach((indivCdEvent) => cdEvents.push(indivCdEvent))
-            );
-            // console.log(objOfCdEvents);
-            // debugger;
-            resolve(cdEvents);
+            const allCalDavUserEvents = await Promise.all(allCalDavUserEventsPromise);
+            // const cdEvents = [];
+            // objOfCdEvents.forEach((indivCdProvider) =>
+            //   indivCdProvider.forEach((indivCdEvent) => cdEvents.push(indivCdEvent))
+            // );
+            // // console.log(objOfCdEvents);
+            debugger;
+            resolve(allCalDavUserEvents);
           } catch (e) {
             console.log(e);
             throw e;
@@ -187,7 +187,8 @@ const editCalDavSingle = async (payload) => {
 
       dbRpActions.addRecurrenceIdsByOid(
         data.iCalUID,
-        moment(data.start.dateTime).format('YYYY-MM-DDThh:mm:ss')
+        data.start.dateTime
+        // moment(data.start.dateTime).format('YYYY-MM-DDThh:mm:ss')
       );
       // await cdAddingIntoRpQuery.update({
       //   $addToSet: {
@@ -530,10 +531,12 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       // ),
       exDates: pattern.exDates
         .split(',')
-        .filter((exDate) => moment(exDate).isAfter(moment(data.start.dateTime))),
+        .filter((exDate) => moment(exDate).isAfter(moment(data.start.dateTime)))
+        .join(','),
       recurrenceIds: pattern.recurrenceIds
         .split(',')
-        .filter((recurrId) => moment(recurrId).isAfter(moment(data.start.dateTime))),
+        .filter((recurrId) => moment(recurrId).isAfter(moment(data.start.dateTime)))
+        .join(','),
       recurringTypeId: moment(data.start.dateTime).format('YYYY-MM-DDTHH:mm:ss'),
       iCalUID: updatedUid,
       byEaster: '',
@@ -579,10 +582,12 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
         // ),
         exDates: pattern.exDates
           .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime))),
+          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
+          .join(','),
         recurrenceIds: pattern.recurrenceIds
           .split(',')
-          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime))),
+          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
+          .join(','),
         recurringTypeId: pattern.recurringTypeId,
         until: moment(data.start.dateTime)
           .subtract(1, 'second')
@@ -594,7 +599,7 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       // We use the all function to get the length of the input.
       // Parsed into Json for readability and able to be manipulated. RxDocs are not mutable.
       // As we editing this event, we need the minus one.
-      const ruleSet = buildRuleSet(oldRecurringPattern, pattern.recurringTypeId);
+      const ruleSet = PARSER.buildRuleSet(oldRecurringPattern, pattern.recurringTypeId);
       // Recur Dates only hold events and not exceptions.
       const recurDates = ruleSet.all().map((date) => date.toJSON());
       const seriesEndCount =
@@ -613,12 +618,14 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       Object.assign(oldRecurringPattern, {
         numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
         isCount: true,
-        exDates: pattern.exDates.filter((exDate) =>
-          moment(exDate).isBefore(moment(data.start.dateTime))
-        ),
-        recurrenceIds: pattern.recurrenceIds.filter((rpDate) =>
-          moment(rpDate).isBefore(moment(data.start.dateTime))
-        )
+        exDates: pattern.exDates
+          .split(',')
+          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
+          .join(','),
+        recurrenceIds: pattern.recurrenceIds
+          .split(',')
+          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
+          .join(',')
       });
 
       // await recurPatternQuery.update({
@@ -639,10 +646,12 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
         isCount: true,
         exDates: pattern.exDates
           .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime))),
+          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
+          .join(','),
         recurrenceIds: pattern.recurrenceIds
           .split(',')
           .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
+          .join(',')
       });
     } else {
       // Here, we assign the end condition for our recurrence pattern.
@@ -678,10 +687,12 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
         isCount: false,
         exDates: pattern.exDates
           .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime))),
+          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
+          .join(','),
         recurrenceIds: pattern.recurrenceIds
           .split(',')
           .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
+          .join(',')
       });
     }
 
@@ -843,6 +854,7 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
 };
 
 const deleteCalDavSingle = async (payload) => {
+  debugger;
   const { data, user } = payload;
   const debug = true;
 
@@ -1029,8 +1041,8 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
     // const recurrence = await recurrenceObjectQuery.exec();
     const recurrence = await dbRpActions.getOneRpByOId(data.iCalUID);
     const recurrencePattern = recurrence.toJSON();
-    console.log(data);
-    // debugger;
+    console.log(recurrencePattern);
+    debugger;
 
     // Problem here is that updating the rp based on the exDates and recurringIds.
     // This means we need to remove it from the rp and build the rp based on them.
@@ -1039,17 +1051,19 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
     // Compared using moment.
     recurrencePattern.exDates = recurrencePattern.exDates
       .split(',')
-      .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'));
+      .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'))
+      .join(',');
 
     // Do the same for edited ids.
     recurrencePattern.recurrenceIds = recurrencePattern.recurrenceIds
       .split(',')
-      .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'));
+      .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'))
+      .join(',');
 
-    const ruleSet = buildRuleSet(recurrencePattern, recurrencePattern.recurringTypeId);
+    const ruleSet = PARSER.buildRuleSet(recurrencePattern, recurrencePattern.recurringTypeId);
     const recurDates = ruleSet.all().map((date) => date.toJSON());
     const recurrAfterDates = recurDates.filter((date) =>
-      moment(date).isSameOrAfter(moment(data.start.dateTime))
+      moment(date).isSameOrAfter(moment.unix(data.start.dateTime))
     );
 
     let deleteWholeSeries = false;
@@ -1147,7 +1161,10 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
           //   .where('start.dateTime')
           //   .eq(date)
           //   .remove();
-          return dbEventActions.deleteEventByiCalUIDandStartDateTime(data.iCalUID, date);
+          return dbEventActions.deleteEventByiCalUIDandStartDateTime(
+            data.iCalUID,
+            moment(date).unix()
+          );
         })
       );
 

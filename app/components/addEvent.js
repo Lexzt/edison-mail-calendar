@@ -3,6 +3,10 @@ import TextField from '@material-ui/core/TextField';
 import MenuItem from '@material-ui/core/MenuItem';
 import { FormControl } from 'react-bootstrap';
 import moment from 'moment';
+import RRuleGenerator from 'react-rrule-generator';
+
+// import 'bootstrap/dist/css/bootstrap.css'; // this lib uses boostrap (v. 4.0.0-beta.2)
+// import styles from 'react-rrule-generator/build/styles.css'; // react-rrule-generator's custom CSS
 
 const START_INDEX_OF_UTC_FORMAT = 17;
 const START_INDEX_OF_HOUR = 11;
@@ -23,7 +27,8 @@ export default class AddEvent extends Component {
       endParsed: '',
       start: '',
       end: '',
-      selectedProvider: ''
+      selectedProvider: '',
+      rrule: ''
     };
   }
 
@@ -67,26 +72,38 @@ export default class AddEvent extends Component {
     this.setState({ [event.target.name]: event.target.value });
   };
 
+  handleRruleChange = (rrule) => {
+    this.setState({ rrule });
+  };
+
   handleSubmit = async (e) => {
     // need to write validation method
     e.preventDefault();
     const { props, state } = this;
 
+    debugger;
+
     if (state.selectedProvider !== '') {
       const { providerType } = JSON.parse(state.selectedProvider);
+      const tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      debugger;
 
       props.postEventBegin(
         {
           summary: state.title,
           description: state.desc,
           start: {
-            dateTime: moment(state.startParsed).format(),
+            // dateTime: moment(state.startParsed).format(),
+            dateTime: moment.tz(state.startParsed, tzid),
             timezone: 'America/Los_Angeles'
           },
           end: {
-            dateTime: moment(state.endParsed).format(),
+            // dateTime: moment(state.endParsed).format(),
+            dateTime: moment.tz(state.endParsed, tzid),
             timezone: 'America/Los_Angeles'
-          }
+          },
+          rrule: state.rrule
         },
         JSON.parse(state.selectedProvider),
         providerType
@@ -105,7 +122,7 @@ export default class AddEvent extends Component {
     }
 
     return (
-      <div className="form-event-container">
+      <div>
         <form className="container" onSubmit={this.handleSubmit} noValidate>
           {/* Title Form */}
           <FormControl
@@ -118,7 +135,7 @@ export default class AddEvent extends Component {
 
           {/* Text Area */}
           <FormControl
-            componentClass="textarea"
+            componentclass="textarea"
             placeholder="Description"
             name="desc"
             onChange={this.handleChange}
@@ -165,10 +182,27 @@ export default class AddEvent extends Component {
             {providers.map((option) => (
               // Currently an issue: https://github.com/mui-org/material-ui/issues/10845
               <MenuItem key={option.personId} value={JSON.stringify(option)}>
-                {option.email}
+                {option.email}, ({option.providerType}/{option.caldavType})
               </MenuItem>
             ))}
           </TextField>
+
+          <div className="app" data-tid="container">
+            <RRuleGenerator
+              // onChange={(rrule) => console.log(`RRule changed, now it's ${rrule}`)}
+              onChange={this.handleRruleChange}
+              name="rrule"
+              config={{
+                repeat: ['Daily', 'Weekly', 'Monthly', 'Yearly'],
+                yearly: 'on the',
+                monthly: 'on',
+                end: ['On date', 'After'],
+                // end: ['Never', 'On date', 'After'],  // Atm, never has not been taken care of
+                weekStartsOnSunday: true,
+                hideError: true
+              }}
+            />
+          </div>
 
           <input type="submit" value="Submit" />
         </form>

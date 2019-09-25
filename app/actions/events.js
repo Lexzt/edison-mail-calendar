@@ -82,10 +82,11 @@ export const postEventBegin = (calEvent, auth, providerType) => ({
   }
 });
 
-export const postEventSuccess = (response, providerType, owner) => ({
+export const postEventSuccess = (data, users, providerType, owner) => ({
   type: POST_EVENT_SUCCESS,
   payload: {
-    data: response,
+    data,
+    users,
     providerType,
     owner
   }
@@ -100,12 +101,12 @@ export const getEventsFailure = (error) => ({
   }
 });
 
-export const getEventsSuccess = (response, providerType, user) => ({
+export const getEventsSuccess = (response, providerType, users) => ({
   type: GET_EVENTS_SUCCESS,
   payload: {
     data: response,
     providerType,
-    user
+    users
   }
 });
 // #endregion

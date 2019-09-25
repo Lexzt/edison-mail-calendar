@@ -13,6 +13,8 @@ export const ICLOUD = 'ICLOUD';
 export const FASTMAIL = 'FASTMAIL';
 export const YAHOO = 'YAHOO';
 
+export const DEFAULT_TIMEZONE = 'America/Los_Angeles';
+
 export const dropDownTime = (currentTime) => {
   const timeOptions = [];
   let hour = 0;

@@ -63,15 +63,14 @@ export const storeCaldavAuthEpic = (action$) =>
 
 const storeUser = async (user) => {
   console.log(user);
-  const db = await getDb();
-  let userDb = '';
+  // const db = await getDb();
+  // let userDb = '';
   try {
-    userDb = await db.users.upsert(user);
-    dbUserActions.insertUserIntoDatabase(user);
+    // userDb = await db.users.upsert(user);
+    await dbUserActions.insertUserIntoDatabase(user);
   } catch (e) {
     console.log('Store User err: ', e);
     return e;
   }
-
-  return userDb;
+  return user;
 };

@@ -97,7 +97,7 @@ const mergeEvents = (oldEvents, newEvents, user) => {
 };
 
 const storeEvents = (oldEvents, newEvents, users) => {
-  // debugger;
+  debugger;
   const nonUserEvents = [];
   const userEvents = new Map();
 
@@ -239,7 +239,7 @@ export default function eventsReducer(state = initialState, action) {
     }
     case SUCCESS_STORED_EVENTS: {
       // debugger;
-      const newEvents = storeEvents(state.calEvents, action.payload.resp, action.payload.user);
+      const newEvents = storeEvents(state.calEvents, action.payload.resp, action.payload.users);
       // debugger;
       return Object.assign({}, state, { calEvents: newEvents });
     }

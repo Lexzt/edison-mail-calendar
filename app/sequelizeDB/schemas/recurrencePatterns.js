@@ -1,4 +1,4 @@
-import Sequelize, { Model } from 'sequelize';
+import Sequelize, { Model, DataTypes } from 'sequelize';
 import getDb from '../index';
 
 const db = getDb();
@@ -32,10 +32,12 @@ RecurrencePatterns.init(
     },
 
     exDates: {
-      type: Sequelize.STRING
+      type: DataTypes.STRING,
+      defaultValue: ''
     },
     recurrenceIds: {
-      type: Sequelize.STRING
+      type: Sequelize.STRING,
+      defaultValue: ''
     },
 
     modifiedThenDeleted: {

@@ -33,4 +33,5 @@ const mapDispatchToProps = (dispatch) => ({
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(withRouter(withStyles(styles)(AddEvent)));
+  // )(withRouter(withStyles(styles)(AddEvent)));
+)(withRouter(AddEvent));

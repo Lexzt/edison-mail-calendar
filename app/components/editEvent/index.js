@@ -20,23 +20,21 @@ import {
 } from 'ews-javascript-api';
 import uuidv4 from 'uuid';
 import Select from 'react-select';
+import DateTimePicker from 'react-datetime-picker/dist/entry.nostyle';
 
 import Location from './location';
 import Attendees from './attendees';
-import Date from './date';
-import Time from './time';
+// import Date from './date';
+// import Time from './time';
 import Conference from './conference';
 import Checkbox from './checkbox';
 import getDb from '../../rxdb';
 import { loadClient, editGoogleEvent } from '../../utils/client/google';
 import {
-  asyncGetSingleExchangeEvent,
   asyncUpdateExchangeEvent,
   asyncUpdateRecurrExchangeSeries,
   asyncDeleteExchangeEvent,
-  asyncGetAllExchangeEvents,
-  asyncGetRecurrAndSingleExchangeEvents,
-  asyncGetExchangeRecurrMasterEvents
+  asyncGetRecurrAndSingleExchangeEvents
 } from '../../utils/client/exchange';
 import './index.css';
 /* global google */
@@ -75,8 +73,8 @@ export default class EditEvent extends React.Component {
       hangoutLink: '',
       startDay: '',
       endDay: '',
-      startTime: '',
-      endTime: '',
+      // startTime: '',
+      // endTime: '',
       originalId: '',
 
       isRecurring: false,
@@ -106,7 +104,18 @@ export default class EditEvent extends React.Component {
   }
 
   // find a way to handle all different inputs
+  handleStartChange = (start) => {
+    this.setState({ start: start.getTime() / 1000 });
+  };
+
+  // find a way to handle all different inputs
+  handleEndChange = (end) => {
+    this.setState({ end: end.getTime() / 1000 });
+  };
+
+  // find a way to handle all different inputs
   handleChange = (event) => {
+    debugger;
     // console.log(event.name);
     if (event.target !== undefined) {
       // console.log(event.target.name);
@@ -339,7 +348,7 @@ export default class EditEvent extends React.Component {
     const text = recurrenceOptions.parseString(
       Math.ceil(moment(dbEventJSON.start.dateTime).date() / 7)
     );
-
+    debugger;
     const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(dbEventJSON.start, text);
 
     if (dbEventJSON.isRecurring) {
@@ -387,17 +396,41 @@ export default class EditEvent extends React.Component {
       const selectedSecondRecurrOptions = [];
       if (firstSelected === 1) {
         this.setState({
-          selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, 0]
+          selectedSecondRecurrOption: [
+            0,
+            dbEventRecurrence.weeklyPattern
+              .split(',')
+              .filter((e) => e !== '')
+              .map((e) => parseInt(e, 10)),
+            0,
+            0
+          ]
         });
         // console.log([0, dbEventRecurrence.weeklyPattern, 0, 0])
       } else if (firstSelected === 2) {
         this.setState({
-          selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, monthlySelected, 0]
+          selectedSecondRecurrOption: [
+            0,
+            dbEventRecurrence.weeklyPattern
+              .split(',')
+              .filter((e) => e !== '')
+              .map((e) => parseInt(e, 10)),
+            monthlySelected,
+            0
+          ]
         });
         // console.log([0, dbEventRecurrence.weeklyPattern, monthlySelected, 0])
       } else if (firstSelected === 3) {
         this.setState({
-          selectedSecondRecurrOption: [0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]
+          selectedSecondRecurrOption: [
+            0,
+            dbEventRecurrence.weeklyPattern
+              .split(',')
+              .filter((e) => e !== '')
+              .map((e) => parseInt(e, 10)),
+            0,
+            yearlySelected
+          ]
         });
         // console.log([0, dbEventRecurrence.weeklyPattern, 0, yearlySelected]);
       }
@@ -431,6 +464,7 @@ export default class EditEvent extends React.Component {
       });
     }
 
+    debugger;
     this.setState({
       id: dbEventJSON.id,
       title: dbEventJSON.summary,
@@ -514,9 +548,9 @@ export default class EditEvent extends React.Component {
   };
 
   render() {
-    // All Day option will help out here.
-    let parseStart = '';
-    let parseEnd = '';
+    // // All Day option will help out here.
+    // let parseStart = '';
+    // let parseEnd = '';
 
     const { props, state } = this;
     // console.log(state);
@@ -524,14 +558,14 @@ export default class EditEvent extends React.Component {
     // ----------------------------------- HACKING OUT RECURRENCE UI FIRST ----------------------------------- //
     // const text = recurrenceOptions.parseString(Math.ceil(moment(state.start.dateTime).date() / 7));
     // const secondRecurrOptions = recurrenceOptions.secondRecurrOptions(state.start, text);
-
-    if (state.start.dateTime !== undefined) {
-      parseStart = state.start.dateTime.substring(0, 16);
-      parseEnd = state.end.dateTime.substring(0, 16);
-    } else {
-      parseStart = state.start.date;
-      parseEnd = state.end.date;
-    }
+    debugger;
+    // if (state.start.dateTime !== undefined) {
+    //   parseStart = state.start.dateTime.substring(0, 16);
+    //   parseEnd = state.end.dateTime.substring(0, 16);
+    // } else {
+    //   parseStart = state.start.date;
+    //   parseEnd = state.end.date;
+    // }
 
     const recurrence = [];
     recurrence.push(
@@ -659,14 +693,14 @@ export default class EditEvent extends React.Component {
     );
 
     if (state.thirdRecurrOptions === 'o') {
-      recurrence.push(
-        <Date
-          key="recurrEndDate"
-          dayProps={this.handleChange}
-          name="recurrEndDate"
-          startDate={state.recurrEndDate}
-        />
-      );
+      // recurrence.push(
+      //   <Date
+      //     key="recurrEndDate"
+      //     dayProps={this.handleChange}
+      //     name="recurrEndDate"
+      //     startDate={state.recurrEndDate}
+      //   />
+      // );
       // recurrence.push(
       //   <Time
       //     timeProps={this.handleChange}
@@ -729,62 +763,78 @@ export default class EditEvent extends React.Component {
       );
     }
 
-    return (
-      <div className="edit-container">
-        <form onSubmit={this.handleSubmit} onChange={this.handleChange}>
-          <input name="title" type="text" defaultValue={state.title} />
-          <input
-            name="description"
-            type="text"
-            defaultValue={state.description}
-            placeholder="Event Description"
-          />
-          <div className="flex-container">
-            <Date dayProps={this.handleChange} name="startDay" />
-            <Time
-              timeProps={this.handleChange}
-              currentTime={state.startTime}
+    debugger;
+    if (state.start.dateTime !== undefined && state.start.dateTime !== undefined) {
+      return (
+        <div className="edit-container">
+          <form onSubmit={this.handleSubmit} onChange={this.handleChange}>
+            <input name="title" type="text" defaultValue={state.title} />
+            <input
+              name="description"
+              type="text"
+              defaultValue={state.description}
+              placeholder="Event Description"
+            />
+            <DateTimePicker
+              onChange={this.handleStartChange}
               name="startTime"
-              dropDownTime={dropDownTime('')}
+              value={new Date(state.start.dateTime * 1000)}
             />
             <span>to</span>
-            <Date dayProps={this.handleChange} name="endDay" startDate={state.startDay} />
-            <Time
-              timeProps={this.handleChange}
-              currentTime={state.endTime}
+            <DateTimePicker
+              onChange={this.handleEndChange}
               name="endTime"
-              dropDownTime={dropDownTime(state.startTime)}
+              value={new Date(state.end.dateTime * 1000)}
             />
-            <div style={{ fontFamily: 'system-ui' }}>
-              <label>
-                <Checkbox checked={state.allDay} onChange={this.handleChange} />
-                <span style={{ marginLeft: 8 }}>All Day</span>
-              </label>
+            <div className="flex-container">
+              <div style={{ fontFamily: 'system-ui' }}>
+                <label>
+                  <Checkbox checked={state.allDay} onChange={this.handleChange} />
+                  <span style={{ marginLeft: 8 }}>All Day</span>
+                </label>
+              </div>
             </div>
-          </div>
-          <Location
-            onPlaceChanged={this.handleChange.bind(this)}
-            place={state.place}
-            name="place"
-          />
-          <Attendees
-            onAttendeeChanged={this.handleChange.bind(this)}
-            attendees={state.attendees}
-            name="attendees"
-          />
-          <Conference
-            onConferChanged={this.handleChange.bind(this)}
-            name="conference"
-            conference={state.conference}
-          />
+            <Location
+              onPlaceChanged={this.handleChange.bind(this)}
+              place={state.place}
+              name="place"
+            />
+            <Attendees
+              onAttendeeChanged={this.handleChange.bind(this)}
+              attendees={state.attendees}
+              name="attendees"
+            />
+            <Conference
+              onConferChanged={this.handleChange.bind(this)}
+              name="conference"
+              conference={state.conference}
+            />
 
-          <br />
-          <br />
+            <br />
+            <br />
 
-          {recurrence}
-          {endMenu}
-        </form>
-      </div>
-    );
+            {recurrence}
+            {endMenu}
+          </form>
+        </div>
+      );
+    }
+    return null;
   }
 }
+
+// <Date dayProps={this.handleChange} name="startDay" />
+// <Time
+//   timeProps={this.handleChange}
+//   currentTime={state.start}
+//   name="startTime"
+//   // dropDownTime={dropDownTime('')}
+// />
+// <span>to</span>
+// <Date dayProps={this.handleChange} name="endDay" startDate={state.startDay} />
+// <Time
+//   timeProps={this.handleChange}
+//   currentTime={state.end}
+//   name="endTime"
+//   // dropDownTime={dropDownTime(state.end)}
+// />
