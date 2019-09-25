@@ -3,7 +3,6 @@ import { ofType } from 'redux-observable';
 import { from, of } from 'rxjs';
 import { successStoreAuth } from '../../actions/db/auth';
 import { retrieveStoreEvents } from '../../actions/db/events';
-import getDb from '../../rxdb';
 import * as AuthActionTypes from '../../actions/auth';
 import * as Providers from '../../utils/constants';
 
@@ -62,11 +61,7 @@ export const storeCaldavAuthEpic = (action$) =>
   );
 
 const storeUser = async (user) => {
-  console.log(user);
-  // const db = await getDb();
-  // let userDb = '';
   try {
-    // userDb = await db.users.upsert(user);
     await dbUserActions.insertUserIntoDatabase(user);
   } catch (e) {
     console.log('Store User err: ', e);

@@ -28,7 +28,6 @@ import Attendees from './attendees';
 // import Time from './time';
 import Conference from './conference';
 import Checkbox from './checkbox';
-import getDb from '../../rxdb';
 import { loadClient, editGoogleEvent } from '../../utils/client/google';
 import {
   asyncUpdateExchangeEvent,

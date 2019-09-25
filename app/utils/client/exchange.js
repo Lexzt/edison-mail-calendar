@@ -45,32 +45,12 @@ import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 import * as ExchangeBasics from './exchangebasics';
 
 export const filterExchangeUser = (jsonObj) => ({
-  // personId: md5(jsonObj.username),
-  // originalId: jsonObj.username,
-  // email: jsonObj.username,
-  // providerType: ProviderTypes.EXCHANGE,
-  // password: jsonObj.password
-
   personId: uuidv4(),
   originalId: md5(jsonObj.username),
   email: jsonObj.username,
   providerType: ProviderTypes.EXCHANGE,
   password: jsonObj.password
 });
-
-// export const asyncGetSingleExchangeEvent = async (username, password, url, itemId) => {
-//   try {
-//     const exch = new ExchangeService();
-//     exch.Url = new Uri(url);
-//     exch.Credentials = new ExchangeCredentials(username, password);
-
-//     const appointment = await Appointment.Bind(exch, new ItemId(itemId));
-//     return appointment;
-//   } catch (error) {
-//     console.log('(asyncGetSingleExchangeEvent) Error: ', error);
-//     throw error;
-//   }
-// };
 
 export const asyncCreateExchangeEvent = async (username, password, url, payload) => {
   try {
@@ -95,28 +75,15 @@ export const asyncCreateExchangeEvent = async (username, password, url, payload)
             false
           );
           filteredItem.createdOffline = true;
-
-          // const db = await getDb();
-          // const eventDoc = db.events
-          //   .find()
-          //   .where('originalId')
-          //   .eq(newEvent.Id.UniqueId);
-          // const result = await eventDoc.exec();
-          // const temp = await db.events.find().exec();
           const result = await dbEventActions.getAllEventByOriginalId(newEvent.Id.UniqueId);
 
           if (result.length === 0) {
-            // db.events.upsert(filteredItem);
             await dbEventActions.insertEventsIntoDatabase(filteredItem);
           } else if (result.length === 1) {
-            // await eventDoc.update({
-            //   $set: filteredItem
-            // });
             await dbEventActions.updateEventByOriginalId(newEvent.Id.UniqueId, filteredItem);
           } else {
             console.log('we should really not be here', result);
           }
-
           return postEventSuccess([item], 'EXCHANGE', username);
         },
         (error) => {
@@ -135,7 +102,6 @@ export const asyncUpdateExchangeEvent = async (singleAppointment, user, callback
       .Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToNone)
       .then(
         async (success) => {
-          // console.log(success, asyncGetSingleExchangeEvent);
           // Re-Get the data for EWS to populate the fields, through server side.
           const updatedItem = await ExchangeBasics.asyncGetSingleExchangeEvent(
             user.email,
@@ -143,16 +109,7 @@ export const asyncUpdateExchangeEvent = async (singleAppointment, user, callback
             'https://outlook.office365.com/Ews/Exchange.asmx',
             singleAppointment.Id.UniqueId
           );
-          // console.log(updatedItem);
 
-          // Get the previous copy from our DB through originalId.
-          // const db = await getDb();
-          // const query = db.events
-          //   .findOne()
-          //   .where('originalId')
-          //   .eq(singleAppointment.Id.UniqueId);
-
-          // const localDbCopy = await query.exec();
           const localDbCopy = await dbEventActions.getOneEventByOriginalId(
             singleAppointment.Id.UniqueId
           );
@@ -165,11 +122,6 @@ export const asyncUpdateExchangeEvent = async (singleAppointment, user, callback
             false
           );
           filteredItem.id = localDbCopy.id;
-          // console.log(filteredItem);
-
-          // await query.update({
-          //   $set: filteredItem
-          // });
           await dbEventActions.updateEventByOriginalId(singleAppointment.Id.UniqueId, filteredItem);
           callback();
           return editEventSuccess(updatedItem);
@@ -196,38 +148,16 @@ export const asyncUpdateRecurrExchangeSeries = async (singleAppointment, user, c
             'https://outlook.office365.com/Ews/Exchange.asmx',
             singleAppointment.Id.UniqueId
           );
-
-          // const db = await getDb();
-          // const localDbItems = await db.events
-          //   .find()
-          //   .where('recurringEventId')
-          //   .eq(singleAppointment.Id.UniqueId)
-          //   .exec();
           const localDbItems = await dbEventActions.getAllEventsByRecurringEventId(
             singleAppointment.Id.UniqueId
           );
-          // console.log(localDbItems);
 
-          // // This needs to be atomic, due to how fast we are hitting the database, and performance issues. Fml. :|
-          // // In order to use atomic update for RxDb, it needs to be a function, and cannot use $set.
-          // // TO-DO, change to sequalize
-          // const changeFunction = (oldData) => {
-          //   oldData.summary = updatedItem.Subject;
-          //   return oldData;
-          // };
-
-          // TO-DO, add more values for updating.
           await Promise.all(
-            localDbItems.map(
-              (localRecurringItem) =>
-                dbEventActions.updateEventRecurringEventId(localRecurringItem.recurringEventId, {
-                  summary: updatedItem.Subject
-                })
-              // localRecurringItem.update({
-              //   $set: {
-              //     summary: updatedItem.Subject
-              //   }
-              // });
+            localDbItems.map((localRecurringItem) =>
+              dbEventActions.updateEventRecurringEventId(localRecurringItem.recurringEventId, {
+                // TO-DO, add more values for updating.
+                summary: updatedItem.Subject
+              })
             )
           );
           await callback();
@@ -247,12 +177,6 @@ export const asyncDeleteExchangeEvent = async (singleAppointment, user, callback
   try {
     return await singleAppointment.Delete(DeleteMode.MoveToDeletedItems).then(
       async (success) => {
-        // const db = await getDb();
-        // const query = db.events
-        //   .find()
-        //   .where('originalId')
-        //   .eq(singleAppointment.Id.UniqueId);
-        // await query.remove();
         await dbEventActions.deleteEventByOriginalId(singleAppointment.Id.UniqueId);
         callback();
         return deleteEventSuccess(singleAppointment.Id.UniqueId, user);
@@ -294,14 +218,11 @@ export const asyncGetRecurrAndSingleExchangeEvents = async (exch) => {
   );
 
   const recurrMasterEvents = await ExchangeBasics.asyncGetExchangeRecurrMasterEvents(exch);
-  // console.log(mapOfRecurrEvents, recurrMasterEvents);
   for (const [key, value] of mapOfRecurrEvents) {
     const recurrMasterId = recurrMasterEvents.get(key).Id;
     value.forEach((event) => (event.RecurrenceMasterId = recurrMasterId));
-    // console.log(value[0].RecurrenceMasterId);
     exchangeEventsWithBody.push(...value);
   }
-  // console.log(exchangeEventsWithBody[2].RecurrenceMasterId);
   return exchangeEventsWithBody;
 };
 
@@ -313,9 +234,6 @@ export const parseEwsRecurringPatterns = (
   editedOccurrences
   // eslint-disable-next-line arrow-body-style
 ) => {
-  // console.log(ews);
-  // console.log('');
-  // debugger;
   return {
     id: uuidv4(),
     originalId: id,
@@ -366,9 +284,6 @@ export const parseEwsRecurringPatterns = (
         : ews.DayOfTheWeek !== undefined && ews.DayOfTheWeek !== null
         ? parseEwsWeekDay({ items: [ews.DayOfTheWeek] })
         : '()',
-    // ews.DaysOfTheWeek === undefined || ews.DaysOfTheWeek === null
-    //   ? '()'
-    //   : parseEwsWeekDay(ews.DaysOfTheWeek),
     byMonth: ews.Month === undefined || ews.Month === null ? '()' : parseEwsMonth(ews.Month),
     byMonthDay:
       ews.DayOfMonth === undefined || ews.DayOfMonth === null ? '()' : `(${ews.DayOfMonth})`
@@ -542,9 +457,6 @@ export const createEwsRecurrenceObj = (
   byWeekNo // Used for Weekly/Monthly/Yearly, Repeat on a specified week number. E.g. 1-4, or last.
 ) => {
   let recurrObj;
-  // console.log(DayOfTheWeek[1]);
-  // console.log(DayOfTheWeek[DayOfTheWeek[1]]);
-  debugger;
   switch (firstOption) {
     case 0:
       recurrObj = new Recurrence.DailyPattern();
@@ -560,7 +472,6 @@ export const createEwsRecurrenceObj = (
       }
       break;
     case 2:
-      debugger;
       // We assume EWS only allows one month day due to its API limitation.
       if (secondOption[2] === 0) {
         recurrObj = new Recurrence.MonthlyPattern();
@@ -572,27 +483,22 @@ export const createEwsRecurrenceObj = (
         const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
         recurrObj = new Recurrence.RelativeMonthlyPattern();
         recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
-        // recurrObj.DayOfTheWeek = 1
         recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
       }
       break;
     case 3:
       const parsedMonth = byMonth === '()' ? 0 : parseInt(byMonth.slice(1, -1), 10);
       if (secondOption[3] === 0) {
-        recurrObj = new Recurrence.YearlyPattern();
         // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
+        recurrObj = new Recurrence.YearlyPattern();
         recurrObj.DayOfMonth = byMonthDay === '()' ? 0 : parseInt(byMonthDay.slice(1, -1), 10);
-        // recurrObj.DayOfMonth = 21;
       } else {
         const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
         recurrObj = new Recurrence.RelativeYearlyPattern();
         recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
         recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
-        // recurrObj.DayOfTheWeek = 1;
-        // recurrObj.DayOfTheWeekIndex = 2;
       }
       recurrObj.Month = parsedMonth;
-      // recurrObj.Month = Month.September;
       break;
     default:
       console.log('(createEwsRecurrenceObj) Default 1');

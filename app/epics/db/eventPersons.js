@@ -4,7 +4,6 @@ import { from } from 'rxjs';
 import uuidv4 from 'uuid';
 import { successStoreEventPerson, failureStoreEventPerson } from '../../actions/db/eventPerson';
 import { SUCCESS_STORED_EVENTS } from '../../actions/db/events';
-import getDb from '../../rxdb';
 
 const storeEventPersonEpic = (action$) =>
   action$.pipe(
@@ -19,20 +18,20 @@ const storeEventPersonEpic = (action$) =>
   );
 
 const storeEventPerson = async (payload) => {
-  const db = await getDb();
-  return payload.forEach(async (attendee) => {
-    if (attendee !== undefined) {
-      try {
-        await db.eventpersons.upsert({
-          eventPersonId: uuidv4(),
-          eventId: attendee.id,
-          personId: attendee.email
-        });
-      } catch (e) {
-        return e;
-      }
-    }
-  });
+  // const db = await getDb();
+  // return payload.forEach(async (attendee) => {
+  //   if (attendee !== undefined) {
+  //     try {
+  //       await db.eventpersons.upsert({
+  //         eventPersonId: uuidv4(),
+  //         eventId: attendee.id,
+  //         personId: attendee.email
+  //       });
+  //     } catch (e) {
+  //       return e;
+  //     }
+  //   }
+  // });
 };
 
 export default storeEventPersonEpic;

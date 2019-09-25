@@ -18,19 +18,6 @@ const initialState = {
 // Therefore, I need the function to remove from the new payload if it is missing
 // from the newItems.
 const mergeEvents = (oldEvents, newEvents, user) => {
-  // debugger;
-  // const oldIds = oldEvents.map((item) => item.id);
-  // const newPayload = [...oldEvents];
-
-  // const storeEvents = oldEvents.filter(
-  //   (e) =>
-  //     e.providerType === user.providerType &&
-  //     e.owner === user.email &&
-  //     e.caldavType === user.caldavType
-  // );
-
-  // debugger;
-
   const nonUserEvents = oldEvents.filter(
     (e) =>
       e.providerType !== user.providerType &&
@@ -41,59 +28,7 @@ const mergeEvents = (oldEvents, newEvents, user) => {
   const newPayload = [...nonUserEvents, ...newEvents];
   const newItemsId = newEvents.map((object) => object.id);
   const oldItemsId = oldEvents.map((object) => object.id);
-
-  // newItems.forEach((e) => {
-  //   const user = users.filter(
-  //     (loopUser) =>
-  //       e.providerType === loopUser.providerType &&
-  //       e.owner === loopUser.email &&
-  //       e.caldavType === loopUser.caldavType
-  //   );
-
-  //   // NewItemsId contains a list of events for a specific user,
-  //   // OldItemsId contain the list of all events from the store.
-  //   // So if the database did not give me back a new item
-  //   if (!newItemsId.includes(e.id) && oldItemsId.includes(e.id)) {
-  //     // This means it is a deleted item, so have to splice it
-  //     const pos = newPayload.map((object) => object.id).indexOf(e.id);
-  //     newPayload.splice(pos, 1);
-  //   } else if (oldItemsId.includes(e.id)) {
-  //     // If it is part of the old item list, it is an update
-  //     const pos = newPayload.map((object) => object.id).indexOf(e.id);
-  //     newPayload[pos] = e;
-  //   } else {
-  //     // It is a new item
-  //     newPayload.push(e);
-  //   }
-  // });
   return newPayload;
-
-  // if (storeEvents.length > newItems.length) {
-  //   // When it reach here, it is a deleted item.
-  //   // In order to determine if it is a new or old item
-  //   // I need to find all the events for that user, and find if it is > or <
-  //   storeEvents
-  //     .map((object) => object.id)
-  //     .filter((tempId) => !newItems.map((obj) => obj.id).includes(tempId))
-  //     .forEach((id) => {
-  //       debugger;
-  //       const pos = storeEvents.map((object) => object.id).indexOf(id);
-  //       newPayload.splice(pos, 1);
-  //     });
-  //   debugger;
-  // } else {
-  //   for (const newItem of newItems) {
-  //     if (!oldIds.includes(newItem.id)) {
-  //       // Add it into our calendar events, as it does not exist!
-  //       newPayload.push(newItem);
-  //     } else {
-  //       // Find the previous item, and update it by whatever came in from server.
-  //       const pos = newPayload.map((object) => object.id).indexOf(newItem.id);
-  //       newPayload[pos] = newItem;
-  //     }
-  //   }
-  // }
-  // return newPayload;
 };
 
 const storeEvents = (oldEvents, newEvents, users) => {
@@ -129,26 +64,6 @@ const storeEvents = (oldEvents, newEvents, users) => {
 
   newEvents.forEach((e) => {
     newPayload.push(e);
-
-    // const user = users.filter(
-    //   (loopUser) =>
-    //     e.providerType === loopUser.providerType &&
-    //     e.owner === loopUser.email &&
-    //     e.caldavType === loopUser.caldavType
-    // );
-
-    // // NewItemsId contains a list of events for a specific user,
-    // // OldItemsId contain the list of all events from the store.
-    // // So if the database did not give me back a new item
-    // if (!oldUserEventsId.includes(e.id)) {
-    //   // This means it is a new item
-    //   newPayload.push(e);
-    // } else {
-    //   newPayload.push(e);
-    //   // If it is part of the old item list, it is an update
-    //   const pos = newPayload.map((object) => object.id).indexOf(e.id);
-    //   newPayload[pos] = e;
-    // }
   });
 
   userEvents.forEach((v, k) => {
@@ -163,51 +78,18 @@ const storeEvents = (oldEvents, newEvents, users) => {
         if (oldUserEventsId.includes(e.id)) {
           newPayload.push(e);
         }
-        // debugger;
-        // const pos = newPayload.map((object) => object.id).indexOf(e.id);
-        // newPayload.splice(pos, 1);
       }
     });
   });
 
-  // debugger;
   console.log(newPayload);
   return newPayload;
-
-  // if (storeEvents.length > newItems.length) {
-  //   // When it reach here, it is a deleted item.
-  //   // In order to determine if it is a new or old item
-  //   // I need to find all the events for that user, and find if it is > or <
-  //   storeEvents
-  //     .map((object) => object.id)
-  //     .filter((tempId) => !newItems.map((obj) => obj.id).includes(tempId))
-  //     .forEach((id) => {
-  //       debugger;
-  //       const pos = storeEvents.map((object) => object.id).indexOf(id);
-  //       newPayload.splice(pos, 1);
-  //     });
-  //   debugger;
-  // } else {
-  //   for (const newItem of newItems) {
-  //     if (!oldIds.includes(newItem.id)) {
-  //       // Add it into our calendar events, as it does not exist!
-  //       newPayload.push(newItem);
-  //     } else {
-  //       // Find the previous item, and update it by whatever came in from server.
-  //       const pos = newPayload.map((object) => object.id).indexOf(newItem.id);
-  //       newPayload[pos] = newItem;
-  //     }
-  //   }
-  // }
-  // return newPayload;
 };
 
 const syncEvents = (oldEvents, newEvents) => {
   const newPayload = [...oldEvents];
-  // debugger;
   for (const newEvent of newEvents) {
     const pos = newPayload.map((object) => object.id).indexOf(newEvent.event.id);
-    // console.log(pos);
     switch (newEvent.type) {
       case 'create':
         newPayload.push(newEvent.event);
@@ -238,9 +120,7 @@ export default function eventsReducer(state = initialState, action) {
       return Object.assign({}, state, { calEvents: allEvents });
     }
     case SUCCESS_STORED_EVENTS: {
-      // debugger;
       const newEvents = storeEvents(state.calEvents, action.payload.resp, action.payload.users);
-      // debugger;
       return Object.assign({}, state, { calEvents: newEvents });
     }
 

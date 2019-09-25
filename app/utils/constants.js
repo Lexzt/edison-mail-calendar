@@ -2,7 +2,6 @@ import moment from 'moment';
 import md5 from 'md5';
 import { ExtendedPropertyDefinition, StringHelper } from 'ews-javascript-api';
 import uuidv4 from 'uuid';
-import db from '../rxdb';
 
 export const OUTLOOK = 'OUTLOOK';
 export const GOOGLE = 'GOOGLE';

@@ -38,7 +38,6 @@ export const asyncGetAllExchangeEvents = async (exch) => {
   const results = [];
 
   function loopEvents(response) {
-    // console.log(response);
     exchangeEvents = exchangeEvents.concat(response.Items);
   }
   const a = moment.unix(1451653200).add(23, 'month');
@@ -62,7 +61,6 @@ export const asyncGetAllExchangeEvents = async (exch) => {
     prev = prev.add(23, 'month');
   }
   await Promise.all(results);
-  // console.log(exchangeEvents);
   return exchangeEvents;
 };
 
@@ -94,8 +92,7 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
   let view;
   const exchangeEvents = new Map();
   const results = [];
-
-  // const db = await getDb();
+  const debug = false;
 
   try {
     await exch
@@ -131,7 +128,6 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
         recurrence[0].Responses.filter((resp) => resp.errorCode === 0)
           .map((resp) => resp.Item)
           .map(async (event) => {
-            // console.log(event);
             const dbRecurrencePattern = parseEwsRecurringPatterns(
               event.Id.UniqueId,
               event.Recurrence,
@@ -139,17 +135,9 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
               event.DeletedOccurrences,
               event.ModifiedOccurrences
             );
-            // console.log(dbRecurrencePattern);
             exchangeEvents.set(event.ICalUid, event);
 
-            promiseArr.push(
-              // db.recurrencepatterns
-              //   .findOne()
-              //   .where('originalId')
-              //   .eq(event.Id.UniqueId)
-              //   .exec()
-              dbRpActions.getOneRpByOId(event.Id.UniqueId)
-            );
+            promiseArr.push(dbRpActions.getOneRpByOId(event.Id.UniqueId));
           });
         return Promise.all(promiseArr);
       })
@@ -159,7 +147,9 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
             .filter((dbRecurrencePattern) => dbRecurrencePattern !== null)
             .filter((dbRecurrencePattern) => dbRecurrencePattern.iCalUID === eventId);
 
-          // console.log(prevDbObj, event, eventId, existInDb);
+          if (debug) {
+            console.log(prevDbObj, event, eventId, existInDb);
+          }
           if (prevDbObj.length > 0) {
             if (prevDbObj.length > 1) {
               console.log('Duplicated database issue for recurrence pattern. Check please.');
@@ -172,38 +162,13 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
               event.DeletedOccurrences,
               event.ModifiedOccurrences
             );
+            if (debug) {
+              console.log(recurrencePattern);
+              debugger;
+            }
 
-            // const query = db.recurrencepatterns
-            //   .findOne()
-            //   .where('originalId')
-            //   .eq(prevDbObj[0].originalId);
-
-            console.log(recurrencePattern);
-            debugger;
-
-            // results.push(
-            //   query.update({
-            //     $set: {
-            //       recurringTypeId: recurrencePattern.recurringTypeId,
-            //       originalId: recurrencePattern.originalId,
-            //       freq: recurrencePattern.freq,
-            //       interval: recurrencePattern.interval,
-            //       until: recurrencePattern.until,
-            //       exDates: recurrencePattern.exDates,
-            //       recurrenceIds: recurrencePattern.recurrenceIds,
-            //       modifiedThenDeleted: recurrencePattern.modifiedThenDeleted,
-            //       weeklyPattern: recurrencePattern.weeklyPattern,
-            //       numberOfRepeats: recurrencePattern.numberOfRepeats,
-            //       iCalUID: recurrencePattern.iCalUID,
-            //       byWeekNo: recurrencePattern.byWeekNo,
-            //       byWeekDay: recurrencePattern.byWeekDay,
-            //       byMonth: recurrencePattern.byMonth,
-            //       byMonthDay: recurrencePattern.byMonthDay
-            //     }
-            //   })
             results.push(
               dbRpActions.updateRpByOid(prevDbObj[0].originalId, {
-                // $set: {
                 recurringTypeId: recurrencePattern.recurringTypeId,
                 originalId: recurrencePattern.originalId,
                 freq: recurrencePattern.freq,
@@ -219,7 +184,6 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
                 byWeekDay: recurrencePattern.byWeekDay,
                 byMonth: recurrencePattern.byMonth,
                 byMonthDay: recurrencePattern.byMonthDay
-                // }
               })
             );
           } else {
@@ -230,7 +194,6 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
               event.DeletedOccurrences,
               event.ModifiedOccurrences
             );
-            // results.push(db.recurrencepatterns.upsert(recurrencePattern));
             results.push(dbRpActions.insertOrUpdateRp(recurrencePattern));
           }
         });
@@ -240,8 +203,5 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
   }
 
   await Promise.all(results);
-  // const dbRecurrPatterns = await db.recurrencepatterns.find().exec();
-  const dbRecurrPatterns = await dbRpActions.getAllRp();
-  // console.log(dbRecurrPatterns.map((e) => e.toJSON()), exchangeEvents);
   return exchangeEvents;
 };

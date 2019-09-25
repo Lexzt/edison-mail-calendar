@@ -68,7 +68,6 @@ import {
   endPollingEvents,
   EDIT_EVENT_BEGIN
 } from '../actions/events';
-import getDb from '../rxdb';
 import * as Credentials from '../utils/Credentials';
 import ServerUrls from '../utils/serverUrls';
 import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
@@ -279,10 +278,6 @@ const postEventsExchange = (payload) =>
           const item = await Item.Bind(exch, newEvent.Id);
 
           // Update database by filtering the new item into our schema.
-          // const db = await getDb();
-          // await db.events.upsert(
-          //   Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
-          // );
           await dbEventActions.insertEventsIntoDatabase(
             Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
           );
@@ -291,7 +286,6 @@ const postEventsExchange = (payload) =>
         // On error
         async (error) => {
           // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
-          const db = await getDb();
           const obj = {
             uniqueId: uuidv4(),
             eventId: uuidv4(),
@@ -310,9 +304,7 @@ const postEventsExchange = (payload) =>
           savedObj.createdOffline = true;
 
           // Append pending actions for retrying and events for UI display.
-          // await db.events.upsert(savedObj);
           await dbEventActions.insertEventsIntoDatabase(savedObj);
-          // await db.pendingactions.upsert(obj);
           await dbPendingActionActions.insertPendingActionIntoDatabase(obj);
           throw error;
         }
@@ -346,8 +338,6 @@ const postEventsCalDav = async (payload) => {
     'https://caldav.calendar.yahoo.com/dav/oj242dvo2jivt6lfbyxqfherdqulvbiaprtaw5kv/Calendar/Fong%20Zhi%20Zhong/';
 
   const newETag = uuidv1();
-  // console.log(caldavUrl, newETag);
-
   const { data } = payload;
 
   // Builds additional fields that are missing specifically for caldav.
@@ -370,9 +360,6 @@ const postEventsCalDav = async (payload) => {
     const updatedId = uuidv1();
     const updatedUid = uuidv1();
 
-    // data.isRecurring = true;
-
-    debugger;
     // eslint-disable-next-line no-underscore-dangle
     const jsonRecurr = ICAL.Recur._stringToData(data.rrule);
 
@@ -441,32 +428,10 @@ const postEventsCalDav = async (payload) => {
     payload.auth.url,
     payload.auth.caldavType
   );
-  // const req = dav.request.basic({
-  //   method: 'GET'
-  // });
-  // if (addResult.status !== 201) {
-  //   console.error('XHR Request error!!');
-  //   return {};
-  // }
-  // const newData = await xhrObject
-  //   .send(req, caldavUrl + newETag + '.ics')
-  //   .then((response) => console.log(response));
-
-  // debugger;
 
   // Etag is a real problem here LOL. This does NOT WORK
   const justCreatedEvent = allEvents.filter((e) => e.originalId === data.originalId)[0];
-  // data.etag = justCreatedEvent.etag;
-  // data.caldavUrl = justCreatedEvent.caldavUrl;
-
-  // If it reaches here, it means we managed to push the object into the provider!
-  // Update database by filtering the new item into our schema.
-  // const db = await getDb();
-
-  // // Add it to the database
-  // const appendedResult = await db.events.upsert(data);
   const appendedResult = await dbEventActions.insertEventsIntoDatabase(justCreatedEvent);
-  debugger;
   return allEvents;
 };
 // #endregion
@@ -478,7 +443,6 @@ export const clearAllEventsEpics = (action$) =>
     map(() => {
       localStorage.clear();
       RxDB.removeDatabase('eventsdb', 'websql');
-      // cleardb();
       dbGeneralActions.cleardb();
       return clearAllEventsSuccess();
     })
@@ -530,13 +494,9 @@ const syncEvents = async (action) => {
 
         // However, we need to get all items from database too, as created offline events
         // does not exist on the server yet.
-        // const db = await getDb();
-        // const dbEvents = await db.events.find().exec();
         const dbEvents = await dbEventActions.getAllEvents();
         const updatedEvents = [];
         const listOfPriomises = [];
-
-        console.log(appts);
 
         for (const appt of appts) {
           const dbObj = dbEvents.filter((dbEvent) => dbEvent.originalId === appt.Id.UniqueId);
@@ -573,17 +533,7 @@ const syncEvents = async (action) => {
               // We got an issue.
               // This means we have to write a query to update based off the filteredEvent data
               // but keep the primary key.
-
               filteredEvent.id = dbEvent.id;
-              // const query = db.events
-              //   .findOne()
-              //   .where('originalId')
-              //   .eq(filteredEvent.originalId);
-              // listOfPriomises.push(
-              //   query.update({
-              //     $set: filteredEvent
-              //   })
-              // );
               listOfPriomises.push(
                 dbEventActions.updateEventByOriginalId(filteredEvent.originalId, filteredEvent)
               );
@@ -606,12 +556,6 @@ const syncEvents = async (action) => {
             event: Providers.filterEventIntoSchema(dbEvent),
             type: 'delete'
           });
-
-          // const query = db.events
-          //   .find()
-          //   .where('originalId')
-          //   .eq(dbEvent.originalId);
-          // listOfPriomises.push(query.remove());
           listOfPriomises.push(dbEventActions.deleteEventByOriginalId(dbEvent.originalId));
         }
         await Promise.all(listOfPriomises);
@@ -624,9 +568,6 @@ const syncEvents = async (action) => {
     case Providers.CALDAV:
       try {
         const events = await asyncGetAllCalDavEvents(user.username, user.password, user.url);
-
-        // const db = await getDb();
-        // const dbEvents = await db.events.find().exec();
         const dbEvents = await dbEventActions.getAllEvents();
         const updatedEvents = [];
         const listOfPriomises = [];
@@ -648,7 +589,6 @@ const syncEvents = async (action) => {
           if (dbObj.length === 0) {
             // New object from server, add and move on to next one.
             updatedEvents.push({ event: filteredEvent, type: 'create' });
-            // listOfPriomises.push(db.events.upsert(filteredEvent));
             listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
           } else {
             // Sync old objects and compare in case.
@@ -658,19 +598,6 @@ const syncEvents = async (action) => {
             // Also, the damn updated field is never updated. Wtf.
             updatedEvents.push({ event: filteredEvent, type: 'update' });
             filteredEvent.id = dbEvent.id;
-
-            // const query = db.events
-            //   .findOne()
-            //   .where('originalId')
-            //   .eq(filteredEvent.originalId)
-            //   .where('start.dateTime')
-            //   .eq(event.start.dateTime);
-
-            // listOfPriomises.push(
-            //   query.update({
-            //     $set: filteredEvent
-            //   })
-            // );
             listOfPriomises.push(
               dbEventActions.updateEventByiCalUIDandStartDateTime(
                 filteredEvent.iCalUID,
@@ -680,7 +607,7 @@ const syncEvents = async (action) => {
             );
           }
         }
-        debugger;
+
         // Check for deleted events, as if it not in the set, it means that it could be deleted.
         // In database, but not on server, as we are taking server, we just assume delete.
         for (const dbEvent of dbEvents) {
@@ -700,12 +627,6 @@ const syncEvents = async (action) => {
             event: Providers.filterEventIntoSchema(dbEvent),
             type: 'delete'
           });
-
-          // const query = db.events
-          //   .find()
-          //   .where('originalId')
-          //   .eq(dbEvent.originalId);
-          // listOfPriomises.push(query.remove());
           listOfPriomises.push(
             dbEventActions.deleteEventByiCalUIDandStartDateTime(
               dbEvent.originalId,
@@ -714,8 +635,6 @@ const syncEvents = async (action) => {
           );
         }
         await Promise.all(listOfPriomises);
-        console.log(updatedEvents);
-        debugger;
         return updatedEvents;
       } catch (e) {
         console.log(e);
@@ -846,10 +765,7 @@ const handlePendingActions = async (users, actions) => {
   // Returns multiple action due to filtering on UI selector, updates specific providers only, not all of them.
   const resultingAction = noDuplicateUsers.map((indivAcc) => retrieveStoreEvents(indivAcc.v.user));
 
-  // // Unsure if needed due to if all fail to send
-  // if (resultingAction.length === 0) {
-  //   return [];
-  // }
+  // Unsure if needed due to if all fail to send
   return resultingAction;
 };
 
@@ -881,19 +797,9 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
     // Only if success
     if (result.type === 'POST_EVENT_SUCCESS') {
       // Remove the pending action first
-      // const query = db.pendingactions
-      //   .find()
-      //   .where('eventId')
-      //   .eq(localObj.originalId);
-      // await query.remove();
       await dbPendingActionActions.deletePendingActionById(localObj.originalId);
 
-      // // Remove the temp event if it exists. For newly created events.
-      // const removeFromEvents = db.events
-      //   .find()
-      //   .where('originalId')
-      //   .eq(localObj.originalId);
-      // await removeFromEvents.remove();
+      // Remove the temp event if it exists. For newly created events.
       await dbEventActions.deleteEventByOriginalId(localObj.originalId);
 
       return result;
@@ -941,12 +847,6 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
               });
 
               if (result.type === 'EDIT_EVENT_SUCCESS') {
-                // const query = db.pendingactions
-                //   .find()
-                //   .where('eventId')
-                //   .eq(filteredServerObj.originalId);
-                // await query.remove();
-
                 await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
               }
               return result;
@@ -956,11 +856,6 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
               });
 
               if (result.type === 'DELETE_EVENT_SUCCESS') {
-                // const query = db.pendingactions
-                //   .find()
-                //   .where('eventId')
-                //   .eq(filteredServerObj.originalId);
-                // await query.remove();
                 await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
               }
               return result;
@@ -974,35 +869,16 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
           break;
       }
     } else if (dateIsBefore) {
-      // console.log(
-      //   'Handle merging here, but for now, discard all pending actions and keep server'
-      // );
-
       // Keep server
-      // await db.events.upsert(filteredServerObj);
       await dbEventActions.insertEventsIntoDatabase(filteredServerObj);
-
-      // const query = db.pendingactions
-      //   .find()
-      //   .where('eventId')
-      //   .eq(filteredServerObj.originalId);
-      // await query.remove();
       await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
 
       return editEventSuccess(serverObj);
     }
   } else {
     // Keep server
-    // db.events.upsert(filteredServerObj);
     await dbEventActions.insertEventsIntoDatabase(filteredServerObj);
-
-    // const query = db.pendingactions
-    //   .find()
-    //   .where('eventId')
-    //   .eq(filteredServerObj.originalId);
-    // await query.remove();
     await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
-
     return editEventSuccess(serverObj);
   }
 };

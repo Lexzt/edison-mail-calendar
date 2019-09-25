@@ -4,11 +4,8 @@ import * as dav from 'dav'; // caldav library
 import * as ProviderTypes from '../constants';
 import ServerUrls from '../serverUrls';
 import * as PARSER from '../parser';
-// import getDb from '../../rxdb';
 import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 import * as caldavBasics from './caldavbasics';
-
-// const dav = require('dav');
 
 const getCalDavTypeFromURL = (url) => {
   switch (url) {
@@ -24,14 +21,6 @@ const getCalDavTypeFromURL = (url) => {
 };
 
 export const filterCaldavUser = (jsonObj, url) => ({
-  // personId: md5(jsonObj.username),
-  // originalId: jsonObj.username,
-  // email: jsonObj.username,
-  // providerType: ProviderTypes.CALDAV,
-  // password: jsonObj.password,
-  // url,
-  // caldavType: getCalDavTypeFromURL(url)
-
   personId: uuidv4(),
   originalId: md5(jsonObj.username),
   email: jsonObj.username,
@@ -42,10 +31,9 @@ export const filterCaldavUser = (jsonObj, url) => ({
 });
 
 export const asyncGetAllCalDavEvents = async (username, password, url, caldavType) => {
+  const debug = false;
   const resp = await caldavBasics.getCaldavAccount(username, password, url, caldavType);
-  debugger;
 
-  // const db = await getDb();
   // This breaks due to how our database works, with id being a uniqid.
   // so we need find it first then upsert. Yay, no checks again.
   try {
@@ -56,8 +44,6 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
     // const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
-
-    debugger;
 
     const promises = [];
     // This is broke, upsert makes no sense atm.
@@ -76,11 +62,6 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
 
     const prevRPs = await Promise.all(
       recurrenceEvents.map((recurrenceEvent) =>
-        // db.recurrencepatterns
-        //   .findOne()
-        //   .where('originalId')
-        //   .eq(recurrenceEvent.originalId)
-        //   .exec()
         dbRpActions.getOneRpByOId(recurrenceEvent.originalId)
       )
     );
@@ -88,47 +69,10 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     let i = 0;
     prevRPs.forEach((prevRP) => {
       const newRP = recurrenceEvents[i];
-      console.log(newRP, prevRP);
-      // debugger;
+      // console.log(newRP, prevRP);
       if (prevRP === null) {
-        // promises.push(db.recurrencepatterns.upsert(newRP));
         promises.push(dbRpActions.insertOrUpdateRp(newRP));
       } else {
-        // console.log(prevRP, newRP);
-        // promises.push(
-        //   db.recurrencepatterns
-        //     .findOne()
-        //     .where('originalId')
-        //     .eq(prevRP.originalId)
-        //     .update({
-        //       $set: {
-        //         id: prevRP.id,
-        //         originalId: newRP.originalId,
-        //         freq: newRP.freq,
-        //         interval: newRP.interval,
-        //         until: newRP.until,
-        //         exDates: newRP.exDates,
-        //         recurrenceIds: newRP.recurrenceIds,
-        //         modifiedThenDeleted: newRP.modifiedThenDeleted,
-        //         numberOfRepeats: newRP.numberOfRepeats,
-        //         isCount: newRP.isCount,
-        //         iCalUID: prevRP.iCalUID,
-        //         wkSt: newRP.wkSt,
-        //         byMonth: newRP.byMonth,
-        //         byMonthDay: newRP.byMonthDay,
-        //         byYearDay: newRP.byYearDay,
-        //         byWeekNo: newRP.byWeekNo,
-        //         byWeekDay: newRP.byWeekDay,
-        //         weeklyPattern: newRP.weeklyPattern,
-        //         bySetPos: newRP.bySetPos,
-        //         byHour: newRP.byHour,
-        //         byMinute: newRP.byMinute,
-        //         bySecond: newRP.bySecond,
-        //         byEaster: newRP.byEaster
-        //       }
-        //     })
-        // );
-
         promises.push(
           dbRpActions.updateRpByOid(prevRP.originalId, {
             id: prevRP.id,
@@ -161,18 +105,9 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     });
 
     const results = await Promise.all(promises);
-    debugger;
-    const wtf = await dbRpActions.getAllRp();
-    console.log(wtf);
-    debugger;
     const expanded = await PARSER.expandRecurEvents(
       flatFilteredEvents.map((calEvent) => calEvent.eventData)
     );
-    // console.log(
-    //   expanded,
-    //   flatFilteredEvents,
-    //   flatFilteredEvents.map((calEvent) => calEvent.eventData)
-    // );
     const finalResult = [
       ...expanded.filter((e) => e.isRecurring === true),
       ...flatFilteredEvents
@@ -183,8 +118,10 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
       e.owner = username;
       e.caldavType = caldavType;
     });
-    debugger;
-    console.log(finalResult);
+    if (debug) {
+      console.log(finalResult);
+      debugger;
+    }
     return finalResult;
   } catch (e) {
     throw e;

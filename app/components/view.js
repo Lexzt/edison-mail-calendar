@@ -1,17 +1,10 @@
 import React, { Children, Component } from 'react';
-// import BigCalendar from 'react-big-calendar';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import Modal from 'react-modal';
-import './view.css';
-// import './providers.scss';
-import { ExchangeService, Uri, ExchangeCredentials, DateTime } from 'ews-javascript-api';
-
 import RRule from 'rrule';
-// import * as icalTookKit from 'ical-toolkit';
 
-import getDb from '../rxdb';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
 import serverUrls from '../utils/serverUrls';
@@ -23,7 +16,6 @@ import {
   YAHOO_USERNAME,
   YAHOO_PASSWORD
 } from '../utils/Credentials';
-
 import * as ServerColors from '../utils/colors';
 
 import UserBlock from '../sequelizeDB/schemas/users';
@@ -76,157 +68,19 @@ export default class View extends React.Component {
   }
 
   componentWillMount() {
-    // For the modal third party library
     Modal.setAppElement('body');
   }
 
   async componentDidMount() {
-    // // Code here for when testing different servers.
-    // const userName = 'e0176993@u.nus.edu';
-    // const password = 'Ggrfw4406@nus41';
-
-    // const exch = new ExchangeService();
-    // exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
-    // exch.Credentials = new ExchangeCredentials(userName, password);
-
-    // const rrule = new RRule({
-    //   freq: RRule.WEEKLY,
-    //   dtstart: new Date(Date.UTC(2020, 2, 2, 12, 0, 0)),
-    //   until: new Date(Date.UTC(2020, 2, 17, 6, 59, 0)),
-    //   tzid: 'America/Los_Angeles',
-    //   count: 3,
-    //   interval: 1
-    // });
-
-    // const builder = icalTookKit.createIcsFileBuilder();
-    // builder.calname = 'Yo Cal';
-    // builder.tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    // const startDate = new Date();
-    // const endDate = new Date();
-    // endDate.setHours(new Date().getHours() + 1);
-
-    // // Add events
-    // builder.events.push({
-    //   // Event start time, Required: type Date()
-    //   start: startDate,
-
-    //   // Event end time, Required: type Date()
-    //   end: endDate,
-
-    //   // transp. Will add TRANSP:OPAQUE to block calendar.
-    //   transp: 'OPAQUE',
-
-    //   // Event summary, Required: type String
-    //   summary: 'Test Event'
-    // });
-
-    // builder.additionalTags = {
-    //   'X-APPLE-TRAVEL-ADVISORY-BEHAVIOR': 'AUTOMATIC'
-    // };
-
-    // // Try to build
-    // const icsFileContent = builder.toString();
-    // console.log(icsFileContent);
-    // debugger;
-
-    const rrule = new RRule({
-      freq: RRule.WEEKLY,
-      dtstart: new Date(Date.UTC(2020, 2, 7, 0, 0, 0)),
-      count: 4,
-      interval: 1
-    });
-    console.log(rrule.all());
-    // debugger;
-
     const { props } = this;
-    // props.beginPendingActions(props.providers);
 
-    // const db = await getDb();
-
-    // const allRP = await db.recurrencepatterns.find().exec();
-    // console.log(allRP.map((rp) => rp.toJSON()));
-    // const allE = await db.events.find().exec();
-    // console.log(allE.map((rp) => rp.toJSON()));
-
-    // const data = await EventBlock.findAll();
+    // const qwe = await UserBlock.findAll();
+    // console.log(qwe.map((e) => e.toJSON()));
+    // const newdata = await EventBlock.findAll();
+    // console.log(newdata.map((e) => e.toJSON()));
+    // const data = await RpBlock.findAll();
     // console.log(data.map((e) => e.toJSON()));
 
-    // await EventBlock.upsert({
-    //   // attendee: [],
-    //   caldavType: 'ICLOUD',
-    //   caldavUrl:
-    //     'https://caldav.icloud.com/10224008189/calendars/home/501A4D8E-D657-446D-A252-351F586F64C8.ics',
-    //   calendarId: 'https://caldav.icloud.com/10224008189/calendars/home/',
-    //   created: '2019-08-14T20:40:49.000Z',
-    //   description: '',
-    //   end: { dateTime: '2019-08-15T20:00:00.000Z', timezone: 'timezone' },
-    //   etag: 'C=120@U=aaab6e17-1599-4eea-88bc-f6c4bee62337',
-    //   iCALString: '',
-    //   iCalUID: '501A4D8E-D657-446D-A252-351F586F64C8',
-    //   id: '0e8c562c-e781-492e-a7e0-d0cdf1abeff8',
-    //   isRecurring: true,
-    //   location: '',
-    //   originalId: '501A4D8E-D657-446D-A252-351F586F64C8',
-    //   originalStartTime: { dateTime: '2019-08-14T19:00:00.000Z', timezone: 'timezone' },
-    //   owner: 'fongzhizhong@gmail.com',
-    //   providerType: 'CALDAV',
-    //   recurringEventId: '501A4D8E-D657-446D-A252-351F586F64C8',
-    //   start: { dateTime: '2019-08-15T19:00:00.000Z', timezone: 'timezone' },
-    //   summary: '(iCloud) Daily 5 times',
-    //   updated: '1970-01-01T00:00:00.000Z'
-    // });
-
-    const qwe = await UserBlock.findAll();
-    console.log(qwe.map((e) => e.toJSON()));
-    const newdata = await EventBlock.findAll();
-    console.log(newdata.map((e) => e.toJSON()));
-    const data = await RpBlock.findAll();
-    console.log(data.map((e) => e.toJSON()));
-    // debugger;
-
-    // await RpBlock.upsert({
-    //   byEaster: '',
-    //   byHour: '',
-    //   byMinute: '',
-    //   byMonth: '',
-    //   byMonthDay: '',
-    //   bySecond: '',
-    //   bySetPos: '',
-    //   byWeekDay: '()',
-    //   byWeekNo: '()',
-    //   byYearDay: '',
-    //   exDates: '',
-    //   freq: 'DAILY',
-    //   iCALString: 'FREQ=DAILY;COUNT=3',
-    //   iCalUID: '561EB503-D584-47F8-AA8C-A9CFFD36BBD7',
-    //   id: '6fbd3c45-2753-43ba-9b4b-a74e0bf9cbea',
-    //   interval: 1,
-    //   modifiedThenDeleted: false,
-    //   numberOfRepeats: 3,
-    //   originalId: '561EB503-D584-47F8-AA8C-A9CFFD36BBD7',
-    //   // recurrenceIds: [],
-    //   recurringTypeId: '2019-08-14T12:00:00'
-    //   // weeklyPattern: []
-    // });
-    // const rpdata = await RpBlock.findAll();
-    // console.log(rpdata.map((e) => e.toJSON()));
-
-    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'test');
-    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'again');
-
-    // const uprpdata = await RpBlock.findAll();
-    // console.log(uprpdata.map((e) => e.toJSON()));
-
-    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'test');
-    // await dbRpOperations.addExDateByiCalUID('561EB503-D584-47F8-AA8C-A9CFFD36BBD7', 'again');
-
-    // const again = await RpBlock.findAll();
-    // console.log(again.map((e) => e.toJSON()));
-
-    // db.users
-    //   .find()
-    //   .exec()
     UserBlock.findAll().then((providerUserData) => {
       providerUserData.forEach((singleProviderUserData) => {
         if (singleProviderUserData.providerType === ProviderTypes.EXCHANGE) {
@@ -361,7 +215,6 @@ export default class View extends React.Component {
   };
 
   handleEventClick = (event) => {
-    console.log(event);
     this.setState({
       isShowEvent: true,
       currentEvent: event,
@@ -681,22 +534,6 @@ export default class View extends React.Component {
           <i className="material-icons left">close</i>Clear all Events
         </a>
       </div>
-      // <a
-      //   role="button"
-      //   tabIndex="0"
-      //   className="waves-effect waves-light btn"
-      //   onClick={() => props.beginRetrieveCalDavEvents()}
-      // >
-      //   <i className="material-icons left">cloud_download</i>Populate Caldav
-      // </a>
-      // <a
-      //   role="button"
-      //   tabIndex="0"
-      //   className="waves-effect waves-light btn"
-      //   onClick={() => props.resetCaldavAccount()}
-      // >
-      //   <i className="material-icons left">cloud_download</i>Get Caldav
-      // </a>
     );
   };
 
