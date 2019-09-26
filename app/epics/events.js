@@ -10,7 +10,6 @@ import {
 import { ofType } from 'redux-observable';
 import { from, iif, of, interval, throwError } from 'rxjs';
 import { Client } from '@microsoft/microsoft-graph-client';
-import * as RxDB from 'rxdb';
 import {
   Appointment,
   DateTime,
@@ -442,7 +441,6 @@ export const clearAllEventsEpics = (action$) =>
     ofType(CLEAR_ALL_EVENTS),
     map(() => {
       localStorage.clear();
-      RxDB.removeDatabase('eventsdb', 'websql');
       dbGeneralActions.cleardb();
       return clearAllEventsSuccess();
     })

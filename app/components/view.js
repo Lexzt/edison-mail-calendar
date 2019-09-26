@@ -24,6 +24,7 @@ import RpBlock from '../sequelizeDB/schemas/recurrencePatterns';
 import * as dbRpOperations from '../sequelizeDB/operations/recurrencepatterns';
 
 const dav = require('dav');
+const uuidv1 = require('uuid/v1');
 
 const localizer = momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(Calendar);
@@ -76,10 +77,48 @@ export default class View extends React.Component {
 
     // const qwe = await UserBlock.findAll();
     // console.log(qwe.map((e) => e.toJSON()));
-    // const newdata = await EventBlock.findAll();
-    // console.log(newdata.map((e) => e.toJSON()));
-    // const data = await RpBlock.findAll();
-    // console.log(data.map((e) => e.toJSON()));
+    const eventData = await EventBlock.findAll();
+    console.log(eventData.map((e) => e.toJSON()));
+    const rpData = await RpBlock.findAll();
+    console.log(rpData.map((e) => e.toJSON()));
+
+    // // THIS UPLOADS ALL RECURRING ICLOUD EVENTS TO YAHOO MAIL
+    // const uniqueEventiCalStrings = rpData
+    //   .map((rp) => rp.iCalUID)
+    //   .map((iCalUID) => eventData.filter((event) => event.iCalUID === iCalUID)[0])
+    //   .filter((event) => event !== undefined)
+    //   .map((event) => event.toJSON().iCALString);
+
+    // debugger;
+    // // Parse user information from account layer to dav object.
+    // const xhrObject = new dav.transport.Basic(
+    //   new dav.Credentials({
+    //     username: YAHOO_USERNAME,
+    //     password: YAHOO_PASSWORD
+    //   })
+    // );
+
+    // const calendar = new dav.Calendar();
+    // const caldavUrl =
+    //   'https://caldav.calendar.yahoo.com/dav/oj242dvo2jivt6lfbyxqfherdqulvbiaprtaw5kv/Calendar/Fong%20Zhi%20Zhong/';
+    // calendar.url = caldavUrl;
+
+    // debugger;
+    // uniqueEventiCalStrings
+    //   .map((string) => string.replace(/ICloud/g, 'Yahoo'))
+    //   .map((iCalString) => {
+    //     debugger;
+    //     const newETag = uuidv1();
+    //     const addCalendarObject = {
+    //       data: iCalString,
+    //       filename: `${newETag}.ics`,
+    //       xhr: xhrObject
+    //     };
+    //     const addResult = dav.createCalendarObject(calendar, addCalendarObject);
+    //     return addResult;
+    //   });
+    // const results = await Promise.all(uniqueEventiCalStrings);
+    // debugger;
 
     UserBlock.findAll().then((providerUserData) => {
       providerUserData.forEach((singleProviderUserData) => {

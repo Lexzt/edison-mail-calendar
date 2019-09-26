@@ -509,9 +509,9 @@ export const parseRecurrence = (pattern, recurMasterEvent) => {
 
   const allDates = ruleSet.all();
   if (allDates.length <= 0) {
-    console.log('IDK WHAT THE FK IS GOING ON ANYMORE');
+    console.log('Inspect what is going on in the future');
     console.log(pattern, recurMasterEvent);
-    debugger;
+    // debugger;
     return [];
   }
   const base = allDates[0];

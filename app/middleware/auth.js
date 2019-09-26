@@ -201,6 +201,7 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
     dav.createAccount(caldavPayload).then(
       (caldavData) => {
         console.log(caldavData);
+        // debugger;
         next({
           type: AuthActionTypes.SUCCESS_CALDAV_AUTH,
           payload: {
