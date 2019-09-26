@@ -4,6 +4,7 @@ import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import Modal from 'react-modal';
 import RRule from 'rrule';
+import ICAL from 'ical.js';
 
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
@@ -82,18 +83,16 @@ export default class View extends React.Component {
     const rpData = await RpBlock.findAll();
     console.log(rpData.map((e) => e.toJSON()));
 
-    // debugger;
-
     // // THIS UPLOADS ALL RECURRING ICLOUD EVENTS TO YAHOO MAIL
     // // ONLY UNCOMMENT IF YOU WANT TO DO THAT,
     // // ELSE YOU GONNA GET A INSANE AMOUNT OF EVENTS IN YOUR CALENDAR
+    // debugger;
     // const uniqueEventiCalStrings = rpData
     //   .map((rp) => rp.iCalUID)
     //   .map((iCalUID) => eventData.filter((event) => event.iCalUID === iCalUID)[0])
     //   .filter((event) => event !== undefined)
     //   .map((event) => event.toJSON().iCALString);
 
-    // debugger;
     // // Parse user information from account layer to dav object.
     // const xhrObject = new dav.transport.Basic(
     //   new dav.Credentials({
@@ -108,10 +107,16 @@ export default class View extends React.Component {
     // calendar.url = caldavUrl;
 
     // debugger;
-    // uniqueEventiCalStrings
-    //   .map((string) => string.replace(/ICloud/g, 'Yahoo'))
+    // const uploadRequest = uniqueEventiCalStrings
+    //   .map((string) => {
+    //     const vcalendar = new ICAL.Component(ICAL.parse(string.replace(/ICloud/g, 'Yahoo')));
+    //     const newics = uuidv1();
+    //     vcalendar.getAllSubcomponents('vevent').forEach((vevent) => {
+    //       vevent.updatePropertyWithValue('uid', newics);
+    //     });
+    //     return vcalendar.toString();
+    //   })
     //   .map((iCalString) => {
-    //     debugger;
     //     const newETag = uuidv1();
     //     const addCalendarObject = {
     //       data: iCalString,
@@ -121,7 +126,7 @@ export default class View extends React.Component {
     //     const addResult = dav.createCalendarObject(calendar, addCalendarObject);
     //     return addResult;
     //   });
-    // const results = await Promise.all(uniqueEventiCalStrings);
+    // const results = await Promise.all(uploadRequest);
     // debugger;
 
     UserBlock.findAll().then((providerUserData) => {
@@ -279,7 +284,7 @@ export default class View extends React.Component {
       password: state.exchangePwd
     });
     // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
-    // this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
+    this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
     this.authorizeCaldavCodeRequest(YAHOO_USERNAME, YAHOO_PASSWORD, 'YAHOO');
   };
 

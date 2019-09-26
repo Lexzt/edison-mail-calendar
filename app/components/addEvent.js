@@ -4,6 +4,8 @@ import MenuItem from '@material-ui/core/MenuItem';
 import { FormControl } from 'react-bootstrap';
 import moment from 'moment';
 import RRuleGenerator from 'react-rrule-generator';
+// import { Checkbox } from '@material-ui/core';
+import { Checkbox } from 'antd';
 
 const START_INDEX_OF_UTC_FORMAT = 17;
 const START_INDEX_OF_HOUR = 11;
@@ -25,7 +27,8 @@ export default class AddEvent extends Component {
       start: '',
       end: '',
       selectedProvider: '',
-      rrule: ''
+      rrule: '',
+      isRepeating: false
     };
   }
 
@@ -66,11 +69,16 @@ export default class AddEvent extends Component {
   };
 
   handleChange = (event) => {
+    debugger;
     this.setState({ [event.target.name]: event.target.value });
   };
 
   handleRruleChange = (rrule) => {
     this.setState({ rrule });
+  };
+
+  toggleRecurr = (e) => {
+    this.setState({ isRepeating: e.target.checked });
   };
 
   handleSubmit = async (e) => {
@@ -114,6 +122,27 @@ export default class AddEvent extends Component {
     const { props, state } = this;
     for (const providerIndivAccount of Object.keys(props.providers)) {
       props.providers[providerIndivAccount].map((data) => providers.push(data));
+    }
+
+    const repeatingUI = [];
+    if (state.isRepeating) {
+      repeatingUI.push(
+        <RRuleGenerator
+          // onChange={(rrule) => console.log(`RRule changed, now it's ${rrule}`)}
+          key="rrulegenerator"
+          onChange={this.handleRruleChange}
+          name="rrule"
+          config={{
+            repeat: ['Daily', 'Weekly', 'Monthly', 'Yearly'],
+            yearly: 'on the',
+            monthly: 'on',
+            end: ['On date', 'After'],
+            // end: ['Never', 'On date', 'After'],  // Atm, never has not been taken care of
+            weekStartsOnSunday: true,
+            hideError: true
+          }}
+        />
+      );
     }
 
     return (
@@ -182,21 +211,12 @@ export default class AddEvent extends Component {
             ))}
           </TextField>
 
+          <Checkbox style={{ marginLeft: 8 }} onChange={this.toggleRecurr}>
+            Repeating
+          </Checkbox>
+
           <div className="app" data-tid="container">
-            <RRuleGenerator
-              // onChange={(rrule) => console.log(`RRule changed, now it's ${rrule}`)}
-              onChange={this.handleRruleChange}
-              name="rrule"
-              config={{
-                repeat: ['Daily', 'Weekly', 'Monthly', 'Yearly'],
-                yearly: 'on the',
-                monthly: 'on',
-                end: ['On date', 'After'],
-                // end: ['Never', 'On date', 'After'],  // Atm, never has not been taken care of
-                weekStartsOnSunday: true,
-                hideError: true
-              }}
-            />
+            {repeatingUI}
           </div>
 
           <input type="submit" value="Submit" />

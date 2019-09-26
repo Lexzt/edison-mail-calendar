@@ -40,8 +40,8 @@ const storeEvents = (oldEvents, newEvents, users) => {
     nonUserEvents.push(
       ...oldEvents.filter(
         (e) =>
-          e.providerType !== user.providerType &&
-          e.owner !== user.email &&
+          e.providerType !== user.providerType ||
+          e.owner !== user.email ||
           e.caldavType !== user.caldavType
       )
     );
