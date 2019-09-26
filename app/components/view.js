@@ -82,7 +82,11 @@ export default class View extends React.Component {
     const rpData = await RpBlock.findAll();
     console.log(rpData.map((e) => e.toJSON()));
 
+    // debugger;
+
     // // THIS UPLOADS ALL RECURRING ICLOUD EVENTS TO YAHOO MAIL
+    // // ONLY UNCOMMENT IF YOU WANT TO DO THAT,
+    // // ELSE YOU GONNA GET A INSANE AMOUNT OF EVENTS IN YOUR CALENDAR
     // const uniqueEventiCalStrings = rpData
     //   .map((rp) => rp.iCalUID)
     //   .map((iCalUID) => eventData.filter((event) => event.iCalUID === iCalUID)[0])

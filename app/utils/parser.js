@@ -143,7 +143,47 @@ export const parseCalEvents = (calendars) => {
 export const newParseCalendarObjects = (calendar) => {
   const calendarObjects = calendar.objects;
   const calendarId = calendar.url;
-  return calendarObjects.map((calendarObject) => parseCalendarObject(calendarObject, calendarId));
+  const singleCalendarObjects = calendarObjects.map((calendarObject) =>
+    parseCalendarObject(calendarObject, calendarId)
+  );
+  const flatEvents = singleCalendarObjects.reduce((acc, val) => acc.concat(val), []);
+  const filteredEvents = flatEvents.filter((event) => event !== '');
+  const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
+  const map = new Map();
+  flatFilteredEvents.forEach((e) => {
+    if (map.has(e.eventData.originalId)) {
+      map.get(e.eventData.originalId).push(e);
+    } else {
+      map.set(e.eventData.originalId, [e]);
+    }
+  });
+  map.forEach((v, k) => {
+    if (v.length === 1) {
+      map.delete(k);
+    }
+  });
+  if (map.size === 0) {
+    return flatFilteredEvents;
+  }
+
+  map.forEach((v, k) => {
+    const recurrMaster = v.filter((events) => events.recurData !== undefined)[0];
+    const exDates = v
+      .filter((events) => events.recurData === undefined)
+      .forEach((exDateEvent) => {
+        const exist = recurrMaster.recurData.recurrenceIds.findIndex(
+          (exDate) => exDate === exDateEvent.eventData.start.dateTime
+        );
+        if (exist === -1) {
+          recurrMaster.recurData.recurrenceIds.push(
+            exDateEvent.eventData.start.dateTime.toString()
+          );
+        }
+      });
+  });
+
+  debugger;
+  return flatFilteredEvents;
 };
 
 export const parseCalendarObject = (calendarObject, calendarId) => {
@@ -166,6 +206,16 @@ export const parseCalendarData = (calendarData, etag, url, calendarId) => {
   const masterEvent = comp.getFirstSubcomponent('vevent');
   const icalMasterEvent = new ICAL.Event(masterEvent);
   const attendees = getAttendees(masterEvent);
+  const summary = comp.getFirstSubcomponent('vevent').getFirstPropertyValue('summary');
+  if (icalMasterEvent.summary === '(Yahoo/Edited) Daily, 7 Times, 1 Edited') {
+    debugger;
+  }
+  if (icalMasterEvent.summary === 'testing') {
+    debugger;
+  }
+  if (icalMasterEvent.summary === '(Edited) testing') {
+    debugger;
+  }
   if (icalMasterEvent.isRecurring()) {
     const recurrenceIds = getRecurrenceIds(modifiedEvents);
     const exDates = getExDates(masterEvent);
