@@ -69,7 +69,6 @@ export default class AddEvent extends Component {
   };
 
   handleChange = (event) => {
-    debugger;
     this.setState({ [event.target.name]: event.target.value });
   };
 

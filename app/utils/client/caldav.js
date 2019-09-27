@@ -31,7 +31,7 @@ export const filterCaldavUser = (jsonObj, url) => ({
 });
 
 export const asyncGetAllCalDavEvents = async (username, password, url, caldavType) => {
-  const debug = false;
+  const debug = true;
   const resp = await caldavBasics.getCaldavAccount(username, password, url, caldavType);
 
   // This breaks due to how our database works, with id being a uniqid.

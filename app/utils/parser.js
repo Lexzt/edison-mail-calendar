@@ -360,12 +360,12 @@ export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMa
       dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
     }
   } else if (masterEvent.hasProperty('duration')) {
-    if (masterEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
-      dtend = masterEvent.getFirstPropertyValue('dtstart').clone();
-      dtend.addDuration(masterEvent.getFirstPropertyValue('duration'));
-      dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
-      dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
-    }
+    // if (masterEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
+    dtend = masterEvent.getFirstPropertyValue('dtstart').clone();
+    dtend.addDuration(masterEvent.getFirstPropertyValue('duration'));
+    dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
+    dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
+    // }
   } else {
     // According to documentation, it ask me to add one day if both duration and dtend does not exist.
     dtend = masterEvent
@@ -378,6 +378,10 @@ export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMa
       );
     dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
     dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
+  }
+  console.log(masterEvent.getFirstPropertyValue('summary'));
+  if (dtendMoment === undefined) {
+    debugger;
   }
   const event = {
     id: uuidv4(),

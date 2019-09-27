@@ -285,7 +285,7 @@ export default class View extends React.Component {
     });
     // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
     this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
-    this.authorizeCaldavCodeRequest(YAHOO_USERNAME, YAHOO_PASSWORD, 'YAHOO');
+    // this.authorizeCaldavCodeRequest(YAHOO_USERNAME, YAHOO_PASSWORD, 'YAHOO');
   };
 
   // This filter user is used when the outlook first creates the object.
