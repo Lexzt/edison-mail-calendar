@@ -18,14 +18,12 @@ import {
   BasePropertySet,
   ExtendedPropertyDefinition,
   BodyType,
-  PropertyDefinitionBase,
+  FolderView,
   DeleteMode,
   AppointmentSchema,
   AppointmentType,
-  ItemView,
   Recurrence,
   DailyPattern,
-  DayOfTheWeekCollection,
   DayOfTheWeek,
   Month,
   DayOfTheWeekIndex
@@ -33,7 +31,6 @@ import {
 import moment from 'moment';
 import uuidv4 from 'uuid';
 import * as ProviderTypes from '../constants';
-// import getDb from '../../rxdb';
 import {
   deleteEventSuccess,
   editEventSuccess,
@@ -63,8 +60,18 @@ export const asyncCreateExchangeEvent = async (username, password, url, payload)
     newEvent.Body = new MessageBody('');
     newEvent.Start = new DateTime(moment.tz(payload.start.dateTime, payload.start.timezone));
     newEvent.End = new DateTime(moment.tz(payload.end.dateTime, payload.end.timezone));
+
+    let uploadingCalendar;
+    await exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
+      // eslint-disable-next-line prefer-destructuring
+      uploadingCalendar = result.folders.filter(
+        (folder) => folder.DisplayName === 'Uploading Calendar'
+      )[0];
+    });
+
     return await newEvent
-      .Save(WellKnownFolderName.Calendar, SendInvitationsMode.SendToAllAndSaveCopy)
+      .Save(uploadingCalendar.Id, SendInvitationsMode.SendToAllAndSaveCopy)
+      // .Save(WellKnownFolderName.Calendar, SendInvitationsMode.SendToAllAndSaveCopy)
       .then(
         async () => {
           const item = await Item.Bind(exch, newEvent.Id);
@@ -102,14 +109,18 @@ export const asyncUpdateExchangeEvent = async (singleAppointment, user, callback
       .Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsOrCancellationsMode.SendToNone)
       .then(
         async (success) => {
-          // Re-Get the data for EWS to populate the fields, through server side.
-          const updatedItem = await ExchangeBasics.asyncGetSingleExchangeEvent(
-            user.email,
-            user.password,
-            'https://outlook.office365.com/Ews/Exchange.asmx',
-            singleAppointment.Id.UniqueId
+          const additonalProps = new PropertySet(
+            BasePropertySet.FirstClassProperties,
+            ItemSchema.Body
           );
+          additonalProps.RequestedBodyType = BodyType.Text;
 
+          const exch = new ExchangeService();
+          exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
+          exch.Credentials = new ExchangeCredentials(user.email, user.password);
+
+          const newEvent = await exch.BindToItems([singleAppointment.Id], additonalProps);
+          const updatedItem = newEvent.responses[0].Item;
           const localDbCopy = await dbEventActions.getOneEventByOriginalId(
             singleAppointment.Id.UniqueId
           );
@@ -121,6 +132,7 @@ export const asyncUpdateExchangeEvent = async (singleAppointment, user, callback
             user.email,
             false
           );
+
           filteredItem.id = localDbCopy.id;
           await dbEventActions.updateEventByOriginalId(singleAppointment.Id.UniqueId, filteredItem);
           callback();
@@ -218,6 +230,7 @@ export const asyncGetRecurrAndSingleExchangeEvents = async (exch) => {
   );
 
   const recurrMasterEvents = await ExchangeBasics.asyncGetExchangeRecurrMasterEvents(exch);
+  debugger;
   for (const [key, value] of mapOfRecurrEvents) {
     const recurrMasterId = recurrMasterEvents.get(key).Id;
     value.forEach((event) => (event.RecurrenceMasterId = recurrMasterId));
@@ -271,7 +284,9 @@ export const parseEwsRecurringPatterns = (
             .join(','),
     modifiedThenDeleted: false,
     weeklyPattern:
-      ews.XmlElementName === 'WeeklyRecurrence' ? convertDaysToArray(ews.DaysOfTheWeek.items) : '',
+      ews.XmlElementName === 'WeeklyRecurrence'
+        ? convertDaysToArray(ews.DaysOfTheWeek.items).join(',')
+        : '',
     numberOfRepeats: ews.NumberOfOccurrences === null ? 0 : ews.NumberOfOccurrences,
     byWeekNo:
       ews.DayOfTheWeekIndex === undefined || ews.DayOfTheWeekIndex === null
@@ -297,7 +312,6 @@ const convertDaysToArray = (arrayVals) => {
 };
 
 const parseEwsWeekDayIndex = (ewsEnumDayOfTheWeekIndex) => {
-  debugger;
   let val = '';
   switch (ewsEnumDayOfTheWeekIndex) {
     case DayOfTheWeekIndex.First:
@@ -355,6 +369,44 @@ const parseEwsWeekDay = (ewsEnumDayOfTheWeek) => {
     val += `${out},`;
   });
   return `(${val.slice(0, -1)})`;
+};
+
+const parseWeekNoToEwsDayOfTheWeekIndex = (weekNo) => {
+  switch (weekNo) {
+    case 1:
+      return DayOfTheWeekIndex.First;
+    case 2:
+      return DayOfTheWeekIndex.Second;
+    case 3:
+      return DayOfTheWeekIndex.Third;
+    case 4:
+      return DayOfTheWeekIndex.Fourth;
+    case 5:
+      return DayOfTheWeekIndex.Last;
+    default:
+      console.log('ERROR, WUT');
+  }
+};
+
+const parseWeekDayToEwsDayOfTheWeek = (weekDay) => {
+  switch (weekDay) {
+    case 0:
+      return DayOfTheWeek.Sunday;
+    case 1:
+      return DayOfTheWeek.Monday;
+    case 2:
+      return DayOfTheWeek.Tuesday;
+    case 3:
+      return DayOfTheWeek.Wednesday;
+    case 4:
+      return DayOfTheWeek.Thursday;
+    case 5:
+      return DayOfTheWeek.Friday;
+    case 6:
+      return DayOfTheWeek.Saturday;
+    default:
+      console.log('ERROR, WUT');
+  }
 };
 
 const parseEwsMonth = (ewsEnumMonth) => {
@@ -422,7 +474,6 @@ const parseEwsFreq = (ewsAppointmentPattern) => {
 };
 
 const parseStringToEwsWeekDay = (stringEwsWeekDay) => {
-  stringEwsWeekDay = stringEwsWeekDay.slice(1, -1);
   switch (stringEwsWeekDay) {
     case 'MO':
       return DayOfTheWeek.Monday;
@@ -443,7 +494,7 @@ const parseStringToEwsWeekDay = (stringEwsWeekDay) => {
   }
 };
 
-export const createEwsRecurrenceObj = (
+export const editEwsRecurrenceObj = (
   firstOption, // Daily, Weekly, Monthly or Yearly.
   secondOption, // Weekly, which dates.
   recurrInterval, // Recurring Intervals.
@@ -456,12 +507,15 @@ export const createEwsRecurrenceObj = (
   byWeekDay, // Used for Weekly/Monthly/Yearly, Repeat on which week day, E.g. Mon, tues
   byWeekNo // Used for Weekly/Monthly/Yearly, Repeat on a specified week number. E.g. 1-4, or last.
 ) => {
+  debugger;
   let recurrObj;
   switch (firstOption) {
     case 0:
+    case 'DAILY':
       recurrObj = new Recurrence.DailyPattern();
       break;
     case 1:
+    case 'WEEKLY':
       recurrObj = new Recurrence.WeeklyPattern();
 
       const DayOfWeekArr = [];
@@ -472,21 +526,21 @@ export const createEwsRecurrenceObj = (
       }
       break;
     case 2:
+    case 'MONTHLY':
       // We assume EWS only allows one month day due to its API limitation.
       if (secondOption[2] === 0) {
         recurrObj = new Recurrence.MonthlyPattern();
         // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
         recurrObj.DayOfMonth = byMonthDay === '()' ? 0 : parseInt(byMonthDay.slice(1, -1), 10);
-        // Hard code to test stuff first.
-        // recurrObj.DayOfMonth = 21;
       } else {
         const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
         recurrObj = new Recurrence.RelativeMonthlyPattern();
-        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay.slice(1, -1));
         recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
       }
       break;
     case 3:
+    case 'YEARLY':
       const parsedMonth = byMonth === '()' ? 0 : parseInt(byMonth.slice(1, -1), 10);
       if (secondOption[3] === 0) {
         // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
@@ -495,13 +549,13 @@ export const createEwsRecurrenceObj = (
       } else {
         const dayOfWeekIndexNum = parseInt(byWeekNo.slice(1, -1), 10);
         recurrObj = new Recurrence.RelativeYearlyPattern();
-        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay.slice(1, -1));
         recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
       }
       recurrObj.Month = parsedMonth;
       break;
     default:
-      console.log('(createEwsRecurrenceObj) Default 1');
+      console.log('(editEwsRecurrenceObj) Default 1');
       return -1;
   }
 
@@ -521,10 +575,148 @@ export const createEwsRecurrenceObj = (
       recurrObj.HasEnd = false;
       break;
     default:
-      console.log('(createEwsRecurrenceObj) Default 2');
+      console.log('(editEwsRecurrenceObj) Default 2');
       return -1;
   }
 
   recurrObj.Interval = recurrInterval.toString();
+  return recurrObj;
+};
+
+export const createNewEwsRecurrenceObj = (
+  firstOption, // Daily, Weekly, Monthly or Yearly.
+  secondOption, // Weekly, which dates.
+  recurrInterval, // Recurring Intervals.
+  startDate, // Start date of recurrence.
+  // untilType, // End Type, Never, On, or After x amount.
+  untilDate, // End Type, On Value, String, Date time.
+  untilAfter, // End Type, After Value, String, but number parsed.
+  byMonth, // Used for Monthly/Yearly, Repeat on which month.
+  byMonthDay, // Used for Monthly/Yearly, Repeat on which day of a month
+  byWeekDay, // Used for Weekly/Monthly/Yearly, Repeat on which week day, E.g. Mon, tues
+  byWeekNo // Used for Weekly/Monthly/Yearly, Repeat on a specified week number. E.g. 1-4, or last.
+) => {
+  let recurrObj;
+  const tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  switch (firstOption) {
+    case 'DAILY':
+      recurrObj = new Recurrence.DailyPattern();
+      break;
+    case 'WEEKLY':
+      recurrObj = new Recurrence.WeeklyPattern();
+      debugger;
+
+      let option = [0, 0, 0, 0, 0, 0, 0];
+      if (typeof secondOption[1] === 'string') {
+        option[parseStringToEwsWeekDay(secondOption[1])] = 1;
+      } else {
+        // secondOption[1].forEach((e) => {
+        //   option[parseStringToEwsWeekDay(e)] = 1;
+        // });
+
+        option = secondOption[1].map((val) => parseInt(val, 10));
+      }
+
+      const DayOfWeekArr = [];
+      for (let i = 0; i < option.length; i += 1) {
+        if (option[i] === 1) {
+          recurrObj.DaysOfTheWeek.Add(i);
+        }
+      }
+      break;
+    case 'MONTHLY':
+      // We assume EWS only allows one month day due to its API limitation.
+      // If it is a single number, its a single day.
+      if (typeof byMonthDay === 'number') {
+        recurrObj = new Recurrence.MonthlyPattern();
+        recurrObj.DayOfMonth = parseInt(byMonthDay, 10);
+      } else if (byWeekNo !== '' && byWeekDay !== '') {
+        let dayOfWeekIndexNum = parseInt(byWeekNo, 10);
+        if (dayOfWeekIndexNum === -1) {
+          debugger;
+          dayOfWeekIndexNum = 5; // When it is the last weekend all the time/ ??? how to handle
+        }
+        dayOfWeekIndexNum -= 1; // Becuz exchange feels like saying 0 is the first week
+
+        recurrObj = new Recurrence.RelativeMonthlyPattern();
+        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
+      } else {
+        const splitByMonthDay = byMonthDay
+          .slice(1, -1)
+          .split(',')
+          .filter((str) => str !== '');
+        if (splitByMonthDay.length > 0) {
+          debugger;
+          // As ews can only allow you to loop on one event,
+          // we find what day of week and week of month the event is repeating on
+          // and loop on those.
+          recurrObj = new Recurrence.RelativeMonthlyPattern();
+          recurrObj.DayOfTheWeek = parseWeekDayToEwsDayOfTheWeek(startDate.DayOfWeek);
+          recurrObj.DayOfTheWeekIndex = parseWeekNoToEwsDayOfTheWeekIndex(
+            Math.ceil(startDate.getMomentDate().date() / 7)
+          );
+        } else {
+          // We need to take the day that the event was created.
+          recurrObj = new Recurrence.MonthlyPattern();
+          recurrObj.DayOfMonth = parseInt(startDate.Day, 10);
+        }
+      }
+      break;
+    case 'YEARLY':
+      const parsedMonth = parseInt(byMonth, 10);
+      debugger;
+      if (byMonthDay !== undefined) {
+        // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
+        recurrObj = new Recurrence.YearlyPattern();
+        recurrObj.DayOfMonth = parseInt(byMonthDay, 10);
+      } else {
+        recurrObj = new Recurrence.RelativeYearlyPattern();
+
+        let dayOfWeekIndexNum = parseInt(byWeekNo, 10);
+        if (dayOfWeekIndexNum === -1) {
+          debugger;
+          dayOfWeekIndexNum = 5; // When it is the last weekend all the time/ ??? how to handle
+        }
+        dayOfWeekIndexNum -= 1; // Becuz exchange feels like saying 0 is the first week
+
+        recurrObj.DayOfTheWeek = parseStringToEwsWeekDay(byWeekDay);
+        recurrObj.DayOfTheWeekIndex = dayOfWeekIndexNum;
+      }
+      recurrObj.Month = parsedMonth;
+      break;
+    default:
+      console.log('(editEwsRecurrenceObj) Default 1');
+      return -1;
+  }
+
+  recurrObj.StartDate = startDate;
+  if (untilAfter !== undefined && untilAfter !== null) {
+    recurrObj.NumberOfOccurrences = parseInt(untilAfter, 10);
+  } else if (untilDate !== undefined && untilDate !== null) {
+    recurrObj.EndDate = new DateTime(moment.tz(untilDate.toUnixTime() * 1000, tzid));
+  } else {
+    recurrObj.HasEnd = false;
+  }
+  // switch (untilType) {
+  //   case 'o':
+  //     // Filter to just Y/M/D, don't need any time.
+  //     recurrObj.EndDate = new DateTime(moment(untilDate));
+  //     break;
+  //   case 'a':
+  //     // Ensure it is a number.
+  //     recurrObj.NumberOfOccurrences = parseInt(untilAfter, 10);
+  //     break;
+  //   case 'n':
+  //     // No end, rip. Constant expansion here we go.
+  //     recurrObj.HasEnd = false;
+  //     break;
+  //   default:
+  //     console.log('(editEwsRecurrenceObj) Default 2');
+  //     return -1;
+  // }
+
+  // recurrObj.Interval = recurrInterval.toString();
+  recurrObj.Interval = 1; // We gonna assume 1,
   return recurrObj;
 };

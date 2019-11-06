@@ -61,29 +61,16 @@ export const getAllEventsByRecurringEventId = async (recurringEventId) => {
   });
   return event;
 };
-
-// export const getOneEventByiCalUIDandStartDateTime = async (iCalUid, startDateTime) => {
-//   const event = EventsBlock.findOne({
-//     where: {
-//       iCalUid: {
-//         [Op.eq]: iCalUid
-//       },
-//       'start.dateTime': {
-//         [Op.eq]: startDateTime
-//       }
-//     }
-//   });
-// };
 // #endregion
 
 // #region Inserting Events
 export const insertEventsIntoDatabase = async (event) => {
   const debug = false;
-  // debugger;
 
   if (debug) {
     console.log(event);
   }
+
   // As we are inserting a new user into the database, and personId being the priamry key
   // that is uuidv4 generated, meaning unique each time, we need to check based off the
   // user information before we decide to upsert or update accrordingly.
@@ -105,7 +92,6 @@ export const insertEventsIntoDatabase = async (event) => {
 
     await EventsBlock.upsert(event);
   } else if (dbEvent.length === 1) {
-    // debugger;
     if (debug) {
       console.log('(Log) Found Event of ', dbEvent, ', Updating');
     }
@@ -128,7 +114,6 @@ export const insertEventsIntoDatabase = async (event) => {
 // #region Delete Event
 export const deleteEventById = async (id) => {
   const debug = true;
-
   const test = await EventsBlock.destroy({
     where: {
       id: {
@@ -136,13 +121,10 @@ export const deleteEventById = async (id) => {
       }
     }
   });
-
-  debugger;
 };
 
 export const deleteEventByOriginalId = async (originalId) => {
   const debug = true;
-
   await EventsBlock.destroy({
     where: {
       originalId: {
@@ -154,7 +136,6 @@ export const deleteEventByOriginalId = async (originalId) => {
 
 export const deleteEventByOriginaliCalUID = async (iCalUID) => {
   const debug = true;
-
   await EventsBlock.destroy({
     where: {
       iCalUID: {
@@ -166,7 +147,6 @@ export const deleteEventByOriginaliCalUID = async (iCalUID) => {
 
 export const deleteEventByiCalUIDandStartDateTime = async (iCalUid, startDateTime) => {
   const debug = true;
-
   await EventsBlock.destroy({
     where: {
       iCalUid: {
@@ -179,9 +159,22 @@ export const deleteEventByiCalUIDandStartDateTime = async (iCalUid, startDateTim
   });
 };
 
+export const deleteEventEqiCalUidGteStartDateTime = async (iCalUid, startDateTime, event) => {
+  const debug = true;
+  await EventsBlock.destroy({
+    where: {
+      iCalUid: {
+        [Op.eq]: iCalUid
+      },
+      'start.dateTime': {
+        [Op.gte]: startDateTime
+      }
+    }
+  });
+};
+
 export const deleteAllEventByRecurringEventId = async (recurringEventId) => {
   const debug = true;
-
   await EventsBlock.destroy({
     where: {
       recurringEventId: {
@@ -191,12 +184,11 @@ export const deleteAllEventByRecurringEventId = async (recurringEventId) => {
   });
 };
 
-// #endreigon
+// #endregion
 
 // #region Update Event
 export const updateEventById = async (id, data) => {
   const debug = true;
-
   await EventsBlock.update(data, {
     where: {
       id: {
@@ -233,6 +225,34 @@ export const updateEventByiCalUIDandStartDateTime = async (iCalUid, startDateTim
   });
 };
 
+export const updateEventEqiCalUidGteStartDateTime = async (iCalUid, startDateTime, event) => {
+  const debug = true;
+
+  // const testitems = await EventsBlock.findAll({
+  //   where: {
+  //     iCalUid: {
+  //       [Op.eq]: iCalUid
+  //     },
+  //     'start.dateTime': {
+  //       [Op.gte]: startDateTime
+  //     }
+  //   }
+  // });
+  // console.log(testitems);
+  // debugger;
+
+  await EventsBlock.update(event, {
+    where: {
+      iCalUid: {
+        [Op.eq]: iCalUid
+      },
+      'start.dateTime': {
+        [Op.gte]: startDateTime
+      }
+    }
+  });
+};
+
 export const updateEventiCalString = async (iCalUid, iCALString) => {
   const debug = true;
 
@@ -260,5 +280,35 @@ export const updateEventRecurringEventId = async (recurringEventId, data) => {
       }
     }
   });
+};
+// #endregion
+
+// #region Hiding Events
+export const hideEventById = async (id) => {
+  const debug = true;
+  await EventsBlock.update(
+    { hide: true },
+    {
+      where: {
+        id: {
+          [Op.eq]: id
+        }
+      }
+    }
+  );
+};
+
+export const hideEventByRecurringId = async (recurringEventId) => {
+  const debug = true;
+  await EventsBlock.update(
+    { hide: true },
+    {
+      where: {
+        recurringEventId: {
+          [Op.eq]: recurringEventId
+        }
+      }
+    }
+  );
 };
 // #endregion

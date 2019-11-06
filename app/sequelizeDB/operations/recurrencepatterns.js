@@ -79,6 +79,11 @@ export const addExDateByiCalUID = async (iCalUID, date) => {
 
 export const addExDateByOid = async (originalId, date) => {
   const pastRp = await getOneRpByOId(originalId);
+  if (pastRp.exDates === undefined || pastRp.exDates === null) {
+    pastRp.exDates = '';
+  } else if (typeof pastRp.exDates === 'number') {
+    pastRp.exDates = pastRp.exDates.toString();
+  }
   const exDateSet = new Set(pastRp.exDates.split(',').filter((e) => e !== ''));
 
   if (!exDateSet.has(date)) {
@@ -99,6 +104,12 @@ export const addExDateByOid = async (originalId, date) => {
 
 export const addRecurrenceIdsByiCalUID = async (iCalUID, date) => {
   const pastRp = await getOneRpByiCalUID(iCalUID);
+  debugger;
+  if (pastRp.recurrenceIds === undefined || pastRp.recurrenceIds === null) {
+    pastRp.recurrenceIds = '';
+  } else if (typeof pastRp.recurrenceIds === 'number') {
+    pastRp.recurrenceIds = pastRp.recurrenceIds.toString();
+  }
   const recurrenceIdsSet = new Set(pastRp.recurrenceIds.split(',').filter((e) => e !== ''));
 
   if (!recurrenceIdsSet.has(date)) {

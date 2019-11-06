@@ -1,7 +1,9 @@
+/* eslint-disable prefer-destructuring */
 import moment from 'moment';
 import md5 from 'md5';
 import { ExtendedPropertyDefinition, StringHelper } from 'ews-javascript-api';
 import uuidv4 from 'uuid';
+import * as windowZones from './windowsZone.json';
 
 export const OUTLOOK = 'OUTLOOK';
 export const GOOGLE = 'GOOGLE';
@@ -44,16 +46,9 @@ const convertHour = (i) => {
   return `${i.toString()}:`;
 };
 
-export const momentAdd = (day, time) => {
-  const editedDay = moment(day)
-    .set('H', parseInt(time.substring(0, 2), 10))
-    .set('m', parseInt(time.substring(3), 10));
-  const formattedDay = moment(editedDay).format();
-  return formattedDay;
-};
-
 export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
   const schemaCastedDbObject = {};
+
   switch (type) {
     case GOOGLE: {
       [
@@ -175,13 +170,31 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
 
         Talk to shuhao tmr, and ask how you think we should deal with this case.
       */
+      const mapZones = windowZones.default.supplementalData.windowsZones.mapTimezones.windowZone
+        // eslint-disable-next-line no-underscore-dangle
+        .filter((zone) => zone._name === dbEvent.TimeZone)[0];
+
+      let tz;
+      if (mapZones === undefined || mapZones === null) {
+        tz = { _type: 'Atlantic/Reykjavik' }; // Assume default as UTC/GMT
+      } else {
+        // eslint-disable-next-line no-underscore-dangle
+        tz = mapZones.mapZone.filter((terrZone) => terrZone._territory === '001')[0]; // This assumes golden territory as discussed previously due to windows timezone.
+      }
+
       schemaCastedDbObject.id = uuidv4();
       schemaCastedDbObject.originalId = dbEvent.Id === null ? id : dbEvent.Id.UniqueId;
       schemaCastedDbObject.start = {
-        dateTime: dbEvent.Start.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
+        dateTime: dbEvent.Start.getMomentDate().unix(),
+        // eslint-disable-next-line no-underscore-dangle
+        timezone: tz._type
+        // dateTime: dbEvent.Start.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
       };
       schemaCastedDbObject.end = {
-        dateTime: dbEvent.End.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
+        // dateTime: dbEvent.End.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
+        dateTime: dbEvent.End.getMomentDate().unix(),
+        // eslint-disable-next-line no-underscore-dangle
+        timezone: tz._type
       };
       schemaCastedDbObject.owner = dbEvent.owner === undefined ? owner : dbEvent.owner;
       schemaCastedDbObject.providerType = EXCHANGE;
@@ -192,8 +205,10 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
       schemaCastedDbObject.isRecurring = dbEvent.AppointmentType !== 'Single';
       // schemaCastedDbObject.attendee = [];
       schemaCastedDbObject.iCalUID = dbEvent.ICalUid;
-      if (schemaCastedDbObject.isRecurring) {
+      if (schemaCastedDbObject.isRecurring && dbEvent.RecurrenceMasterId) {
         schemaCastedDbObject.recurringEventId = dbEvent.RecurrenceMasterId.UniqueId;
+      } else {
+        // console.log('Appointment might not have a recurring id');
       }
       // { iCalUID: { value: 'ICalUid', defaultValue: '', type: 'needed' } },
 

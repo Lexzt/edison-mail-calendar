@@ -1,6 +1,6 @@
 import { from, of } from 'rxjs';
 import moment from 'moment';
-import { map, mergeMap, catchError } from 'rxjs/operators';
+import { map, mergeMap, concatMap, catchError } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
 import {
   Appointment,
@@ -12,7 +12,9 @@ import {
   Uri,
   SendInvitationsMode,
   SendInvitationsOrCancellationsMode,
-  WellKnownFolderName
+  WellKnownFolderName,
+  MessageBody,
+  FolderView
 } from 'ews-javascript-api';
 import uuidv4 from 'uuid';
 
@@ -29,12 +31,11 @@ import {
 import { retrieveStoreEvents } from '../../actions/db/events';
 
 import {
-  asyncCreateExchangeEvent,
   asyncDeleteExchangeEvent,
   asyncGetRecurrAndSingleExchangeEvents,
   asyncUpdateExchangeEvent,
   asyncUpdateRecurrExchangeSeries,
-  createEwsRecurrenceObj,
+  editEwsRecurrenceObj,
   parseEwsRecurringPatterns
 } from '../../utils/client/exchange';
 import {
@@ -83,7 +84,14 @@ export const editExchangeSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_EXCHANGE_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editEwsSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        editEwsSingle(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -91,9 +99,14 @@ export const editExchangeAllRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_EXCHANGE_ALL_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editEwsAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        editEwsAllRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -101,17 +114,44 @@ export const editExchangeFutureRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_EXCHANGE_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editEwsAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        editEwsAllFutureRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
+/*
+  In any CRUD Operations, we want to send out two signals.
+  First, we hide the element and try in the back to update/delete it.
+    This gives us immediate feedback, which is what we want.
+  In order to ensure that the updated/deleted element is reflected in the UI
+    I throw a promise that immediately resolves with the proper user informat
+    This forces the UI to refresh based off the DB
+  The CRUD operation is then ran
+    In this case, deleteEwsSingle is an async function
+    Async functions are syntax sugar for promises, therefore,
+      Once the async operations are completed, we request for the UI to be refreshed.
+
+  We use mergeAll to ensure that each promise is published to all other epics first.
+  Catch error can be handled for the deleteEwsSingle in the future for error handling.
+*/
 export const deleteExchangeSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_EXCHANGE_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteEwsSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        deleteEwsSingle(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -119,9 +159,14 @@ export const deleteExchangeAllRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_EXCHANGE_ALL_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteEwsAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        deleteEwsAllRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -129,9 +174,14 @@ export const deleteExchangeFutureRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_EXCHANGE_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteEwsAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        deleteEwsAllFutureRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -146,8 +196,16 @@ const editEwsSingle = async (payload) => {
       payload.originalId
     );
 
-    // TO DO, UPDATE MORE FIELDS
+    if (!payload.allDay) {
+      singleAppointment.Start = new DateTime(payload.start.dateTime * 1000);
+      singleAppointment.End = new DateTime(payload.end.dateTime * 1000);
+    }
+
+    // You can add more fields here if needed
     singleAppointment.Subject = payload.title;
+    singleAppointment.IsAllDayEvent = payload.allDay;
+    singleAppointment.Body = new MessageBody(payload.description);
+    singleAppointment.Location = payload.location.name;
 
     if (debug) {
       console.log(singleAppointment);
@@ -229,7 +287,7 @@ const editEwsAllRecurrenceEvents = async (payload) => {
       console.log(singleAppointment);
       debugger;
     }
-    const newRecurrence = createEwsRecurrenceObj(
+    const newRecurrence = editEwsRecurrenceObj(
       payload.firstOption,
       payload.secondOption,
       payload.recurrInterval,
@@ -307,11 +365,6 @@ const editEwsAllRecurrenceEvents = async (payload) => {
 
       await dbEventActions.deleteEventByOriginaliCalUID(singleAppointment.ICalUid);
       if (debug) {
-        // const data = await db.events
-        //   .find()
-        //   .where('iCalUID')
-        //   .eq(singleAppointment.ICalUid)
-        //   .exec();
         const data = await dbEventActions.getOneEventByiCalUID(singleAppointment.ICalUid);
 
         console.log(data);
@@ -327,7 +380,6 @@ const editEwsAllRecurrenceEvents = async (payload) => {
           )
           .map((filteredEwsEvent) => {
             console.log(filteredEwsEvent);
-            // return db.events.upsert(filteredEwsEvent);
             return dbEventActions.insertEventsIntoDatabase(filteredEwsEvent);
           })
       );
@@ -358,7 +410,7 @@ const editEwsAllFutureRecurrenceEvents = async (payload) => {
       payload.recurringEventId
     );
 
-    const newRecurr = createEwsRecurrenceObj(
+    const newRecurr = editEwsRecurrenceObj(
       payload.firstOption,
       payload.secondOption,
       payload.recurrInterval,
@@ -399,177 +451,195 @@ const editEwsAllFutureRecurrenceEvents = async (payload) => {
     if (debug) {
       console.log(newEvent.Recurrence, newRecurr);
     }
+
+    let uploadingCalendar;
+    await exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
+      // eslint-disable-next-line prefer-destructuring
+      uploadingCalendar = result.folders.filter(
+        (folder) => folder.DisplayName === 'Uploading Calendar'
+      )[0];
+    });
+
     // Upload it to server via Save, then re-get the data due to server side ID population.
-    await newEvent
-      .Save(WellKnownFolderName.Calendar, SendInvitationsMode.SendToNone)
-      .then(async () => {
-        const item = await Item.Bind(exch, newEvent.Id);
+    await newEvent.Save(uploadingCalendar.Id, SendInvitationsMode.SendToNone).then(async () => {
+      await dbEventActions.deleteEventEqiCalUidGteStartDateTime(
+        payload.iCalUID,
+        payload.start.dateTime
+      );
 
-        if (debug) {
-          console.log(item);
-        }
+      const item = await Item.Bind(exch, newEvent.Id);
 
-        // Get all expanded events, and find the new ones within the window
-        const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
-        const localPrevExpandedItems = allExchangeEvents.filter(
-          (event) => event.ICalUid === recurrMasterAppointment.ICalUid
+      if (debug) {
+        console.log(item);
+      }
+
+      // Get all expanded events, and find the new ones within the window
+      const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
+      const localPrevExpandedItems = allExchangeEvents.filter(
+        (event) => event.ICalUid === recurrMasterAppointment.ICalUid
+      );
+      const expandedItems = allExchangeEvents.filter((event) => event.ICalUid === item.ICalUid);
+
+      // Set the recurrence master ID to link them back, for updating/deleting of series.
+      expandedItems.forEach((event) => (event.RecurrenceMasterId = item.Id));
+
+      // Build a new recurrence pattern object, and parse it into the db.
+      const dbRecurrencePattern = parseEwsRecurringPatterns(
+        item.Id.UniqueId,
+        item.Recurrence,
+        item.ICalUid,
+        recurrMasterAppointment.DeletedOccurrences,
+        recurrMasterAppointment.ModifiedOccurrences
+      );
+
+      if (debug) {
+        console.log(
+          allExchangeEvents,
+          expandedItems,
+          localPrevExpandedItems,
+          dbRecurrencePattern,
+          item.ICalUid
         );
-        const expandedItems = allExchangeEvents.filter((event) => event.ICalUid === item.ICalUid);
+      }
 
-        // Set the recurrence master ID to link them back, for updating/deleting of series.
-        expandedItems.forEach((event) => (event.RecurrenceMasterId = item.Id));
-
-        // Build a new recurrence pattern object, and parse it into the db.
-        const dbRecurrencePattern = parseEwsRecurringPatterns(
-          item.Id.UniqueId,
-          item.Recurrence,
-          item.ICalUid,
-          recurrMasterAppointment.DeletedOccurrences,
-          recurrMasterAppointment.ModifiedOccurrences
-        );
-
-        if (debug) {
-          console.log(
-            allExchangeEvents,
-            expandedItems,
-            localPrevExpandedItems,
-            dbRecurrencePattern,
-            item.ICalUid
-          );
-        }
-
-        const deletingItems = [];
-        const nonDeletedItems = [];
-        expandedItems.forEach((element) => {
-          let added = false;
-          dbRecurrencePattern.exDates.forEach((element2) => {
+      const deletingItems = [];
+      const nonDeletedItems = [];
+      expandedItems.forEach((element) => {
+        let added = false;
+        dbRecurrencePattern.exDates
+          .split(',')
+          .filter((e) => e !== '')
+          .forEach((element2) => {
             if (element.Start.MomentDate.isSame(moment(element2), 'day')) {
               deletingItems.push(element);
               added = true;
             }
           });
 
-          if (!added) {
-            nonDeletedItems.push(element);
-          }
-        });
+        if (!added) {
+          nonDeletedItems.push(element);
+        }
+      });
 
-        const modifiedItems = [];
-        const nonModifiedItems = [];
-        expandedItems.forEach((element) => {
-          let added = false;
-          dbRecurrencePattern.recurrenceIds.forEach((element2) => {
+      const modifiedItems = [];
+      const nonModifiedItems = [];
+      expandedItems.forEach((element) => {
+        let added = false;
+        dbRecurrencePattern.recurrenceIds
+          .split(',')
+          .filter((e) => e !== '')
+          .forEach((element2) => {
             if (element.Start.MomentDate.isSame(moment(element2), 'day')) {
               modifiedItems.push(element);
               added = true;
             }
           });
 
-          if (!added) {
-            nonModifiedItems.push(element);
-          }
-        });
-        await Promise.all(
-          deletingItems.map((deletingAppt) =>
-            asyncDeleteExchangeEvent(deletingAppt, payload.user, () => {
-              console.log('DELETED SMTH');
-            })
-          )
-        );
-
-        if (debug) {
-          console.log(modifiedItems, localPrevExpandedItems, expandedItems);
-          console.log(nonModifiedItems, nonDeletedItems);
-          const allRP = await dbRpActions.getAllRp();
-          console.log(allRP);
+        if (!added) {
+          nonModifiedItems.push(element);
         }
-
-        // Update previous recurrence pattern by removing all modified Items
-        const previousRp = await dbRpActions.getOneRpByiCalUID(singleAppointment.ICalUid);
-        const array1 = modifiedItems.map((appt) =>
-          appt.Start.MomentDate.format('YYYY-MM-DDTHH:mm:ssZ')
-        );
-        const array2 = deletingItems.map((appt) =>
-          appt.Start.MomentDate.format('YYYY-MM-DDTHH:mm:ssZ')
-        );
-        if (debug) {
-          console.log(previousRp, previousRp.exDates, previousRp.recurrenceIds, array1);
-          console.log(previousRp.exDates.split(',').filter((exDate) => !array2.includes(exDate)));
-          console.log(
-            previousRp.recurrenceIds.split(',').filter((exDate) => !array1.includes(exDate))
-          );
-          const result = await dbRpActions.getOneRpByiCalUID(singleAppointment.ICalUid);
-          console.log(result);
-        }
-
-        await dbRpActions.updateRpByiCalUID(singleAppointment.ICalUid, {
-          recurrenceIds: previousRp.recurrenceIds
-            .split(',')
-            .filter((exDate) => !array1.includes(exDate))
-            .join(','),
-          exDates: previousRp.exDates
-            .split(',')
-            .filter((exDate) => !array2.includes(exDate))
-            .join(',')
-        });
-
-        if (debug) {
-          const result = await dbRpActions.getOneRpByiCalUID(singleAppointment.ICalUid);
-          console.log(result);
-        }
-
-        async function asyncForEach(array, callback) {
-          for (let index = 0; index < array.length; index += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await callback(array[index], index, array);
-          }
-        }
-
-        await asyncForEach(modifiedItems, async (modifiedAppt) => {
-          // Find the specific appt from new list to edit
-          const foundItem = localPrevExpandedItems.filter((justGotObj) =>
-            justGotObj.Start.MomentDate.isSame(modifiedAppt.Start.MomentDate, 'day')
-          )[0];
-
-          if (debug) {
-            console.log('Item: ', foundItem, modifiedAppt);
-          }
-          modifiedAppt.Subject = foundItem.Subject;
-
-          await modifiedAppt
-            .Update(
-              ConflictResolutionMode.AlwaysOverwrite,
-              SendInvitationsOrCancellationsMode.SendToNone
-            )
-            .then(async (success) => {
-              const updatedItem = await asyncGetSingleExchangeEvent(
-                payload.user.email,
-                payload.user.password,
-                'https://outlook.office365.com/Ews/Exchange.asmx',
-                modifiedAppt.Id.UniqueId
-              );
-              await dbEventActions.deleteEventByOriginalId(foundItem.Id.UniqueId);
-              return updatedItem;
-            });
-        });
-
-        // We can just add it in as it is a new event from future events.
-        await dbRpActions.insertOrUpdateRp(dbRecurrencePattern);
-
-        // Upsert into db, can assume it does not exist as it is a new appointment.
-        const promiseArr = nonDeletedItems.map((event) => {
-          const filteredEvent = Providers.filterIntoSchema(
-            event,
-            Providers.EXCHANGE,
-            payload.user.email,
-            false
-          );
-          return dbEventActions.insertEventsIntoDatabase(filteredEvent);
-        });
-
-        // Wait for all and push it in.
-        await Promise.all(promiseArr);
       });
+      await Promise.all(
+        deletingItems.map((deletingAppt) =>
+          asyncDeleteExchangeEvent(deletingAppt, payload.user, () => {
+            console.log('DELETED SMTH');
+          })
+        )
+      );
+
+      if (debug) {
+        console.log(modifiedItems, localPrevExpandedItems, expandedItems);
+        console.log(nonModifiedItems, nonDeletedItems);
+        const allRP = await dbRpActions.getAllRp();
+        console.log(allRP);
+      }
+
+      // Update previous recurrence pattern by removing all modified Items
+      const previousRp = await dbRpActions.getOneRpByiCalUID(singleAppointment.ICalUid);
+      const array1 = modifiedItems.map((appt) =>
+        appt.Start.MomentDate.format('YYYY-MM-DDTHH:mm:ssZ')
+      );
+      const array2 = deletingItems.map((appt) =>
+        appt.Start.MomentDate.format('YYYY-MM-DDTHH:mm:ssZ')
+      );
+      if (debug) {
+        console.log(previousRp, previousRp.exDates, previousRp.recurrenceIds, array1);
+        console.log(previousRp.exDates.split(',').filter((exDate) => !array2.includes(exDate)));
+        console.log(
+          previousRp.recurrenceIds.split(',').filter((exDate) => !array1.includes(exDate))
+        );
+        const result = await dbRpActions.getOneRpByiCalUID(singleAppointment.ICalUid);
+        console.log(result);
+      }
+
+      await dbRpActions.updateRpByiCalUID(singleAppointment.ICalUid, {
+        recurrenceIds: previousRp.recurrenceIds
+          .split(',')
+          .filter((exDate) => !array1.includes(exDate))
+          .join(','),
+        exDates: previousRp.exDates
+          .split(',')
+          .filter((exDate) => !array2.includes(exDate))
+          .join(',')
+      });
+
+      if (debug) {
+        const result = await dbRpActions.getOneRpByiCalUID(singleAppointment.ICalUid);
+        console.log(result);
+      }
+
+      async function asyncForEach(array, callback) {
+        for (let index = 0; index < array.length; index += 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await callback(array[index], index, array);
+        }
+      }
+
+      await asyncForEach(modifiedItems, async (modifiedAppt) => {
+        // Find the specific appt from new list to edit
+        const foundItem = localPrevExpandedItems.filter((justGotObj) =>
+          justGotObj.Start.MomentDate.isSame(modifiedAppt.Start.MomentDate, 'day')
+        )[0];
+
+        if (debug) {
+          console.log('Item: ', foundItem, modifiedAppt);
+        }
+        modifiedAppt.Subject = foundItem.Subject;
+
+        await modifiedAppt
+          .Update(
+            ConflictResolutionMode.AlwaysOverwrite,
+            SendInvitationsOrCancellationsMode.SendToNone
+          )
+          .then(async (success) => {
+            const updatedItem = await asyncGetSingleExchangeEvent(
+              payload.user.email,
+              payload.user.password,
+              'https://outlook.office365.com/Ews/Exchange.asmx',
+              modifiedAppt.Id.UniqueId
+            );
+            await dbEventActions.deleteEventByOriginalId(foundItem.Id.UniqueId);
+            return updatedItem;
+          });
+      });
+
+      // We can just add it in as it is a new event from future events.
+      await dbRpActions.insertOrUpdateRp(dbRecurrencePattern);
+
+      // Upsert into db, can assume it does not exist as it is a new appointment.
+      const promiseArr = nonDeletedItems.map((event) => {
+        const filteredEvent = Providers.filterIntoSchema(
+          event,
+          Providers.EXCHANGE,
+          payload.user.email,
+          false
+        );
+        return dbEventActions.insertEventsIntoDatabase(filteredEvent);
+      });
+
+      // Wait for all and push it in.
+      await Promise.all(promiseArr);
+    });
 
     const checkStart = singleAppointment.Start;
 
@@ -630,41 +700,31 @@ const editEwsAllFutureRecurrenceEvents = async (payload) => {
       await recurrMasterAppointment
         .Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsMode.SendToNone)
         .then(async () => {
-          // const allevents = await db.events.find().exec();
           const allevents = await dbEventActions.getAllEvents();
-          console.log(allevents);
-
-          // const removedDeletedEventsLocally = await db.events
-          //   .find()
-          //   .where('recurringEventId')
-          //   .eq(payload.recurringEventId)
-          //   .exec();
           const removedDeletedEventsLocally = await dbEventActions.getAllEventsByRecurringEventId(
             payload.recurringEventId
           );
 
           if (debug) {
             console.log(removedDeletedEventsLocally);
+            console.log(allevents);
           }
 
           const afterEvents = removedDeletedEventsLocally.filter(
             (event) =>
-              moment(event.toJSON().start.dateTime).isAfter(singleAppointment.Start.MomentDate) ||
-              moment(event.toJSON().start.dateTime).isSame(singleAppointment.Start.MomentDate)
+              moment
+                .tz(event.toJSON().start.dateTime, event.toJSON().start.timezone)
+                .isAfter(singleAppointment.Start.MomentDate) ||
+              moment
+                .tz(event.toJSON().start.dateTime, event.toJSON().start.timezone)
+                .isSame(singleAppointment.Start.MomentDate)
           );
 
           if (debug) {
             console.log(afterEvents);
           }
           await Promise.all(
-            afterEvents.map((event) =>
-              // db.events
-              //   .find()
-              //   .where('originalId')
-              //   .eq(event.originalId)
-              //   .remove()
-              dbEventActions.deleteEventByOriginalId(event.originalId)
-            )
+            afterEvents.map((event) => dbEventActions.deleteEventByOriginalId(event.originalId))
           );
         });
     }
@@ -689,6 +749,8 @@ const deleteEwsSingle = async (payload) => {
 
   // Try catch for HTTP errors, offline etc.
   try {
+    await dbEventActions.deleteEventByOriginalId(data.originalId);
+
     // asyncGetSingleExchangeEvent will throw error when no internet or event missing.
     const singleAppointment = await asyncGetSingleExchangeEvent(
       user.email,
@@ -700,25 +762,15 @@ const deleteEwsSingle = async (payload) => {
     await asyncDeleteExchangeEvent(singleAppointment, user, () => {
       // Lambda for future if needed.
     });
-
-    await dbEventActions.deleteEventByOriginalId(data.originalId);
   } catch (exchangeError) {
     // This means item has been deleted on server, maybe by another user
     // Handle this differently.
     if (exchangeError.ErrorCode === 249) {
       // Just remove it from database instead, and break;
-      // await deleteDoc.remove();
       await dbEventActions.deleteEventByOriginalId(data.originalId);
-      // break;
     }
 
     // Upsert it to the pending action, let pending action automatically handle it.
-    // db.pendingactions.upsert({
-    //   uniqueId: uuidv4(),
-    //   eventId: data.get('originalId'),
-    //   status: 'pending',
-    //   type: 'delete'
-    // });
     await dbPendingActionsActions.insertPendingActionIntoDatabase({
       uniqueId: uuidv4(),
       eventId: data.originalId,
@@ -726,14 +778,7 @@ const deleteEwsSingle = async (payload) => {
       type: 'delete'
     });
 
-    // // Hide the item, and set it to local as it has been updated.
-    // await deleteDoc.update({
-    //   $set: {
-    //     hide: true,
-    //     local: true
-    //   }
-    // });
-
+    // Hide the item, and set it to local as it has been updated.
     await dbEventActions.updateEventByOriginalId(data.originalId, {
       hide: true,
       local: true
@@ -748,6 +793,8 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
   const debug = false;
 
   try {
+    await dbEventActions.deleteAllEventByRecurringEventId(data.recurringEventId);
+
     // asyncGetSingleExchangeEvent will throw error when no internet or event missing.
     const singleAppointment = await asyncGetSingleExchangeEvent(
       user.email,
@@ -759,8 +806,6 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
     await asyncDeleteExchangeEvent(singleAppointment, user, () => {
       // Lambda for future if needed.
     });
-
-    await dbEventActions.deleteAllEventByRecurringEventId(data.recurringEventId);
   } catch (error) {
     console.log(error);
     debugger;
@@ -769,17 +814,9 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
     if (error.ErrorCode === 249) {
       // Just remove it from database instead, and break;
       await dbEventActions.deleteAllEventByRecurringEventId(data.recurringEventId);
-      // await deleteDoc.remove();
-      // break;
     }
 
     // Upsert it to the pending action, let pending action automatically handle it.
-    // db.pendingactions.upsert({
-    //   uniqueId: uuidv4(),
-    //   eventId: data.get('originalId'),
-    //   status: 'pending',
-    //   type: 'delete'
-    // });
     await dbPendingActionsActions.insertPendingActionIntoDatabase({
       uniqueId: uuidv4(),
       eventId: data.originalId,
@@ -788,13 +825,6 @@ const deleteEwsAllRecurrenceEvents = async (payload) => {
     });
 
     // Hide the item, and set it to local as it has been updated.
-    // await deleteDoc.update({
-    //   $set: {
-    //     hide: true,
-    //     local: true
-    //   }
-    // });
-
     await dbEventActions.updateEventRecurringEventId(data.recurringEventId, {
       hide: true,
       local: true
@@ -844,13 +874,6 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
     } else {
       if (debug) {
         console.log('Editing end date of recurrence and re-getting');
-
-        // const rpDatabase = db.recurrencepatterns
-        //   .find()
-        //   .where('iCalUID')
-        //   .eq(data.iCalUID);
-        // const rpDatabaseVals = await rpDatabase.exec();
-
         const rpDatabaseVals = await dbRpActions.getOneRpByiCalUID(data.iCalUID);
         console.log('Before anything ', rpDatabaseVals.toJSON());
       }
@@ -860,68 +883,40 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
       await recurrMasterAppointment
         .Update(ConflictResolutionMode.AlwaysOverwrite, SendInvitationsMode.SendToNone)
         .then(async () => {
-          if (debug) {
-            console.log('here', data.recurringEventId);
-            // const allevents = await db.events.find().exec();
-            const allevents = await dbEventActions.getAllEvents();
-            console.log(allevents);
-          }
-
-          // const removedDeletedEventsLocally = await db.events
-          //   .find()
-          //   .where('recurringEventId')
-          //   .eq(data.get('recurringEventId'))
-          //   .exec();
-          const removedDeletedEventsLocally = await dbRpActions.getAllEventsByRecurringEventId(
+          const removedDeletedEventsLocally = await dbEventActions.getAllEventsByRecurringEventId(
             data.recurringEventId
           );
 
-          console.log(
-            removedDeletedEventsLocally,
-            singleAppointment.Start.MomentDate,
-            singleAppointment.End.MomentDate,
-            singleAppointment
-          );
+          if (debug) {
+            const allevents = await dbEventActions.getAllEvents();
+            console.log(data.recurringEventId, allevents);
+            console.log(
+              removedDeletedEventsLocally,
+              singleAppointment.Start.MomentDate,
+              singleAppointment.End.MomentDate,
+              singleAppointment
+            );
+          }
 
           const endTime = singleAppointment.Start.MomentDate.clone();
-
           const afterEvents = removedDeletedEventsLocally.filter((event) =>
-            moment(event.toJSON().start.dateTime).isSameOrAfter(endTime)
+            moment
+              .tz(event.toJSON().start.dateTime * 1000, event.toJSON().start.timezone)
+              .isSameOrAfter(endTime)
           );
+          console.log(afterEvents, endTime);
+          debugger;
 
           await Promise.all(
-            afterEvents.map((event) =>
-              // db.events
-              //   .find()
-              //   .where('originalId')
-              //   .eq(event.originalId)
-              //   .remove()
-              dbEventActions.deleteEventByOriginalId(event.originalId)
-            )
+            afterEvents.map((event) => dbEventActions.deleteEventByOriginalId(event.originalId))
           );
 
-          // const updatingDb = db.recurrencepatterns
-          //   .find()
-          //   .where('iCalUID')
-          //   .eq(data.iCalUID);
-          // const updateDbVals = await updatingDb.exec();
           const updateDbVals = await dbRpActions.getOneRpByiCalUID(data.iCalUID);
-
           if (debug) {
             const checkingData = await dbRpActions.getOneRpByiCalUID(data.iCalUID);
             console.log('Before ', checkingData);
             console.log(updateDbVals.exDates);
           }
-
-          // // Filter ex dates down so that when we scale, ex dates does not constantly expand.
-          // const newExDates = updateDbVals[0].exDates.filter(
-          //   (dateTimeString) =>
-          //     moment(dateTimeString).isAfter(moment(updateDbVals[0].recurringTypeId), 'day') &&
-          //     moment(dateTimeString).isBefore(
-          //       recurrMasterAppointment.Recurrence.EndDate.MomentDate
-          //     ),
-          //   'day'
-          // );
 
           // Filter ex dates down so that when we scale, ex dates does not constantly expand.
           const newExDates = updateDbVals.exDates
@@ -939,15 +934,6 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
             console.log(newExDates);
           }
 
-          // await updatingDb.update({
-          //   $set: {
-          //     until: recurrMasterAppointment.Recurrence.EndDate.MomentDate.format(
-          //       'YYYY-MM-DDTHH:mm:ssZ'
-          //     ),
-          //     exDates: newExDates
-          //   }
-          // });
-
           await dbRpActions.updateRpByiCalUID(data.iCalUID, {
             until: recurrMasterAppointment.Recurrence.EndDate.MomentDate.format(
               'YYYY-MM-DDTHH:mm:ssZ'
@@ -956,12 +942,6 @@ const deleteEwsAllFutureRecurrenceEvents = async (payload) => {
           });
 
           if (debug) {
-            // const newUpdatingDb = db.recurrencepatterns
-            //   .find()
-            //   .where('iCalUID')
-            //   .eq(data.iCalUID);
-
-            // const newData = await newUpdatingDb.exec();
             const newData = await dbRpActions.getOneRpByiCalUID(data.iCalUID);
             console.log('After ', newData.toJSON());
           }

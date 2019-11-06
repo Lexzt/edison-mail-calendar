@@ -31,7 +31,7 @@ export const filterCaldavUser = (jsonObj, url) => ({
 });
 
 export const asyncGetAllCalDavEvents = async (username, password, url, caldavType) => {
-  const debug = true;
+  const debug = false;
   const resp = await caldavBasics.getCaldavAccount(username, password, url, caldavType);
 
   // This breaks due to how our database works, with id being a uniqid.
@@ -44,6 +44,8 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
     // const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
+
+    debugger;
 
     const promises = [];
     // This is broke, upsert makes no sense atm.

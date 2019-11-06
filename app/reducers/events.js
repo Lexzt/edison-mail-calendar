@@ -32,7 +32,7 @@ const mergeEvents = (oldEvents, newEvents, user) => {
 };
 
 const storeEvents = (oldEvents, newEvents, users) => {
-  debugger;
+  // debugger;
   const nonUserEvents = [];
   const userEvents = new Map();
 
@@ -40,21 +40,28 @@ const storeEvents = (oldEvents, newEvents, users) => {
     nonUserEvents.push(
       ...oldEvents.filter(
         (e) =>
-          e.providerType !== user.providerType ||
-          e.owner !== user.email ||
+          e.providerType !== user.providerType &&
+          e.owner !== user.email &&
           e.caldavType !== user.caldavType
       )
     );
 
-    userEvents.set(
-      user,
-      oldEvents.filter(
-        (e) =>
-          e.providerType === user.providerType &&
-          e.owner === user.email &&
-          e.caldavType === user.caldavType
-      )
-    );
+    if (user.providerType === 'CALDAV') {
+      userEvents.set(
+        user,
+        oldEvents.filter(
+          (e) =>
+            e.providerType === user.providerType &&
+            e.owner === user.email &&
+            e.caldavType === user.caldavType
+        )
+      );
+    } else if (user.providerType === 'EXCHANGE') {
+      userEvents.set(
+        user,
+        oldEvents.filter((e) => e.providerType === user.providerType && e.owner === user.email)
+      );
+    }
   });
 
   // As newEvents might have some or none, we need to think if we should append or delete it.
@@ -72,10 +79,10 @@ const storeEvents = (oldEvents, newEvents, users) => {
     // 1. not in the new events and in the old events, it is an added event
     // 2. in the new events but not in the old events, it is a deleted event
     //  it is an old event
-    oldUserEventsId.forEach((e) => {
-      if (!newEventsId.includes(e.id)) {
-        if (oldUserEventsId.includes(e.id)) {
-          newPayload.push(e);
+    oldUserEventsId.forEach((id) => {
+      if (!newEventsId.includes(id)) {
+        if (oldUserEventsId.includes(id)) {
+          newPayload.push(v.filter((e) => e.id === id)[0]);
         }
       }
     });

@@ -648,7 +648,7 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
 };
 
 export const buildICALStringCreateRecurEvent = (eventObject, rpObject) => {
-  debugger;
+  // debugger;
   const builder = icalTookKit.createIcsFileBuilder();
   const tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
   builder.calname = eventObject.summary;
@@ -743,9 +743,9 @@ export const buildICALStringCreateRecurEvent = (eventObject, rpObject) => {
   const rrule = new ICAL.Recur(recurrData);
   vevent.updatePropertyWithValue('rrule', rrule);
 
-  debugger;
+  // debugger;
   vcalendar.addSubcomponent(vevent);
-  debugger;
+  // debugger;
   return vcalendar.toString();
 };
 

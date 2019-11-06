@@ -19,7 +19,13 @@ import {
   MessageBody,
   Uri,
   SendInvitationsMode,
-  WellKnownFolderName
+  WellKnownFolderName,
+  PropertySet,
+  BasePropertySet,
+  AppointmentSchema,
+  BodyType,
+  ItemId,
+  FolderView
 } from 'ews-javascript-api';
 import moment from 'moment';
 import _ from 'lodash';
@@ -43,10 +49,15 @@ import {
   asyncCreateExchangeEvent,
   asyncDeleteExchangeEvent,
   asyncGetRecurrAndSingleExchangeEvents,
-  asyncUpdateExchangeEvent
+  asyncUpdateExchangeEvent,
+  createNewEwsRecurrenceObj,
+  parseEwsRecurringPatterns
 } from '../utils/client/exchange';
 
-import { asyncGetSingleExchangeEvent } from '../utils/client/exchangebasics';
+import {
+  asyncGetSingleExchangeEvent,
+  asyncGetAllExchangeEvents
+} from '../utils/client/exchangebasics';
 
 import {
   // GET_EVENTS_BEGIN,
@@ -75,6 +86,7 @@ import * as IcalStringBuilder from '../utils/icalStringBuilder';
 import * as dbGeneralActions from '../sequelizeDB/operations/general';
 
 import * as dbEventActions from '../sequelizeDB/operations/events';
+import * as dbRpActions from '../sequelizeDB/operations/recurrencepatterns';
 import * as dbPendingActionActions from '../sequelizeDB/operations/pendingactions';
 
 const dav = require('dav');
@@ -175,22 +187,60 @@ export const beginPostEventEpics = (action$) =>
     mergeMap((action) => {
       if (action.payload.providerType === Providers.GOOGLE) {
         return from(postEventGoogle(action.payload)).pipe(
-          map(
-            (resp) => postEventSuccess([resp.result], action.payload.providerType) // Think if you need to pass in owner here
+          map((resp) =>
+            postEventSuccess(
+              [resp],
+              [action.payload.auth],
+              action.payload.providerType,
+              action.payload.auth.email
+            )
           ),
           catchError((error) => apiFailure(error))
         );
       }
       if (action.payload.providerType === Providers.OUTLOOK) {
         return from(postEventsOutlook(action.payload)).pipe(
-          map((resp) => postEventSuccess([resp], action.payload.providerType)), // Think if you need to pass in owner here
+          map((resp) =>
+            postEventSuccess(
+              [resp],
+              [action.payload.auth],
+              action.payload.providerType,
+              action.payload.auth.email
+            )
+          ), // Think if you need to pass in owner here
           catchError((error) => apiFailure(error))
         );
       }
+      // if (action.payload.providerType === Providers.EXCHANGE) {
+      //   return from(postEventsExchange(action.payload)).pipe(
+      //     map((resp) =>
+      //       postEventSuccess(
+      //         [resp],
+      //         [action.payload.auth],
+      //         action.payload.providerType,
+      //         action.payload.auth.email
+      //       )
+      //     ),
+      //     catchError((error) => apiFailure(error))
+      //   );
+      // }
       if (action.payload.providerType === Providers.EXCHANGE) {
-        return from(postEventsExchange(action.payload)).pipe(
+        return from([
+          new Promise((resolve, reject) => {
+            debugger;
+            console.log(action.payload);
+
+            resolve(retrieveStoreEvents(action.payload.auth));
+          }),
+          postEventsExchange(action.payload)
+        ]).pipe(
           map((resp) =>
-            postEventSuccess([resp], action.payload.providerType, action.payload.auth.email)
+            postEventSuccess(
+              [resp],
+              [action.payload.auth],
+              action.payload.providerType,
+              action.payload.auth.email
+            )
           ),
           catchError((error) => apiFailure(error))
         );
@@ -256,59 +306,240 @@ const postEventsExchange = (payload) =>
     exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
     exch.Credentials = new ExchangeCredentials(payload.auth.email, payload.auth.password);
 
+    const { data } = payload;
+    debugger;
     // Posting event so create new appointment
     const newEvent = new Appointment(exch);
+
+    const startDate = new DateTime(
+      moment.tz(payload.data.start.dateTime, payload.data.start.timezone)
+    );
 
     // Map variables from local to server object
     newEvent.Subject = payload.data.summary;
     newEvent.Body = new MessageBody(payload.data.description);
-    newEvent.Start = new DateTime(
-      moment.tz(payload.data.start.dateTime, payload.data.start.timezone)
-    );
+    newEvent.Start = startDate;
     newEvent.End = new DateTime(moment.tz(payload.data.end.dateTime, payload.data.end.timezone));
 
-    // Save to create a new event
-    newEvent
-      .Save(WellKnownFolderName.Calendar, SendInvitationsMode.SendToAllAndSaveCopy)
-      .then(
-        // On success
-        async () => {
-          // Re-get the new item with new variables set by EWS/
-          const item = await Item.Bind(exch, newEvent.Id);
+    const isRecurring = data.rrule !== '';
+    if (isRecurring) {
+      const newRecurrencePattern = {};
+      const updatedId = uuidv1();
+      const updatedUid = uuidv1();
+      debugger;
 
-          // Update database by filtering the new item into our schema.
-          await dbEventActions.insertEventsIntoDatabase(
-            Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
-          );
-          resolve(item);
-        },
-        // On error
-        async (error) => {
-          // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
-          const obj = {
-            uniqueId: uuidv4(),
-            eventId: uuidv4(),
-            status: 'pending',
-            type: 'create'
-          };
+      // eslint-disable-next-line no-underscore-dangle
+      const jsonRecurr = ICAL.Recur._stringToData(data.rrule);
+      const ewsReucrr = createNewEwsRecurrenceObj(
+        jsonRecurr['rrule:freq'],
+        [0, jsonRecurr.BYDAY, 0, 0],
+        jsonRecurr.interval,
+        startDate,
+        jsonRecurr.until,
+        jsonRecurr.count,
+        jsonRecurr.BYMONTH,
+        jsonRecurr.BYMONTHDAY,
+        jsonRecurr.BYDAY,
+        jsonRecurr.BYSETPOS
+      );
+      newEvent.Recurrence = ewsReucrr;
+    }
 
-          // Filter temp object into our schema
-          const savedObj = Providers.filterIntoSchema(
-            newEvent,
-            Providers.EXCHANGE,
-            payload.auth.email,
-            true,
-            obj.eventId
-          );
-          savedObj.createdOffline = true;
+    exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
+      const uploadingId = result.folders.filter(
+        (folder) => folder.DisplayName === 'Uploading Calendar'
+      )[0];
 
-          // Append pending actions for retrying and events for UI display.
-          await dbEventActions.insertEventsIntoDatabase(savedObj);
-          await dbPendingActionActions.insertPendingActionIntoDatabase(obj);
-          throw error;
-        }
-      )
-      .catch((error) => throwError(error));
+      // Save to create a new event
+      newEvent
+        .Save(uploadingId.Id, SendInvitationsMode.SendToAllAndSaveCopy)
+        .then(
+          // On success
+          async () => {
+            // Re-get the new item with new variables set by EWS/
+            const item = await Item.Bind(exch, newEvent.Id);
+            console.log(item);
+
+            if (item.AppointmentType === 'Single') {
+              // Update database by filtering the new item into our schema.
+              await dbEventActions.insertEventsIntoDatabase(
+                Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
+              );
+              resolve(item);
+            } else if (item.AppointmentType === 'RecurringMaster') {
+              debugger;
+              // If it is a recurring master event, we need to rely on ews to expand our events.
+              const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
+              const newRecurrExpandedEvents = allExchangeEvents
+                .filter((serverEvent) => serverEvent.ICalUid === item.ICalUid)
+                .map((newExpandedSingleEvent) => {
+                  newExpandedSingleEvent.RecurrenceMasterId = item.Id;
+                  return newExpandedSingleEvent;
+                });
+
+              const rpList = await dbRpActions.getAllRp();
+              const oldRecurrExpandedEvents = allExchangeEvents
+                .filter((serverEvent) => serverEvent.ICalUid !== item.ICalUid)
+                .map((oldExpandedSingleEvent) => {
+                  const prevRp = rpList.filter(
+                    (rp) => rp.iCalUID === oldExpandedSingleEvent.ICalUid
+                  );
+                  console.log(prevRp, oldExpandedSingleEvent);
+                  // debugger;
+                  if (oldExpandedSingleEvent.IsRecurring && prevRp.length > 0) {
+                    oldExpandedSingleEvent.RecurrenceMasterId = { UniqueId: prevRp[0].originalId };
+                  }
+                  return oldExpandedSingleEvent;
+                });
+              debugger;
+
+              // const promiseArr = [];
+              // promiseArr.push(
+              //   ...newRecurrExpandedEvents.map((updatedSingleEvent) =>
+              //     dbEventActions.insertEventsIntoDatabase(
+              //       Providers.filterIntoSchema(
+              //         updatedSingleEvent,
+              //         Providers.EXCHANGE,
+              //         payload.auth.email,
+              //         false
+              //       )
+              //     )
+              //   )
+              // );
+
+              await dbRpActions.insertOrUpdateRp(
+                parseEwsRecurringPatterns(
+                  item.Id.UniqueId,
+                  item.Recurrence,
+                  item.ICalUid,
+                  null,
+                  null
+                )
+              );
+              // const finalEventsArr = await Promise.all(promiseArr);
+              // resolve([...newRecurrExpandedEvents, ...oldRecurrExpandedEvents]);
+              resolve(newRecurrExpandedEvents);
+            }
+          },
+          // On error
+          async (error) => {
+            // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
+            const obj = {
+              uniqueId: uuidv4(),
+              eventId: uuidv4(),
+              status: 'pending',
+              type: 'create'
+            };
+
+            // Filter temp object into our schema
+            const savedObj = Providers.filterIntoSchema(
+              newEvent,
+              Providers.EXCHANGE,
+              payload.auth.email,
+              true,
+              obj.eventId
+            );
+            savedObj.createdOffline = true;
+
+            // Append pending actions for retrying and events for UI display.
+            await dbEventActions.insertEventsIntoDatabase(savedObj);
+            await dbPendingActionActions.insertPendingActionIntoDatabase(obj);
+            throw error;
+          }
+        )
+        .catch((error) => throwError(error));
+    });
+
+    // // Save to create a new event
+    // newEvent
+    //   .Save(WellKnownFolderName.Calendar, SendInvitationsMode.SendToAllAndSaveCopy)
+    //   .then(
+    //     // On success
+    //     async () => {
+    //       // Re-get the new item with new variables set by EWS/
+    //       const item = await Item.Bind(exch, newEvent.Id);
+    //       console.log(item);
+
+    //       if (item.AppointmentType === 'Single') {
+    //         // Update database by filtering the new item into our schema.
+    //         await dbEventActions.insertEventsIntoDatabase(
+    //           Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
+    //         );
+    //         resolve(item);
+    //       } else if (item.AppointmentType === 'RecurringMaster') {
+    //         debugger;
+    //         // If it is a recurring master event, we need to rely on ews to expand our events.
+    //         const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
+    //         const newRecurrExpandedEvents = allExchangeEvents
+    //           .filter((serverEvent) => serverEvent.ICalUid === item.ICalUid)
+    //           .map((newExpandedSingleEvent) => {
+    //             newExpandedSingleEvent.RecurrenceMasterId = item.Id;
+    //             return newExpandedSingleEvent;
+    //           });
+
+    //         const rpList = await dbRpActions.getAllRp();
+    //         const oldRecurrExpandedEvents = allExchangeEvents
+    //           .filter((serverEvent) => serverEvent.ICalUid !== item.ICalUid)
+    //           .map((oldExpandedSingleEvent) => {
+    //             const prevRp = rpList.filter((rp) => rp.iCalUID === oldExpandedSingleEvent.ICalUid);
+    //             console.log(prevRp, oldExpandedSingleEvent);
+    //             // debugger;
+    //             if (oldExpandedSingleEvent.IsRecurring && prevRp.length > 0) {
+    //               oldExpandedSingleEvent.RecurrenceMasterId = { UniqueId: prevRp[0].originalId };
+    //             }
+    //             return oldExpandedSingleEvent;
+    //           });
+    //         debugger;
+
+    //         // const promiseArr = [];
+    //         // promiseArr.push(
+    //         //   ...newRecurrExpandedEvents.map((updatedSingleEvent) =>
+    //         //     dbEventActions.insertEventsIntoDatabase(
+    //         //       Providers.filterIntoSchema(
+    //         //         updatedSingleEvent,
+    //         //         Providers.EXCHANGE,
+    //         //         payload.auth.email,
+    //         //         false
+    //         //       )
+    //         //     )
+    //         //   )
+    //         // );
+
+    //         await dbRpActions.insertOrUpdateRp(
+    //           parseEwsRecurringPatterns(item.Id.UniqueId, item.Recurrence, item.ICalUid, null, null)
+    //         );
+    //         // const finalEventsArr = await Promise.all(promiseArr);
+    //         // resolve([...newRecurrExpandedEvents, ...oldRecurrExpandedEvents]);
+    //         resolve(newRecurrExpandedEvents);
+    //       }
+    //     },
+    //     // On error
+    //     async (error) => {
+    //       // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
+    //       const obj = {
+    //         uniqueId: uuidv4(),
+    //         eventId: uuidv4(),
+    //         status: 'pending',
+    //         type: 'create'
+    //       };
+
+    //       // Filter temp object into our schema
+    //       const savedObj = Providers.filterIntoSchema(
+    //         newEvent,
+    //         Providers.EXCHANGE,
+    //         payload.auth.email,
+    //         true,
+    //         obj.eventId
+    //       );
+    //       savedObj.createdOffline = true;
+
+    //       // Append pending actions for retrying and events for UI display.
+    //       await dbEventActions.insertEventsIntoDatabase(savedObj);
+    //       await dbPendingActionActions.insertPendingActionIntoDatabase(obj);
+    //       throw error;
+    //     }
+    //   )
+    //   .catch((error) => throwError(error));
   });
 
 const postEventsCalDav = async (payload) => {
@@ -322,7 +553,7 @@ const postEventsCalDav = async (payload) => {
     })
   );
 
-  debugger;
+  // debugger;
 
   // Final iCalString to post out
   let newiCalString = '';
@@ -332,7 +563,7 @@ const postEventsCalDav = async (payload) => {
   const caldavUrl =
     'https://caldav.icloud.com/10224008189/calendars/F669E46B-E8BB-44C5-A714-2AE82012AE65/';
 
-  // Yahoo Calendar Link
+  // // Yahoo Calendar Link
   // const caldavUrl =
   //   'https://caldav.calendar.yahoo.com/dav/oj242dvo2jivt6lfbyxqfherdqulvbiaprtaw5kv/Calendar/Fong%20Zhi%20Zhong/';
 
@@ -361,14 +592,33 @@ const postEventsCalDav = async (payload) => {
 
     // eslint-disable-next-line no-underscore-dangle
     const jsonRecurr = ICAL.Recur._stringToData(data.rrule);
+    // debugger;
+
+    const freq = jsonRecurr['rrule:freq'];
+    if (freq === 'MONTHLY') {
+      // If there is a setpos, I need ot merge them up into one param
+      // RRule gen splits them into bysetpos and byday, but server takes in byday
+      // E.g. bysetpos = 1, byday = TU, merge to byday = 1TU
+      // If there is no setpos, it means it is a by month day event
+      if (jsonRecurr.BYSETPOS !== undefined) {
+        jsonRecurr.BYDAY = jsonRecurr.BYSETPOS + jsonRecurr.BYDAY;
+        delete jsonRecurr.BYSETPOS;
+      } else if (Array.isArray(jsonRecurr.BYDAY)) {
+        jsonRecurr.BYDAY = jsonRecurr.BYDAY.join(',');
+      }
+
+      if (Array.isArray(jsonRecurr.BYMONTHDAY)) {
+        jsonRecurr.BYMONTHDAY = `${jsonRecurr.BYMONTHDAY.join(',')}`;
+      } else if (jsonRecurr.BYMONTHDAY === undefined) {
+        jsonRecurr.BYMONTHDAY = '';
+      }
+    }
 
     Object.assign(newRecurrencePattern, {
       id: updatedId,
       originalId: updatedUid,
       // // // Temp take from the recurrence master first, will take from the UI in future.
-      // // freq: payload.options.rrule.freq,
-      // // interval: payload.options.rrule.interval,
-      freq: jsonRecurr['rrule:freq'],
+      freq,
       interval: jsonRecurr.interval,
       numberOfRepeat: jsonRecurr.count !== undefined ? jsonRecurr.count : 0,
       until: jsonRecurr.until !== undefined ? jsonRecurr.until : null,
@@ -385,10 +635,12 @@ const postEventsCalDav = async (payload) => {
       // bySecond: '',
       // byEaster: '',
       // bySetPos: '',
-      byWeekNo: '',
-      byWeekDay: `${Array.isArray(jsonRecurr.BYDAY) ? jsonRecurr.BYDAY.join(',') : ''}`,
-      byMonth: '',
-      byMonthDay: '',
+      // byWeekNo: jsonRecurr.BYSETPOS !== undefined ? jsonRecurr.BYSETPOS : '',
+      byWeekNo: '', // Not using as byWeekDay handles week no.
+      byWeekDay: jsonRecurr.BYDAY !== undefined ? jsonRecurr.BYDAY : '',
+      byMonth: jsonRecurr.BYMONTH !== undefined ? jsonRecurr.BYMONTH : '',
+      // eslint-disable-next-line no-nested-ternary
+      byMonthDay: jsonRecurr.BYMONTHDAY !== undefined ? jsonRecurr.BYMONTHDAY : '',
       byYearDay: ''
     });
 
@@ -569,7 +821,7 @@ const syncEvents = async (action) => {
         const dbEvents = await dbEventActions.getAllEvents();
         const updatedEvents = [];
         const listOfPriomises = [];
-        debugger;
+        // debugger;
 
         for (const event of events) {
           const dbObj = dbEvents.filter(

@@ -1,7 +1,11 @@
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import { withStyles } from '@material-ui/core/styles';
-import { editEventBegin } from '../actions/events';
+import {
+  beginEditEvent,
+  beginEditRecurrenceSeries,
+  beginEditFutureRecurrenceSeries
+} from '../actions/events';
 import {
   editCalDavSingleEventBegin,
   editCalDavAllEventBegin,
@@ -35,8 +39,8 @@ const mapStateToProps = (state) => ({
 });
 
 const mapDispatchToProps = (dispatch) => ({
-  editEventBegin: (id, eventObject, providerType) =>
-    dispatch(editEventBegin(id, eventObject, providerType)), // This handles google only, parse it into generic.
+  // editEventBegin: (id, eventObject, providerType) =>
+  //   dispatch(editEventBegin(id, eventObject, providerType)), // This handles google only, parse it into generic.
 
   editEwsSingleEventBegin: (event) => dispatch(editEwsSingleEventBegin(event)),
   editEwsAllEventBegin: (event) => dispatch(editEwsAllEventBegin(event)),
@@ -44,7 +48,12 @@ const mapDispatchToProps = (dispatch) => ({
 
   editCalDavSingleEventBegin: (event) => dispatch(editCalDavSingleEventBegin(event)),
   editCalDavAllEventBegin: (event) => dispatch(editCalDavAllEventBegin(event)),
-  editCalDavFutureEventBegin: (event) => dispatch(editCalDavFutureEventBegin(event))
+  editCalDavFutureEventBegin: (event) => dispatch(editCalDavFutureEventBegin(event)),
+
+  // CRUD - Delete Operations
+  beginEditEvent: (payload) => dispatch(beginEditEvent(payload)),
+  beginEditRecurrenceSeries: (payload) => dispatch(beginEditRecurrenceSeries(payload)),
+  beginEditFutureRecurrenceSeries: (payload) => dispatch(beginEditFutureRecurrenceSeries(payload))
 });
 
 export default connect(

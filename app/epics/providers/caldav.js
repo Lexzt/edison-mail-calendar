@@ -454,7 +454,11 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       // We use the all function to get the length of the input.
       // Parsed into Json for readability and able to be manipulated. RxDocs are not mutable.
       // As we editing this event, we need the minus one.
-      const ruleSet = PARSER.buildRuleSet(oldRecurringPattern, pattern.recurringTypeId);
+      const ruleSet = PARSER.buildRuleSet(
+        oldRecurringPattern,
+        pattern.recurringTypeId,
+        data.start.timezone
+      );
       // Recur Dates only hold events and not exceptions.
       const recurDates = ruleSet.all().map((date) => date.toJSON());
       const seriesEndCount =
@@ -859,7 +863,11 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
       .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'))
       .join(',');
 
-    const ruleSet = PARSER.buildRuleSet(recurrencePattern, recurrencePattern.recurringTypeId);
+    const ruleSet = PARSER.buildRuleSet(
+      recurrencePattern,
+      recurrencePattern.recurringTypeId,
+      data.start.timezone
+    );
     const recurDates = ruleSet.all().map((date) => date.toJSON());
     const recurrAfterDates = recurDates.filter((date) =>
       moment(date).isSameOrAfter(moment.unix(data.start.dateTime))

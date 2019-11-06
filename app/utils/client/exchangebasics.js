@@ -12,12 +12,19 @@ import {
   ItemSchema,
   BodyType,
   ItemView,
-  AppointmentSchema
+  AppointmentSchema,
+  FolderView
 } from 'ews-javascript-api';
 import moment from 'moment';
 import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 import { parseEwsRecurringPatterns } from './exchange';
 
+/*
+  Goal: Get a single appointment from the server
+  Why: For certain CRUD operations and chaining use cases.
+    Wrapped for easier understanding
+  How: 1 EWS API call on the server with ID,
+*/
 export const asyncGetSingleExchangeEvent = async (username, password, url, itemId) => {
   try {
     const exch = new ExchangeService();
@@ -32,6 +39,20 @@ export const asyncGetSingleExchangeEvent = async (username, password, url, itemI
   }
 };
 
+/*
+  Goal: Get all non complex defined properties.
+  Why: We needed a list of ID if we want to get complex properties.
+    Information like body are not defined and throw an error
+  How: 1 + n EWS API call on the server
+    1 call for finding the proper calendar to pull from
+    n calls for the list of time between certain time defined by you.
+
+    Another factor to take into account is the use of different calendars
+    Here, I am using a different calendar and not the main calendar as
+    you might have history of events and you cannot delete the main calendar if anything goes wrong.
+    Therefore, I made a ews call to pull the list of calendar from the server
+    and find a calendar named 'Uploading Calendar' to get all the main events from.
+*/
 export const asyncGetAllExchangeEvents = async (exch) => {
   let view;
   let exchangeEvents = [];
@@ -44,11 +65,21 @@ export const asyncGetAllExchangeEvents = async (exch) => {
   let prev = moment.unix(1451653200);
   const b = moment.unix(1704114000); // Just some random super large time.
 
+  let uploadingCalendar;
+  await exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
+    // eslint-disable-next-line prefer-destructuring
+    uploadingCalendar = result.folders.filter(
+      (folder) => folder.DisplayName === 'Uploading Calendar'
+    )[0];
+  });
+
+  // 23 months because you can only pull 2 years at a time.
+  // 23 because laze to calculate the last month addition
   for (let m = moment(a); m.isBefore(b); m.add(23, 'month')) {
     view = new CalendarView(new DateTime(prev), new DateTime(m));
     try {
       results.push(
-        exch.FindAppointments(WellKnownFolderName.Calendar, view).then(
+        exch.FindAppointments(uploadingCalendar, view).then(
           (response) => loopEvents(response),
           (error) => {
             throw error;
@@ -61,21 +92,54 @@ export const asyncGetAllExchangeEvents = async (exch) => {
     prev = prev.add(23, 'month');
   }
   await Promise.all(results);
+  // debugger;
   return exchangeEvents;
 };
 
+/*
+  Goal: Update all the exchange events with the right description
+  Why: To get all the events complex properties, in this case, description.
+    Can be further extended to add more complex properties if needed.
+  How: 1 EWS API call on the server with IDs, with the propertyset defined
+    PropertySets are used to get additional informaton.
+    Array of Non Recurr Ids as we assume recurr Ids have complex properties and handled different.
+    Array as it is a bulk request and not for each event.
+    RequestedBodyType MUST be defined as BodyType.Text, else it returns in HTML.
+*/
 export const asyncGetExchangeBodyEvents = async (exch, arrayOfNonRecurrIds, exchangeEvents) => {
   const exchangeEventsWithBody = [];
+  // const additonalProps = new PropertySet(BasePropertySet.IdOnly, [
+  //   AppointmentSchema.Recurrence,
+  //   AppointmentSchema.Body,
+  //   AppointmentSchema.Subject,
+  //   AppointmentSchema.AppointmentType,
+  //   AppointmentSchema.IsRecurring,
+  //   AppointmentSchema.Start,
+  //   AppointmentSchema.StartTimeZone,
+  //   AppointmentSchema.TimeZone,
+  //   AppointmentSchema.EndTimeZone,
+  //   AppointmentSchema.End,
+  //   AppointmentSchema.ICalUid,
+  //   AppointmentSchema.ICalRecurrenceId,
+  //   AppointmentSchema.LastOccurrence,
+  //   AppointmentSchema.ModifiedOccurrences,
+  //   AppointmentSchema.DeletedOccurrences
+  // ]);
+  // additonalProps.RequestedBodyType = BodyType.Text;
+
   const additonalProps = new PropertySet(BasePropertySet.IdOnly, ItemSchema.Body);
   additonalProps.RequestedBodyType = BodyType.Text;
 
   await exch.BindToItems(arrayOfNonRecurrIds, additonalProps).then(
     (resp) => {
+      // debugger;
       resp.responses.forEach((singleAppointment) => {
         const fullSizeAppointment = exchangeEvents.filter(
           (event) => event.Id.UniqueId === singleAppointment.item.Id.UniqueId
         )[0];
         fullSizeAppointment.Body = singleAppointment.item.Body.text;
+        // debugger;
+        // fullSizeAppointment.TimeZone = singleAppointment.item.TimeZone;
         exchangeEventsWithBody.push(fullSizeAppointment);
       });
     },
@@ -88,6 +152,21 @@ export const asyncGetExchangeBodyEvents = async (exch, arrayOfNonRecurrIds, exch
   return exchangeEventsWithBody;
 };
 
+/*
+  Goal: Get only recurrence master events and parse into rp database.
+  Why: Recurrence Master events are needed for certain CRUD ops, like deleting all events.
+  How: 3 EWS API call on the server/
+    1 call for finding the proper calendar to pull from
+    1 call for finding the appointments in the found calendar, re-using the prev result.
+    1 call for finding all the complex properties needed for our database.
+
+    PropertySets are used to get additional informaton.
+      For recurrence,
+        Modified Occurrences and Deleted Occurrences are complex properties
+        Appends to recurrenceIds and exDates accordingly.
+
+    RequestedBodyType MUST be defined as BodyType.Text, else it returns in HTML.
+*/
 export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
   let view;
   const exchangeEvents = new Map();
@@ -95,13 +174,22 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
   const debug = false;
 
   try {
+    let uploadingCalendar;
+    await exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
+      // eslint-disable-next-line prefer-destructuring
+      uploadingCalendar = result.folders.filter(
+        (folder) => folder.DisplayName === 'Uploading Calendar'
+      )[0];
+    });
+
     await exch
-      .FindItems(WellKnownFolderName.Calendar, new ItemView(100))
+      .FindItems(uploadingCalendar.Id, new ItemView(100))
+      // .FindItems(WellKnownFolderName.Calendar, new ItemView(100))
       .then((resp) => resp.Items.filter((item) => item.AppointmentType === 'RecurringMaster'))
       .then((recurringMasterEvents) => {
         const setKeyId = new Set();
         recurringMasterEvents.forEach((item) => setKeyId.add(new ItemId(item.Id.UniqueId)));
-
+        // debugger;
         const additonalProps = new PropertySet(BasePropertySet.IdOnly, [
           AppointmentSchema.Recurrence,
           AppointmentSchema.Body,
@@ -109,6 +197,9 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
           AppointmentSchema.AppointmentType,
           AppointmentSchema.IsRecurring,
           AppointmentSchema.Start,
+          AppointmentSchema.StartTimeZone,
+          AppointmentSchema.TimeZone,
+          AppointmentSchema.EndTimeZone,
           AppointmentSchema.End,
           AppointmentSchema.ICalUid,
           AppointmentSchema.ICalRecurrenceId,

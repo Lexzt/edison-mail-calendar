@@ -5,7 +5,25 @@ import moment from 'moment';
 import Modal from 'react-modal';
 import RRule from 'rrule';
 import ICAL from 'ical.js';
+import fileSystem from 'fs';
 
+import {
+  ExchangeService,
+  Uri,
+  ExchangeCredentials,
+  WellKnownFolderName,
+  FolderView,
+  Appointment,
+  DateTime,
+  FolderId,
+  SendInvitationsMode,
+  MessageBody,
+  Item,
+  CalendarView,
+  ConflictResolutionMode,
+  SendInvitationsOrCancellationsMode,
+  DeleteMode
+} from 'ews-javascript-api';
 import * as ProviderTypes from '../utils/constants';
 import SignupSyncLink from './SignupSyncLink';
 import serverUrls from '../utils/serverUrls';
@@ -23,6 +41,15 @@ import UserBlock from '../sequelizeDB/schemas/users';
 import EventBlock from '../sequelizeDB/schemas/events';
 import RpBlock from '../sequelizeDB/schemas/recurrencePatterns';
 import * as dbRpOperations from '../sequelizeDB/operations/recurrencepatterns';
+import {
+  asyncCreateExchangeEvent,
+  createNewEwsRecurrenceObj,
+  editEwsRecurrenceObj,
+  asyncGetRecurrAndSingleExchangeEvents,
+  asyncDeleteExchangeEvent,
+  asyncUpdateExchangeEvent
+} from '../utils/client/exchange';
+import { asyncGetAllExchangeEvents } from '../utils/client/exchangebasics';
 
 const dav = require('dav');
 const uuidv1 = require('uuid/v1');
@@ -83,6 +110,312 @@ export default class View extends React.Component {
     const rpData = await RpBlock.findAll();
     console.log(rpData.map((e) => e.toJSON()));
 
+    moment(); // In case I need moment for debugging in this function
+    // debugger;
+
+    // #region UPLOADING LOCAL EVENTS TO EWS
+    // // This does not work as ews has some end point limitation due to concurrent connection
+    // // Therefore, I have forsaken this code to the depths of idgaf of it anymore.
+    // // If you want to move caldav events to ews, export from apple calendar and move it via .ics file.
+    // const uploading = [];
+
+    // const tempMap = new Map();
+    // eventData.forEach((e) => {
+    //   const json = e.toJSON();
+
+    //   if (json.isRecurring) {
+    //     let listOfEvent;
+    //     if (tempMap.get(json.iCalUID) === undefined) {
+    //       listOfEvent = [];
+    //     } else {
+    //       listOfEvent = tempMap.get(json.iCalUID);
+    //     }
+
+    //     listOfEvent.push(json);
+    //     tempMap.set(json.iCalUID, listOfEvent);
+    //   }
+    // });
+
+    // const tempOutput = [];
+    // tempMap.forEach((v, k) => {
+    //   const rp = rpData.filter((tempRp) => tempRp.originalId === k)[0].toJSON();
+    //   tempOutput.push({ events: v, rp });
+    // });
+    // const fileOutput = tempOutput.map((e) => ({
+    //   fileName: this.buildTitleStringFromRP(e),
+    //   events: e.events,
+    //   rp: e.rp
+    // }));
+
+    // let countIgnoring = 0;
+    // let countCreated = 0;
+
+    // try {
+    //   for (let i = 20; i < 30; i += 1) {
+    //     // Firstly, lets ignore yearly events as too hard to test atm.
+    //     if (fileOutput[i].rp.freq === 'YEARLY') {
+    //       console.log('Got a yearly event, ignoring');
+    //       countIgnoring += 1;
+    //       continue;
+    //     }
+
+    //     if (fileOutput[i].rp.freq === 'MONTHLY') {
+    //       console.log('Got a monthly event, ignoring');
+    //       countIgnoring += 1;
+    //       continue;
+    //     }
+
+    //     countCreated += 1;
+
+    //     // if (fileOutput[i].fileName !== 'Monthly Event, Trice a month, Till Date, 1 Deleted') {
+    //     //   continue;
+    //     // }
+    //     // debugger;
+    //     // const obj = fileOutput[0];
+    //     const obj = fileOutput[i];
+    //     console.log('Working on ', fileOutput[i].fileName);
+
+    //     // Find a non edited/deleted event
+    //     const deletedEvents = [];
+    //     const editedEvents = [];
+    //     if (typeof obj.rp.exDates === 'number') {
+    //       deletedEvents.push(obj.rp.exDates);
+    //     } else if (obj.rp.exDates !== '') {
+    //       deletedEvents.push(...obj.rp.exDates.split(','));
+    //     }
+
+    //     if (typeof obj.rp.recurrenceIds === 'number') {
+    //       editedEvents.push(obj.rp.recurrenceIds);
+    //     } else if (obj.rp.recurrenceIds !== '') {
+    //       editedEvents.push(...obj.rp.recurrenceIds.split(','));
+    //     }
+
+    //     // Need to sort as we need to find the earliest item to expand to
+    //     const nonEditedEvent = obj.events
+    //       .filter((event) => ![...deletedEvents, ...editedEvents].includes(event.start.dateTime))
+    //       .sort((event1, event2) => event1.start.dateTime > event2.start.dateTime)[0];
+
+    //     const editedEventsData = obj.events.filter((event) =>
+    //       [...editedEvents].includes(event.start.dateTime)
+    //     );
+
+    //     // First, I need to create the object with the recurrence pattern.
+    //     // We ignore creation of single events as there is barely any code difference
+    //     // eslint-disable-next-line no-loop-func
+    //     const promise = new Promise(async (resolve, reject) => {
+    //       // Create Exchange Service and set up credientials
+    //       const exch = new ExchangeService();
+    //       exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
+    //       exch.Credentials = new ExchangeCredentials('e0176993@u.nus.edu', 'Ggrfw4406@nus6');
+
+    //       // Posting event so create new appointment
+    //       const newEvent = new Appointment(exch);
+
+    //       const startDate = new DateTime(
+    //         moment.tz(nonEditedEvent.start.dateTime * 1000, nonEditedEvent.start.timezone)
+    //       );
+    //       console.log(startDate);
+    //       const endDate = new DateTime(
+    //         moment.tz(nonEditedEvent.end.dateTime * 1000, nonEditedEvent.end.timezone)
+    //       );
+
+    //       // Map variables from local to server object
+    //       newEvent.Subject = `(Exchange) ${fileOutput[i].fileName}`;
+    //       newEvent.Body = new MessageBody(nonEditedEvent.description);
+    //       newEvent.Start = startDate;
+    //       newEvent.End = endDate;
+
+    //       if (nonEditedEvent.isRecurring) {
+    //         const newRecurrencePattern = {};
+    //         const updatedId = uuidv1();
+    //         const updatedUid = uuidv1();
+    //         // debugger;
+
+    //         const until = ICAL.Time.now();
+    //         until.fromUnixTime(obj.rp.until);
+
+    //         // eslint-disable-next-line no-underscore-dangle
+    //         const ewsReucrr = createNewEwsRecurrenceObj(
+    //           obj.rp.freq,
+    //           [0, obj.rp.weeklyPattern.split(','), 0, 0],
+    //           obj.rp.interval,
+    //           startDate,
+    //           until,
+    //           obj.rp.numberOfRepeats,
+    //           obj.rp.byMonth,
+    //           obj.rp.byMonthDay,
+    //           obj.rp.byWeekDay.slice(1, -1),
+    //           obj.rp.byWeekNo.slice(1, -1)
+    //           // jsonRecurr.BYMONTH,
+    //           // jsonRecurr.BYMONTHDAY,
+    //           // jsonRecurr.BYDAY,
+    //           // jsonRecurr.BYSETPOS
+    //         );
+    //         newEvent.Recurrence = ewsReucrr;
+    //         console.log(ewsReucrr);
+    //       }
+
+    //       await exch
+    //         .FindFolders(WellKnownFolderName.Calendar, new FolderView(10))
+    //         .then(async (result) => {
+    //           const uploadingId = result.folders.filter(
+    //             (folder) => folder.DisplayName === 'Uploading Calendar'
+    //           )[0];
+
+    //           // Save to create a new event
+    //           await newEvent.Save(uploadingId.Id, SendInvitationsMode.SendToAllAndSaveCopy).then(
+    //             // On success
+    //             async () => {
+    //               // Re-get the new item with new variables set by EWS
+    //               // Needed for editing/deleting of single event somehow.
+    //               const item = await Appointment.Bind(exch, newEvent.Id);
+    //               console.log(item.Subject, item.Start.ToString());
+    //               debugger;
+
+    //               if (item.AppointmentType === 'Single') {
+    //                 // Don't need to do anything as single item is assumed as always okay.
+    //               } else if (item.AppointmentType === 'RecurringMaster') {
+    //                 // First, we deal with the deleted events
+    //                 // Deleted events are easier to deal with as there is no change of information
+    //                 // and we can just nuke the event away from existance basically.
+    //                 // However, as shown in the delete function, you need to know the appt
+    //                 // In order to know the appt of the expanded recurrence series,
+    //                 // you need to get the expanded series from ews itself first.
+
+    //                 // Get all appointments
+    //                 const allAppt = await asyncGetAllExchangeEvents(exch);
+
+    //                 // Filter allAppt down by iCalUID as that is the only link between them.
+    //                 const newExpandedEvents = allAppt.filter(
+    //                   (newAppt) => newAppt.ICalUid === item.ICalUid
+    //                 );
+
+    //                 // Now, we need to handle edited events.
+    //                 // Edited events are abit more tricky as we need to update the param
+    //                 // and then call the update function before we can use it.
+    //                 // The idea here is pretty simple, for every edited event that was defined in caldav
+    //                 // We find the corresponding event from the server and
+    //                 // edit it according to the local object
+    //                 const editedPromise = editedEventsData.map((dbEditedEvent) => {
+    //                   // Find the right event by time
+    //                   // This should be a single appointment
+    //                   const editingAppts = newExpandedEvents.filter(
+    //                     (singleAppt) =>
+    //                       singleAppt.Start.getMomentDate().unix() === dbEditedEvent.start.dateTime
+    //                   );
+
+    //                   if (editingAppts.length !== 1) {
+    //                     console.log('What is going on? ', editingAppts.length);
+    //                   }
+
+    //                   const foundEditedAppointment = editingAppts[0];
+    //                   // Since for now, we are assuming only the title is being changed,
+    //                   // I will do that again
+    //                   const newSummary = dbEditedEvent.summary.replace('ICloud', 'Exchange');
+    //                   foundEditedAppointment.Subject = newSummary;
+    //                   // TO-DO, ADD MORE FIELDS HERE LATER
+
+    //                   // Return the promise and let outter promise,.all handle.
+    //                   return foundEditedAppointment
+    //                     .Update(
+    //                       ConflictResolutionMode.AlwaysOverwrite,
+    //                       SendInvitationsOrCancellationsMode.SendToNone
+    //                     )
+    //                     .then(
+    //                       (success) => {
+    //                         console.log(success);
+    //                       },
+    //                       (error) => {
+    //                         console.log(error);
+    //                       }
+    //                     );
+    //                 });
+    //                 await Promise.all(editedPromise);
+    //                 debugger;
+    //                 // Now for each appointment that has been expanded,
+    //                 // we need to find the right one to delete
+    //                 // As its an async call to delete, we map and promise await inside.
+    //                 const deletePromise = deletedEvents.map((deletedEpochTime) => {
+    //                   // Find the right event by time
+    //                   const deletingAppts = newExpandedEvents.filter(
+    //                     (singleAppt) => singleAppt.Start.getMomentDate().unix() === deletedEpochTime
+    //                   );
+    //                   return deletingAppts.map((deletingAppt) =>
+    //                     deletingAppt.Delete(DeleteMode.MoveToDeletedItems).then(
+    //                       (success) => {
+    //                         console.log(success);
+    //                       },
+    //                       (error) => {
+    //                         console.log(error);
+    //                       }
+    //                     )
+    //                   );
+    //                 });
+    //                 await Promise.all(deletePromise);
+    //                 debugger;
+    //               }
+    //               console.log('Done!!');
+    //               resolve('Done'); // Return null as all okay
+    //             },
+    //             // On error
+    //             async (error) => {
+    //               console.log(error);
+    //               debugger;
+    //             }
+    //           );
+    //         });
+    //     });
+    //   }
+    // } catch (e) {
+    //   console.log(e);
+    //   debugger;
+    // }
+    // #endregion
+
+    // #region CREATING TEST CASE DATASET RESULTS
+    // // This creates the map for outputing of the test cases for caldav.
+    // // First you need the sample map in the database.
+    // // If not, there is no data accordingly.
+    // // You need to have the testcases folder available. Just make it.
+    // const tempMap = new Map();
+    // eventData.forEach((e) => {
+    //   const json = e.toJSON();
+
+    //   if (json.isRecurring) {
+    //     let listOfEvent;
+    //     if (tempMap.get(json.iCalUID) === undefined) {
+    //       listOfEvent = [];
+    //     } else {
+    //       listOfEvent = tempMap.get(json.iCalUID);
+    //     }
+
+    //     listOfEvent.push(json);
+    //     tempMap.set(json.iCalUID, listOfEvent);
+    //   }
+    // });
+
+    // const tempOutput = [];
+    // tempMap.forEach((v, k) => {
+    //   const rp = rpData.filter((tempRp) => tempRp.originalId === k)[0].toJSON();
+    //   tempOutput.push({ events: v, rp });
+    // });
+    // const fileOutput = tempOutput.map((e) => ({
+    //   fileName: this.buildTitleStringFromRP(e),
+    //   events: e.events,
+    //   rp: e.rp
+    // }));
+
+    // for (let i = 0; i < fileOutput.length; i += 1) {
+    //   const obj = fileOutput[i];
+    //   fileSystem.writeFileSync(
+    //     `testoutput/${obj.fileName}.json`,
+    //     JSON.stringify(obj, null, '\t'),
+    //     (err) => console.log(err)
+    //   );
+    // }
+    // #endregion CREATING TEST CASE DATASET RESULTS
+
+    // #region UPLOADING LOCAL EVENTS TO CALDAV
     // // THIS UPLOADS ALL RECURRING ICLOUD EVENTS TO YAHOO MAIL
     // // ONLY UNCOMMENT IF YOU WANT TO DO THAT,
     // // ELSE YOU GONNA GET A INSANE AMOUNT OF EVENTS IN YOUR CALENDAR
@@ -127,7 +460,7 @@ export default class View extends React.Component {
     //     return addResult;
     //   });
     // const results = await Promise.all(uploadRequest);
-    // debugger;
+    // #endregion
 
     UserBlock.findAll().then((providerUserData) => {
       providerUserData.forEach((singleProviderUserData) => {
@@ -183,6 +516,171 @@ export default class View extends React.Component {
     clearInterval(this.incrementalSync);
     this.incrementalSync = null;
   }
+
+  buildTitleStringFromRP = (e) => {
+    // const outputStr = [];
+    // let firstDeleted = false;
+    // let firstEdited = false;
+    // let lastDeleted = false;
+    // let lastEdited = false;
+
+    // const { rp } = e;
+    // const { events } = e;
+
+    // function formatString(str) {
+    //   return str
+    //     .replace(/(\B)[^ ]*/g, (match) => match.toLowerCase())
+    //     .replace(/^[^ ]/g, (match) => match.toUpperCase());
+    // }
+
+    // function parseWeekDayNoToString(strWeekDay) {
+    //   switch (strWeekDay) {
+    //     case 0:
+    //       return 'SU';
+    //     case 1:
+    //       return 'MO';
+    //     case 2:
+    //       return 'TU';
+    //     case 3:
+    //       return 'WE';
+    //     case 4:
+    //       return 'TH';
+    //     case 5:
+    //       return 'FR';
+    //     case 6:
+    //       return 'SA';
+    //     default:
+    //       break;
+    //   }
+    // }
+
+    // outputStr.push(formatString(`${rp.freq} Event`));
+    // // outputStr.push(`${rp.interval} Interval`);
+
+    // switch (rp.freq) {
+    //   case 'DAILY':
+    //     // Do nothing
+    //     break;
+    //   case 'WEEKLY':
+    //     // Weekly can be once or x amount of times a week
+    //     // const isMultiple = rp.byWeekDay.split(',');
+    //     // if (isMultiple.length === 0) {
+    //     //   let day = '';
+    //     //   let i = 0;
+    //     //   rp.weeklyPattern.split(',').forEach((dayIndex) => {
+    //     //     if (dayIndex === '1') {
+    //     //       day = parseWeekDayNoToString(i);
+    //     //     }
+    //     //     i += 1;
+    //     //   });
+    //     //   outputStr.push(`Once a week (${day})`);
+    //     // } else {
+    //     //   outputStr.push(`${rp.byWeekDay.length} time a week ${rp.byWeekDay}`);
+    //     // }
+
+    //     const repeatPerWeek = rp.weeklyPattern.split(',').filter((str) => str === '1').length;
+    //     const isMultiple = repeatPerWeek !== 1;
+    //     if (!isMultiple) {
+    //       let day = '';
+    //       let i = 0;
+    //       rp.weeklyPattern.split(',').forEach((dayIndex) => {
+    //         if (dayIndex === '1') {
+    //           day = parseWeekDayNoToString(i);
+    //         }
+    //         i += 1;
+    //       });
+    //       outputStr.push(`Once a week (${day})`);
+    //     } else {
+    //       // debugger;
+    //       outputStr.push(`${repeatPerWeek} times a week ${rp.byWeekDay}`);
+    //     }
+    //     break;
+    //   case 'MONTHLY':
+    //     break;
+    //   case 'YEARLY':
+    //     break;
+    //   default:
+    //     break;
+    // }
+
+    // if (events[0].summary.includes('First Deleted')) {
+    //   firstDeleted = true;
+    // }
+    // if (events[0].summary.includes('Last Deleted')) {
+    //   lastDeleted = true;
+    // }
+    // if (events[0].summary.includes('First Edited')) {
+    //   firstEdited = true;
+    // }
+    // if (events[0].summary.includes('Last Edited')) {
+    //   lastEdited = true;
+    // }
+
+    // if (rp.numberOfRepeats) {
+    //   outputStr.push(`${rp.numberOfRepeats} times`);
+    // } else if (rp.until) {
+    //   if (events[0].summary.includes('Times')) {
+    //     // console.log(events[0].summary.split(', ')[1]);
+    //     // debugger;
+    //     outputStr.push(events[0].summary.split(', ')[1]);
+    //   } else {
+    //     outputStr.push(`Till Date`);
+    //   }
+    // } else {
+    //   // // No end current not handled.
+    //   // outputStr.push('No End');
+    // }
+
+    // if (typeof rp.exDates === 'number') {
+    //   // We assume here that it is a single deleted instance
+    //   if (events[0].summary.includes('First Deleted')) {
+    //     firstDeleted = true;
+    //   } else if (events[0].summary.includes('Last Deleted')) {
+    //     lastDeleted = true;
+    //   } else {
+    //     outputStr.push('1 Deleted');
+    //   }
+    // } else if (rp.exDates !== '') {
+    //   // We don't need to know the values, but we will have multiple deleted instance
+    //   outputStr.push('Multiple Deleted');
+    // }
+
+    // if (typeof rp.recurrenceIds === 'number') {
+    //   // We assume here that it is a single edited instance
+    //   if (rp.recurrenceIds.toString() === rp.recurringTypeId.toString()) {
+    //     firstEdited = true;
+    //   } else if (events[0].summary.includes('Last Edited')) {
+    //     lastEdited = true;
+    //   } else {
+    //     outputStr.push('1 Edited');
+    //   }
+    // } else if (rp.recurrenceIds !== '') {
+    //   // We don't need to know the values, but we will have multiple deleted instance
+    //   outputStr.push('Multiple Edited');
+    // }
+
+    // if (firstDeleted) {
+    //   outputStr.push('First Deleted');
+    // }
+    // if (firstEdited) {
+    //   outputStr.push('First Edited');
+    // }
+    // if (lastEdited) {
+    //   outputStr.push('Last Deleted');
+    // }
+    // if (lastDeleted) {
+    //   outputStr.push('Last Edited');
+    // }
+    // return outputStr.join(', ');
+
+    const { rp, events } = e;
+    const str = events[0].summary
+      .replace(/\(.*?\)/, '')
+      .trim()
+      .replace(/\//g, ',');
+    // debugger;
+    return str;
+  };
 
   authorizeOutLookCodeRequest = () => {
     const { props } = this;
@@ -497,6 +995,7 @@ export default class View extends React.Component {
         >
           <i className="material-icons left">close</i>End Pending Actions
         </a>{' '}
+        hello world
         <form onSubmit={this.handleSubmit}>
           <input
             type="text"

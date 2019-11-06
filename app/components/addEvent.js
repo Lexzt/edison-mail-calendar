@@ -3,9 +3,15 @@ import TextField from '@material-ui/core/TextField';
 import MenuItem from '@material-ui/core/MenuItem';
 import { FormControl } from 'react-bootstrap';
 import moment from 'moment';
-import RRuleGenerator from 'react-rrule-generator';
 // import { Checkbox } from '@material-ui/core';
 import { Checkbox } from 'antd';
+import ICAL from 'ical.js';
+
+import RRuleGenerator from './react-rrule-generator/src/lib';
+
+import 'bootstrap/dist/css/bootstrap.css';
+// import './react-rrule-generator/build/styles.css';
+import './react-rrule-generator/build/styles.css';
 
 const START_INDEX_OF_UTC_FORMAT = 17;
 const START_INDEX_OF_HOUR = 11;
@@ -27,25 +33,64 @@ export default class AddEvent extends Component {
       start: '',
       end: '',
       selectedProvider: '',
-      rrule: '',
-      isRepeating: false
+      rrule: 'RRULE:FREQ=MONTHLY;INTERVAL=1;BYSETPOS=1;BYDAY=MO',
+      isRepeating: false,
+      dailyRule: '',
+      weeklyRule: '',
+      monthlyRule: '',
+      yearlyRule: ''
     };
   }
 
   componentWillMount() {
     const { props } = this;
+    const { state } = this;
+    console.log(props, state);
 
-    const startDateParsed = moment(props.match.params.start).format('YYYY-MM-DDThh:mm a');
-    const endDateParsed = moment(props.match.params.end).format('YYYY-MM-DDThh:mm a');
+    const startDateParsed = moment(props.match.params.start);
+    const endDateParsed = moment(props.match.params.end);
+
+    const rruleDaily = ICAL.Recur.fromData({ freq: 'DAILY' });
+    const rruleWeekly = ICAL.Recur.fromData({
+      freq: 'WEEKLY',
+      byday: [startDateParsed.format('dd').toUpperCase()],
+      count: 5,
+      interval: 1
+    });
+    const rruleMonthlyByMonthDay = ICAL.Recur.fromData({
+      freq: 'MONTHLY',
+      bymonthday: [startDateParsed.date()],
+      count: 5,
+      interval: 1
+    });
+    const rruleMonthlyByWeekNoAndDay = ICAL.Recur.fromData({
+      freq: 'MONTHLY',
+      byday: [startDateParsed.format('dd').toUpperCase()],
+      bysetpos: [this.weekOfMonth(startDateParsed)],
+      count: 5,
+      interval: 1
+    });
+    // const rruleYearlyByWeekNoAndDay = ICAL.Recur.fromData({ freq: 'YEARLY', byday: [startDateParsed.format('dd').toUpperCase()], byweekno: [weekOfMonth(startDateParsed)] });
+
+    // const rruleBasic = `DTSTART:${startDateParsed.format('YYYYMMDDTHHmmss[Z]')}\n `;
+    // debugger;
+
     console.log(props.match.params.end);
-    const startDateParsedInUTC = this.processStringForUTC(startDateParsed);
-    const endDateParsedInUTC = this.processStringForUTC(endDateParsed);
+    const startDateParsedInUTC = this.processStringForUTC(
+      startDateParsed.format('YYYY-MM-DDThh:mm a')
+    );
+    const endDateParsedInUTC = this.processStringForUTC(endDateParsed.format('YYYY-MM-DDThh:mm a'));
     console.log(`${moment(startDateParsedInUTC).format()} ${endDateParsedInUTC}`);
     this.setState({
       startParsed: startDateParsedInUTC,
       endParsed: endDateParsedInUTC,
       start: props.match.params.start,
-      end: props.match.params.end
+      end: props.match.params.end,
+      dailyRule: `RRULE:${rruleDaily.toString()}`,
+      weeklyRule: `RRULE:${rruleWeekly.toString()}`,
+      monthlyRule: `RRULE:${rruleMonthlyByWeekNoAndDay.toString()}`,
+      rrule: `RRULE:${rruleMonthlyByWeekNoAndDay.toString()}`
+      // yearlyRule: ''
     });
   }
 
@@ -68,11 +113,21 @@ export default class AddEvent extends Component {
     return dateInStringInUTC;
   };
 
+  weekOfMonth = (input) => {
+    const firstDayOfMonth = input.clone().startOf('month');
+    const firstDayOfWeek = firstDayOfMonth.clone().startOf('week');
+
+    const offset = firstDayOfMonth.diff(firstDayOfWeek, 'days');
+
+    return Math.ceil((input.date() + offset) / 7);
+  };
+
   handleChange = (event) => {
     this.setState({ [event.target.name]: event.target.value });
   };
 
   handleRruleChange = (rrule) => {
+    console.log(rrule);
     this.setState({ rrule });
   };
 
@@ -80,18 +135,23 @@ export default class AddEvent extends Component {
     this.setState({ isRepeating: e.target.checked });
   };
 
+  backToCalendar = (e) => {
+    const { props } = this;
+    props.history.push('/');
+  };
+
   handleSubmit = async (e) => {
     // need to write validation method
     e.preventDefault();
     const { props, state } = this;
 
-    debugger;
+    // debugger;
 
     if (state.selectedProvider !== '') {
       const { providerType } = JSON.parse(state.selectedProvider);
       const tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      debugger;
+      // debugger;
 
       props.postEventBegin(
         {
@@ -99,11 +159,11 @@ export default class AddEvent extends Component {
           description: state.desc,
           start: {
             dateTime: moment.tz(state.startParsed, tzid),
-            timezone: 'America/Los_Angeles'
+            timezone: tzid
           },
           end: {
             dateTime: moment.tz(state.endParsed, tzid),
-            timezone: 'America/Los_Angeles'
+            timezone: tzid
           },
           rrule: state.rrule
         },
@@ -126,19 +186,31 @@ export default class AddEvent extends Component {
     const repeatingUI = [];
     if (state.isRepeating) {
       repeatingUI.push(
+        // <RRuleGenerator
+        //   // onChange={(rrule) => console.log(`RRule changed, now it's ${rrule}`)}
+        //   key="rrulegenerator"
+        //   onChange={this.handleRruleChange}
+        //   name="rrule"
+        //   config={{
+        //     repeat: ['Daily', 'Weekly', 'Monthly', 'Yearly'],
+        //     yearly: 'on the',
+        //     monthly: 'on the',
+        //     end: ['On date', 'After'],
+        //     // end: ['Never', 'On date', 'After'],  // Atm, never has not been taken care of
+        //     weekStartsOnSunday: true,
+        //     hideError: true
+        //   }}
+        // />
+
         <RRuleGenerator
           // onChange={(rrule) => console.log(`RRule changed, now it's ${rrule}`)}
           key="rrulegenerator"
           onChange={this.handleRruleChange}
           name="rrule"
+          value={state.rrule}
           config={{
-            repeat: ['Daily', 'Weekly', 'Monthly', 'Yearly'],
-            yearly: 'on the',
-            monthly: 'on',
-            end: ['On date', 'After'],
-            // end: ['Never', 'On date', 'After'],  // Atm, never has not been taken care of
-            weekStartsOnSunday: true,
-            hideError: true
+            hideStart: true,
+            end: ['On date', 'After']
           }}
         />
       );
@@ -219,6 +291,13 @@ export default class AddEvent extends Component {
           </div>
 
           <input type="submit" value="Submit" />
+          <input
+            key="return"
+            type="button"
+            onClick={this.backToCalendar}
+            name="return"
+            value="Back to Calendar"
+          />
         </form>
       </div>
     );

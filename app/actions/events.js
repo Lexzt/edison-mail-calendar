@@ -112,13 +112,28 @@ export const getEventsSuccess = (response, providerType, users) => ({
 // #endregion
 
 // #region Edit Event
-export const editEventBegin = (id, eventObject, providerType) => ({
+// export const editEventBegin = (id, eventObject, providerType) => ({
+//   type: EDIT_EVENT_BEGIN,
+//   payload: {
+//     id,
+//     data: eventObject,
+//     providerType
+//   }
+// });
+
+export const beginEditEvent = (payload) => ({
   type: EDIT_EVENT_BEGIN,
-  payload: {
-    id,
-    data: eventObject,
-    providerType
-  }
+  payload
+});
+
+export const beginEditRecurrenceSeries = (payload) => ({
+  type: EDIT_RECURRENCE_SERIES_BEGIN,
+  payload
+});
+
+export const beginEditFutureRecurrenceSeries = (payload) => ({
+  type: EDIT_FUTURE_RECURRENCE_SERIES_BEGIN,
+  payload
 });
 
 export const editEventSuccess = (resp) => ({

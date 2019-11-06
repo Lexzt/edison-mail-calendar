@@ -17,20 +17,14 @@ class Location extends React.Component {
   componentDidMount() {
     const { props } = this;
 
-    // this.autocomplete = new google.maps.places.Autocomplete(
-    //   this.autocompleteInput.current,
-    //   { types: ['geocode'] }
-    // );
-    // this.autocomplete.setFields([
-    //   'address_component',
-    //   'geometry',
-    //   'icon',
-    //   'name'
-    // ]);
-    // this.autocomplete.addListener('place_changed', this.handlePlaceChanged);
-    // this.setState({
-    //   place: props.place
-    // });
+    this.autocomplete = new google.maps.places.Autocomplete(this.autocompleteInput.current, {
+      types: ['geocode']
+    });
+    this.autocomplete.setFields(['address_component', 'geometry', 'icon', 'name']);
+    this.autocomplete.addListener('place_changed', this.handlePlaceChanged);
+    this.setState({
+      place: props.place
+    });
   }
 
   handlePlaceChanged() {

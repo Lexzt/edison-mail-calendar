@@ -1,4 +1,3 @@
-/* global google */
 import React from 'react';
 import moment from 'moment';
 
@@ -20,7 +19,15 @@ import {
 } from 'ews-javascript-api';
 import uuidv4 from 'uuid';
 import Select from 'react-select';
-import DateTimePicker from 'react-datetime-picker/dist/entry.nostyle';
+import ReactDateTimePicker from 'react-datetime-picker/dist/entry.nostyle';
+
+import DateFnsUtils from '@date-io/moment';
+import {
+  DatePicker,
+  TimePicker,
+  DateTimePicker,
+  MuiPickersUtilsProvider
+} from '@material-ui/pickers';
 
 import Location from './location';
 import Attendees from './attendees';
@@ -32,20 +39,10 @@ import { loadClient, editGoogleEvent } from '../../utils/client/google';
 import {
   asyncUpdateExchangeEvent,
   asyncUpdateRecurrExchangeSeries,
-  asyncDeleteExchangeEvent,
-  asyncGetRecurrAndSingleExchangeEvents
+  asyncDeleteExchangeEvent
 } from '../../utils/client/exchange';
 import './index.css';
-/* global google */
-import {
-  dropDownTime,
-  momentAdd,
-  filterIntoSchema,
-  OUTLOOK,
-  EXCHANGE,
-  GOOGLE,
-  CALDAV
-} from '../../utils/constants';
+import { dropDownTime, OUTLOOK, EXCHANGE, GOOGLE, CALDAV } from '../../utils/constants';
 
 import '../../bootstrap.css';
 import * as recurrenceOptions from '../../utils/recurrenceOptions';
@@ -72,9 +69,9 @@ export default class EditEvent extends React.Component {
       hangoutLink: '',
       startDay: '',
       endDay: '',
-      // startTime: '',
-      // endTime: '',
       originalId: '',
+      oldEventJson: {},
+      oldRpJson: {},
 
       isRecurring: false,
       recurringEventId: '',
@@ -99,20 +96,16 @@ export default class EditEvent extends React.Component {
   componentDidMount() {
     const { props, state } = this;
     this.retrieveEvent(props.match.params.id);
-    // console.log(this.props, this.state);
   }
 
-  // find a way to handle all different inputs
   handleStartChange = (start) => {
-    this.setState({ start: start.getTime() / 1000 });
+    this.setState({ start: { dateTime: start.unix() } });
   };
 
-  // find a way to handle all different inputs
   handleEndChange = (end) => {
-    this.setState({ end: end.getTime() / 1000 });
+    this.setState({ end: { dateTime: end.unix() } });
   };
 
-  // find a way to handle all different inputs
   handleChange = (event) => {
     if (event.target !== undefined) {
       this.setState({
@@ -134,12 +127,6 @@ export default class EditEvent extends React.Component {
     });
   };
 
-  handleReactSelect = (event) => {
-    this.setState({
-      [event.name]: event.value
-    });
-  };
-
   handleCheckboxChange = (event) => {
     this.setState({ allDay: event.target.checked });
   };
@@ -155,161 +142,153 @@ export default class EditEvent extends React.Component {
       until: state.thirdRecurrOptions === 'n' ? '' : state.recurrEndDate,
       numberOfRepeats: state.thirdRecurrOptions === 'a' ? state.thirdOptionAfter : 0,
       weeklyPattern: state.firstSelectedOption === 1 ? state.selectedSecondRecurrOption[1] : [],
-      // TO-DO, populate if needed!!
       exDates: [],
       recurrenceIds: [],
       modifiedThenDeleted: false
     };
   };
 
-  handleSubmit = async (e) => {
-    e.preventDefault();
+  editEvent = () => {
     const { props, state } = this;
-
-    if (e.target.name === 'return') {
-      props.history.push('/');
-    }
-
     const user = props.providers[state.providerType].filter(
       (object) => object.email === state.owner
-    )[0]; // this validates which user the event belongs to, by email.
+    )[0];
 
+    const payload = {
+      id: state.id,
+      title: state.title,
+      description: state.description,
+      location: state.place,
+      originalId: state.originalId,
+      iCalUID: state.iCalUID,
+      allDay: state.allDay,
+      start: state.start,
+      end: state.end,
+      isRecurring: state.isRecurring,
+      user,
+      props,
+      providerType: state.providerType,
+      oldEventJson: state.oldEventJson,
+      oldRpJson: state.oldRpJson
+    };
     debugger;
-    switch (e.target.name) {
-      case 'updateOne': {
-        const oneEventObject = {
-          id: state.id,
-          title: state.title,
-          user,
-          location: state.place,
-          originalId: state.originalId,
-          props
-        };
-        switch (state.providerType) {
-          case GOOGLE:
-            // // READ THIS, GOOGLE DOES NOT WORK.
-            // await loadClient();
-            // // Error Handling
-            // const startDateTime = momentAdd(state.startDay, state.startTime);
-            // const endDateTime = momentAdd(state.endDay, state.endTime);
-            // const attendeeForAPI = state.attendees.map((attendee) => ({
-            //   email: attendee.value
-            // }));
-            // const eventPatch = {
-            //   summary: state.title,
-            //   start: {
-            //     dateTime: startDateTime
-            //   },
-            //   end: {
-            //     dateTime: endDateTime
-            //   },
-            //   location: state.place.name,
-            //   attendees: attendeeForAPI
-            // };
-            // if (state.conference.label === 'Hangouts') {
-            //   eventPatch.conferenceData = {
-            //     createRequest: { requestId: '7qxalsvy0e' }
-            //   };
-            // }
-            // const editResp = await editGoogleEvent(state.id, eventPatch);
-            // return editResp;
-            break;
-          case EXCHANGE:
-            props.editEwsSingleEventBegin(oneEventObject);
-            break;
-          case CALDAV:
-            props.editCalDavSingleEventBegin(oneEventObject);
-            break;
-          default:
-            break;
-        }
-        break;
-      }
-      case 'updateAll': {
-        const allEventObj = {
-          id: state.id,
-          title: state.title,
-          user,
-          location: state.place,
-          originalId: state.originalId,
-          recurringEventId: state.recurringEventId,
-          props,
-          firstOption: state.firstSelectedOption,
-          secondOption: state.selectedSecondRecurrOption,
-          recurrInterval: state.recurrInterval,
-          recurrPatternId: state.recurrPatternId,
-          untilType: state.thirdRecurrOptions,
-          untilDate: state.recurrEndDate,
-          untilAfter: state.thirdOptionAfter,
-          iCalUID: state.iCalUID,
-          byMonth: state.recurrByMonth,
-          byMonthDay: state.recurrByMonthDay,
-          byWeekDay: state.recurrByWeekDay,
-          byWeekNo: state.recurrByWeekNo
-        };
-        switch (state.providerType) {
-          case EXCHANGE:
-            props.editEwsAllEventBegin(allEventObj);
-            break;
-          case CALDAV:
-            props.editCalDavAllEventBegin(allEventObj);
-            break;
-          default:
-            console.log(`Have not handled ${state.providerType} updating of all recurring events.`);
-            break;
-        }
-        break;
-      }
-      case 'updateFuture': {
-        const futureEventObj = {
-          id: state.id,
-          title: state.title,
-          user,
-          location: state.place,
-          originalId: state.originalId,
-          recurringEventId: state.recurringEventId,
-          props,
-          firstOption: state.firstSelectedOption,
-          secondOption: state.selectedSecondRecurrOption,
-          recurrInterval: state.recurrInterval,
-          recurrPatternId: state.recurrPatternId,
-          untilType: state.thirdRecurrOptions,
-          untilDate: state.recurrEndDate,
-          untilAfter: state.thirdOptionAfter,
-          iCalUID: state.iCalUID,
-          byMonth: state.recurrByMonth,
-          byMonthDay: state.recurrByMonthDay,
-          byWeekDay: state.recurrByWeekDay,
-          byWeekNo: state.recurrByWeekNo
-        };
-        switch (state.providerType) {
-          case EXCHANGE:
-            props.editEwsFutureEventBegin(futureEventObj);
-            break;
-          case CALDAV:
-            props.editCalDavFutureEventBegin(futureEventObj);
-            break;
-          default:
-            break;
-        }
-        break;
-      }
-      default:
-        break;
-    }
+    props.beginEditEvent(payload);
+    props.history.push('/');
   };
 
-  // // So the plan here is,
-  // /*
-  //   In order to edit a generic event, we have to choose for each individual event.
+  editAllRecurrenceEvent = () => {
+    const { props, state } = this;
+    const user = props.providers[state.providerType].filter(
+      (object) => object.email === state.owner
+    )[0];
 
-  //   Google - Retrive ID from our local DB and post with the ID, Google handles everything else
-  //   Outlook - Same as google
-  //   Exchange - This one requires more thought.
-  //     Exchange updates the data different. Not a post request. A function call in the ews-javascript-api call.
-  //     Have to think how to call the function when I might not have the object. This means that perhaps I should store the object in the main object.
-  //     In order to retrive the event, I need to make a query from the script to get the javascript ews object. However, once I have it, I can update it easily.
-  // */
+    const payload = {
+      // Unique Id
+      id: state.id,
+
+      // Updating fields
+      title: state.title,
+      description: state.description,
+      location: state.place,
+      originalId: state.originalId,
+      iCalUID: state.iCalUID,
+      allDay: state.allDay,
+      start: state.start,
+      end: state.end,
+      providerType: state.providerType,
+
+      // Recurrence pattern details
+      recurringEventId: state.recurringEventId,
+      firstOption: state.firstSelectedOption,
+      secondOption: state.selectedSecondRecurrOption,
+      recurrInterval: state.recurrInterval,
+      recurrPatternId: state.recurrPatternId,
+      untilType: state.thirdRecurrOptions,
+      untilDate: state.recurrEndDate,
+      untilAfter: state.thirdOptionAfter,
+      byMonth: state.recurrByMonth,
+      byMonthDay: state.recurrByMonthDay,
+      byWeekDay: state.recurrByWeekDay,
+      byWeekNo: state.recurrByWeekNo,
+      isRecurring: state.isRecurring,
+
+      // User and moving information
+      user,
+      props,
+
+      // Past event incase of error
+      oldEventJson: state.oldEventJson,
+      oldRpJson: state.oldRpJson
+    };
+    debugger;
+    props.beginEditRecurrenceSeries(payload);
+    props.history.push('/');
+  };
+
+  editFutureRecurrenceEvent = () => {
+    const { props, state } = this;
+    const user = props.providers[state.providerType].filter(
+      (object) => object.email === state.owner
+    )[0];
+
+    const payload = {
+      // Unique Id
+      id: state.id,
+
+      // Updating fields
+      title: state.title,
+      description: state.description,
+      location: state.place,
+      originalId: state.originalId,
+      iCalUID: state.iCalUID,
+      allDay: state.allDay,
+      start: state.start,
+      end: state.end,
+      providerType: state.providerType,
+
+      // Recurrence pattern details
+      recurringEventId: state.recurringEventId,
+      firstOption: state.firstSelectedOption,
+      secondOption: state.selectedSecondRecurrOption,
+      recurrInterval: state.recurrInterval,
+      recurrPatternId: state.recurrPatternId,
+      untilType: state.thirdRecurrOptions,
+      untilDate: state.recurrEndDate,
+      untilAfter: state.thirdOptionAfter,
+      byMonth: state.recurrByMonth,
+      byMonthDay: state.recurrByMonthDay,
+      byWeekDay: state.recurrByWeekDay,
+      byWeekNo: state.recurrByWeekNo,
+      isRecurring: state.isRecurring,
+
+      // User and moving information
+      user,
+      props,
+
+      // Past event incase of error
+      oldEventJson: state.oldEventJson,
+      oldRpJson: state.oldRpJson
+    };
+    debugger;
+    props.beginEditFutureRecurrenceSeries(payload);
+    props.history.push('/');
+  };
+
+  backToCalendar = () => {
+    const { props } = this;
+    props.history.push('/');
+  };
+
+  /*
+    In order to edit a generic event, we have to choose for each individual event.
+
+    Google - Retrive ID from our local DB and post with the ID, Google handles everything else
+    Outlook - Same as google
+    Exchange - This one requires more thought.
+      Exchange updates the data different. Not a post request. A function call in the ews-javascript-api call.
+      Have to think how to call the function when I might not have the object. This means that perhaps I should store the object in the main object.
+      In order to retrive the event, I need to make a query from the script to get the javascript ews object. However, once I have it, I can update it easily.
+  */
   retrieveEvent = async (id) => {
     const dbEvent = await dbEventActions.getOneEventById(id);
     const dbEventJSON = dbEvent.toJSON();
@@ -412,7 +391,8 @@ export default class EditEvent extends React.Component {
         //     ? dbEventRecurrence.byWeekDay
         //     : `(${moment(dbEventJSON.start).day()})`,
         recurrByWeekDay: dbEventRecurrence.byWeekDay,
-        recurrByWeekNo: dbEventRecurrence.byWeekNo
+        recurrByWeekNo: dbEventRecurrence.byWeekNo,
+        oldRpJson: dbEventRecurrence.toJSON()
       });
     }
 
@@ -428,13 +408,9 @@ export default class EditEvent extends React.Component {
       providerType: dbEventJSON.providerType,
       owner: dbEventJSON.owner,
       originalId: dbEventJSON.originalId,
-      iCalUID: dbEventJSON.iCalUID
-    });
-  };
-
-  handleOptionChange = (changeEvent) => {
-    this.setState({
-      recurrEnd: changeEvent.target.value
+      iCalUID: dbEventJSON.iCalUID,
+      place: { name: dbEventJSON.location },
+      oldEventJson: dbEventJSON
     });
   };
 
@@ -452,7 +428,6 @@ export default class EditEvent extends React.Component {
     const newVal = state.selectedSecondRecurrOption[event.index];
     const newArr = state.selectedSecondRecurrOption;
     newArr[event.index] = newVal;
-    // console.log(newVal, newArr, event.index, state);
 
     this.setState({
       firstSelectedOption: event.index,
@@ -659,9 +634,9 @@ export default class EditEvent extends React.Component {
     const endMenu = [];
     endMenu.push(
       <input
-        key="uppdateOne"
+        key="updateOne"
         type="button"
-        onClick={this.handleSubmit}
+        onClick={this.editEvent}
         name="updateOne"
         value="Update this event"
       />
@@ -671,7 +646,7 @@ export default class EditEvent extends React.Component {
       <input
         key="return"
         type="button"
-        onClick={this.handleSubmit}
+        onClick={this.backToCalendar}
         name="return"
         value="Back to Calendar"
       />
@@ -682,7 +657,7 @@ export default class EditEvent extends React.Component {
         <input
           key="updateAll"
           type="button"
-          onClick={this.handleSubmit}
+          onClick={this.editAllRecurrenceEvent}
           name="updateAll"
           value="Update entire series"
         />
@@ -691,18 +666,17 @@ export default class EditEvent extends React.Component {
         <input
           key="updateFuture"
           type="button"
-          onClick={this.handleSubmit}
+          onClick={this.editFutureRecurrenceEvent}
           name="updateFuture"
           value="Update this and future events"
         />
       );
     }
 
-    debugger;
     if (state.start.dateTime !== undefined && state.start.dateTime !== undefined) {
       return (
         <div className="edit-container">
-          <form onSubmit={this.handleSubmit} onChange={this.handleChange}>
+          <form onChange={this.handleChange}>
             <input name="title" type="text" defaultValue={state.title} />
             <input
               name="description"
@@ -710,17 +684,21 @@ export default class EditEvent extends React.Component {
               defaultValue={state.description}
               placeholder="Event Description"
             />
-            <DateTimePicker
-              onChange={this.handleStartChange}
-              name="startTime"
-              value={new Date(state.start.dateTime * 1000)}
-            />
-            <span>to</span>
-            <DateTimePicker
-              onChange={this.handleEndChange}
-              name="endTime"
-              value={new Date(state.end.dateTime * 1000)}
-            />
+
+            <MuiPickersUtilsProvider utils={DateFnsUtils}>
+              <DateTimePicker
+                name="startTime"
+                value={new Date(state.start.dateTime * 1000)}
+                onChange={this.handleStartChange}
+              />
+              <span>to</span>
+              <DateTimePicker
+                name="endTime"
+                value={new Date(state.end.dateTime * 1000)}
+                onChange={this.handleEndChange}
+              />
+            </MuiPickersUtilsProvider>
+
             <div className="flex-container">
               <div style={{ fontFamily: 'system-ui' }}>
                 <label>
@@ -757,19 +735,3 @@ export default class EditEvent extends React.Component {
     return null;
   }
 }
-
-// <Date dayProps={this.handleChange} name="startDay" />
-// <Time
-//   timeProps={this.handleChange}
-//   currentTime={state.start}
-//   name="startTime"
-//   // dropDownTime={dropDownTime('')}
-// />
-// <span>to</span>
-// <Date dayProps={this.handleChange} name="endDay" startDate={state.startDay} />
-// <Time
-//   timeProps={this.handleChange}
-//   currentTime={state.end}
-//   name="endTime"
-//   // dropDownTime={dropDownTime(state.end)}
-// />
