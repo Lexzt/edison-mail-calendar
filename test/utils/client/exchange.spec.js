@@ -215,7 +215,7 @@ describe('Exchange Utils Functions', async () => {
       StartDate: new ews.DateTime(moment.tz('2019-08-08T21:00:00-07:00', 'America/Los_Angeles'))
     };
 
-    const ewsRecurrence = ExchangeActions.createEwsRecurrenceObj(
+    const ewsRecurrence = ExchangeActions.editEwsRecurrenceObj(
       0,
       {},
       1,

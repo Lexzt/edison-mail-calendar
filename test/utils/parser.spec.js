@@ -12,6 +12,11 @@ import {
   mockRecurrPatternData
 } from '../reducers/mockRecurrExpandedData';
 
+// import * as testInput from '../testinput/Daily, 7 Times, 1 Deleted.json';
+// import * as testOutput from '../testoutput/Daily, 7 Times, 1 Deleted.json';
+
+import * as recurExpandFixturesTable from '../index';
+
 // const parser = _parser;
 // const Parser = rewire('../../app/utils/parser');
 describe('CalDav Utils Functions', () => {
@@ -149,12 +154,57 @@ describe('CalDav Utils Functions', () => {
   //   it('')
   // });
 
-  describe('Parse Calendar Data', () => {
-    it('Parse Single Event', () => {
-      const { iCALString, etag, caldavUrl } = mockEventData[11];
-      const result = PARSER.parseCalendarData(iCALString, etag, caldavUrl, '');
+  // describe('Parse Calendar Data', () => {
+  //   it('Parse Single Event', () => {
+  //     const { iCALString, etag, caldavUrl } = mockEventData[11];
+  //     const result = PARSER.parseCalendarData(iCALString, etag, caldavUrl, '');
 
-      console.log(result);
+  //     console.log(result);
+  //   });
+  // });
+
+  describe('Parse Recurrence', () => {
+    describe('Parse Recurrence (Daily)', () => {
+      const fileNames = recurExpandFixturesTable.default.map((data) => data[1].fileName);
+      const cases = [];
+      for (let i = 0; i < fileNames.length; i += 1) {
+        cases.push([
+          fileNames[i],
+          recurExpandFixturesTable.default[i][0],
+          recurExpandFixturesTable.default[i][1]
+        ]);
+      }
+
+      test.each(cases)('%p', (fileName, input, expectedResult) => {
+        const events = PARSER.parseRecurrence(
+          input.rp,
+          input.events.filter((e) => e.isMaster === true)[0]
+        );
+
+        const editedEvents = input.events.filter((e) => e.isMaster === undefined);
+
+        expect(events.length + editedEvents.length).toBe(expectedResult.events.length);
+      });
+
+      it('Parse Basic Daily Event', () => {
+        // const { iCALString, etag, caldavUrl } = mockEventData[11];
+        // const result = PARSER.parseCalendarData(iCALString, etag, caldavUrl, '');
+        // console.log(result);
+        // console.log(testInput);
+        // console.log(testData);
+        // console.log(testInput.rp);
+        // const events = PARSER.parseRecurrence(
+        //   testInput.rp,
+        //   testInput.events.filter((e) => e.isMaster === true)[0]
+        // );
+        // console.log(events.length, events[0].start, events[0].summary, events[1].summary);
+        // console.log(
+        //   testOutput.events.length,
+        //   testOutput.events[0].start,
+        //   testOutput.events[0].summary
+        // );
+        // expect(events.length).toBe(testOutput.events.length);
+      });
     });
   });
 });
