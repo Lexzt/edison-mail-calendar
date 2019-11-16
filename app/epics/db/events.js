@@ -97,7 +97,9 @@ export const storeEventsEpic = (action$) =>
     ofType(BEGIN_STORE_EVENTS),
     mergeMap((action) =>
       from(storeEvents(action.payload)).pipe(
-        map((results) => successStoringEvents(results, action.payload.users)),
+        map((results) =>
+          successStoringEvents(results, action.payload.users, action.payload.tempEvents)
+        ),
         catchError((error) => failStoringEvents(error))
       )
     )
@@ -148,7 +150,7 @@ export const editFutureRecurrenceEventEpics = (action$) =>
   );
 
 const storeEvents = async (payload) => {
-  const { data, users } = payload;
+  const { data, users, tempEvents } = payload;
   const debug = false;
 
   const allPromises = [];
@@ -667,50 +669,50 @@ const editAllReccurenceEvent = async (payload) => {
   //   };
   // }
 
-  // As we are deleting a series, we need to delete the recurrence pattern from db to ensure our database does not blow up accordingly.
-  if (payload.isRecurring) {
-    switch (payload.providerType) {
-      case Providers.GOOGLE:
-        console.log(payload.providerType, ' not handling deleting of recurring pattern');
-        break;
-      case Providers.OUTLOOK:
-        console.log(payload.providerType, ' not handling deleting of recurring pattern');
-        break;
-      case Providers.EXCHANGE:
-        if (debug) {
-          const allRP = await dbRpActions.getAllRp();
-          console.log(allRP.map((e) => e.toJSON()));
-        }
-        dbRpActions.deleteRpByiCalUID(payload.iCalUID);
+  // // As we are deleting a series, we need to delete the recurrence pattern from db to ensure our database does not blow up accordingly.
+  // if (payload.isRecurring) {
+  //   switch (payload.providerType) {
+  //     case Providers.GOOGLE:
+  //       console.log(payload.providerType, ' not handling deleting of recurring pattern');
+  //       break;
+  //     case Providers.OUTLOOK:
+  //       console.log(payload.providerType, ' not handling deleting of recurring pattern');
+  //       break;
+  //     case Providers.EXCHANGE:
+  //       if (debug) {
+  //         const allRP = await dbRpActions.getAllRp();
+  //         console.log(allRP.map((e) => e.toJSON()));
+  //       }
+  //       dbRpActions.deleteRpByiCalUID(payload.iCalUID);
 
-        if (debug) {
-          const newRp = await dbRpActions.getAllRp();
-          console.log(newRp.map((e) => e.toJSON()));
-        }
-        break;
-      case Providers.CALDAV:
-        // Duplicate now, I just wanna get it working
-        if (debug) {
-          const allRP = await dbRpActions.getAllRp();
-          console.log(allRP.map((e) => e.toJSON()));
-        }
-        dbRpActions.deleteRpByiCalUID(payload.iCalUID);
+  //       if (debug) {
+  //         const newRp = await dbRpActions.getAllRp();
+  //         console.log(newRp.map((e) => e.toJSON()));
+  //       }
+  //       break;
+  //     case Providers.CALDAV:
+  //       // Duplicate now, I just wanna get it working
+  //       if (debug) {
+  //         const allRP = await dbRpActions.getAllRp();
+  //         console.log(allRP.map((e) => e.toJSON()));
+  //       }
+  //       dbRpActions.deleteRpByiCalUID(payload.iCalUID);
 
-        if (debug) {
-          // const newRp = await db.recurrencepatterns.find().exec();
-          const newRp = await dbRpActions.getAllRp();
-          console.log(newRp.map((e) => e.toJSON()));
-        }
-        break;
-      default:
-        console.log(
-          'Unhandled provider: ',
-          payload.providerType,
-          ' for deleting recurring pattern'
-        );
-        break;
-    }
-  }
+  //       if (debug) {
+  //         // const newRp = await db.recurrencepatterns.find().exec();
+  //         const newRp = await dbRpActions.getAllRp();
+  //         console.log(newRp.map((e) => e.toJSON()));
+  //       }
+  //       break;
+  //     default:
+  //       console.log(
+  //         'Unhandled provider: ',
+  //         payload.providerType,
+  //         ' for deleting recurring pattern'
+  //       );
+  //       break;
+  //   }
+  // }
 
   // Based off which provider, we will have different delete functions.
   switch (payload.providerType) {
@@ -762,7 +764,7 @@ const editAllReccurenceEvent = async (payload) => {
       }
       break;
     default:
-      console.log(`Delete feature for ${payload.providerType} not handled`);
+      console.log(`Edit all feature for ${payload.providerType} not handled`);
       break;
   }
 
@@ -837,7 +839,7 @@ const editFutureReccurenceEvent = async (payload) => {
       }
       break;
     default:
-      console.log(`Delete feature for ${payload.providerType} not handled`);
+      console.log(`Edit future feature for ${payload.providerType} not handled`);
       break;
   }
 

@@ -2,9 +2,10 @@ import { from, of } from 'rxjs';
 import moment from 'moment';
 import { map, mergeMap, catchError } from 'rxjs/operators';
 import { ofType } from 'redux-observable';
-import uuidv1 from 'uuid';
+import uuidv4 from 'uuid';
+import ICAL from 'ical.js';
 
-import { getEventsSuccess, getEventsFailure } from '../../actions/events';
+import { getEventsSuccess, getEventsFailure, postEventSuccess } from '../../actions/events';
 import {
   GET_CALDAV_EVENTS_BEGIN,
   EDIT_CALDAV_SINGLE_EVENT_BEGIN,
@@ -12,7 +13,8 @@ import {
   EDIT_CALDAV_FUTURE_EVENT_BEGIN,
   DELETE_CALDAV_SINGLE_EVENT_BEGIN,
   DELETE_CALDAV_ALL_EVENT_BEGIN,
-  DELETE_CALDAV_FUTURE_EVENT_BEGIN
+  DELETE_CALDAV_FUTURE_EVENT_BEGIN,
+  CREATE_CALDAV_EVENTS_BEGIN
 } from '../../actions/providers/caldav';
 import { retrieveStoreEvents } from '../../actions/db/events';
 
@@ -55,11 +57,41 @@ export const beginGetCaldavEventsEpics = (action$) =>
     )
   );
 
+export const createCalDavEventEpics = (action$) =>
+  action$.pipe(
+    ofType(CREATE_CALDAV_EVENTS_BEGIN),
+    mergeMap((action) =>
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.auth));
+        }),
+        createCalDavEvent(action.payload)
+          .then((resp) =>
+            postEventSuccess(
+              [resp],
+              [action.payload.auth],
+              action.payload.providerType,
+              action.payload.auth.email,
+              action.payload.tempEvents
+            )
+          )
+          .catch((err) => console.log(err))
+      ]).mergeAll()
+    )
+  );
+
 export const editCalDavSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_CALDAV_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editCalDavSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        editCalDavSingle(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -67,9 +99,14 @@ export const editCalDavAllRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_CALDAV_ALL_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editCalDavAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        editCalDavAllRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -77,9 +114,14 @@ export const editCalDavFutureRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(EDIT_CALDAV_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(editCalDavAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        editCalDavAllFutureRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -87,7 +129,14 @@ export const deleteCalDavSingleEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_CALDAV_SINGLE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteCalDavSingle(action.payload)).pipe(map((resp) => retrieveStoreEvents(resp.user)))
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        deleteCalDavSingle(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -95,9 +144,14 @@ export const deleteCalDavAllRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_CALDAV_ALL_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteCalDavAllRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        deleteCalDavAllRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
 
@@ -105,11 +159,163 @@ export const deleteCalDavFutureRecurrenceEventEpics = (action$) =>
   action$.pipe(
     ofType(DELETE_CALDAV_FUTURE_EVENT_BEGIN),
     mergeMap((action) =>
-      from(deleteCalDavAllFutureRecurrenceEvents(action.payload)).pipe(
-        map((resp) => retrieveStoreEvents(resp.user))
-      )
+      from([
+        new Promise((resolve, reject) => {
+          resolve(retrieveStoreEvents(action.payload.user));
+        }),
+        deleteCalDavAllFutureRecurrenceEvents(action.payload)
+          .then(() => retrieveStoreEvents(action.payload.user))
+          .catch((err) => console.log(err))
+      ]).mergeAll()
     )
   );
+
+const createCalDavEvent = async (payload) => {
+  const debug = false;
+
+  // Parse user information from account layer to dav object.
+  const xhrObject = new dav.transport.Basic(
+    new dav.Credentials({
+      username: payload.auth.email,
+      password: payload.auth.password
+    })
+  );
+
+  // Final iCalString to post out
+  let newiCalString = '';
+
+  // // Need calendar system to handle what URL is being parsed. For now, we hard code.
+  // ICloud Calendar link
+  const caldavUrl =
+    'https://caldav.icloud.com/10224008189/calendars/AA1658A8-DBA1-4587-AE22-9451C6212C85/';
+
+  // // Yahoo Calendar Link
+  // const caldavUrl =
+  //   'https://caldav.calendar.yahoo.com/dav/oj242dvo2jivt6lfbyxqfherdqulvbiaprtaw5kv/Calendar/Fong%20Zhi%20Zhong/';
+
+  const newETag = uuidv4();
+  const { data } = payload;
+
+  // Builds additional fields that are missing specifically for caldav.
+  data.id = uuidv4();
+  data.originalId = uuidv4();
+
+  // Repopulate certain fields that are missing
+  data.attendee = [];
+  data.caldavUrl = caldavUrl;
+  // data.created = moment().format('YYYY-MM-DDTHH:mm:ssZ');
+  // data.updated = moment().format('YYYY-MM-DDTHH:mm:ssZ');
+  data.iCalUID = data.originalId;
+  // data.owner = payload.auth.email;
+  data.providerType = Providers.CALDAV;
+  data.caldavType = payload.auth.caldavType;
+  // data.isRecurring = data.rrule !== '';
+
+  // debugger;
+
+  if (payload.data.isRecurring) {
+    const newRecurrencePattern = {};
+    const updatedId = uuidv4();
+    const updatedUid = uuidv4();
+
+    // eslint-disable-next-line no-underscore-dangle
+    const jsonRecurr = ICAL.Recur._stringToData(data.rrule);
+    // debugger;
+
+    const { freq } = jsonRecurr;
+    if (freq === 'MONTHLY') {
+      // If there is a setpos, I need ot merge them up into one param
+      // RRule gen splits them into bysetpos and byday, but server takes in byday
+      // E.g. bysetpos = 1, byday = TU, merge to byday = 1TU
+      // If there is no setpos, it means it is a by month day event
+      if (jsonRecurr.BYSETPOS !== undefined) {
+        jsonRecurr.BYDAY = jsonRecurr.BYSETPOS + jsonRecurr.BYDAY;
+        delete jsonRecurr.BYSETPOS;
+      } else if (Array.isArray(jsonRecurr.BYDAY)) {
+        jsonRecurr.BYDAY = jsonRecurr.BYDAY.join(',');
+      }
+
+      if (Array.isArray(jsonRecurr.BYMONTHDAY)) {
+        jsonRecurr.BYMONTHDAY = `${jsonRecurr.BYMONTHDAY.join(',')}`;
+      } else if (jsonRecurr.BYMONTHDAY === undefined) {
+        jsonRecurr.BYMONTHDAY = '';
+      }
+    }
+
+    Object.assign(newRecurrencePattern, {
+      id: updatedId,
+      originalId: updatedUid,
+      // // // Temp take from the recurrence master first, will take from the UI in future.
+      freq,
+      interval: jsonRecurr.interval,
+      numberOfRepeat: jsonRecurr.count !== undefined ? jsonRecurr.count : 0,
+      until: jsonRecurr.until !== undefined ? jsonRecurr.until : null,
+      // exDates: pattern.exDates.filter((exDate) =>
+      //   moment(exDate).isAfter(moment(data.start.dateTime))
+      // ),
+      // recurrenceIds: pattern.recurrenceIds.filter((recurrId) =>
+      //   moment(recurrId).isAfter(moment(data.start.dateTime))
+      // ),
+      recurringTypeId: data.start.dateTime.unix(),
+      iCalUID: updatedUid,
+      // byHour: '',
+      // byMinute: '',
+      // bySecond: '',
+      // byEaster: '',
+      // bySetPos: '',
+      // byWeekNo: jsonRecurr.BYSETPOS !== undefined ? jsonRecurr.BYSETPOS : '',
+      byWeekNo: '', // Not using as byWeekDay handles week no.
+      byWeekDay: jsonRecurr.BYDAY !== undefined ? jsonRecurr.BYDAY : '',
+      byMonth: jsonRecurr.BYMONTH !== undefined ? jsonRecurr.BYMONTH : '',
+      // eslint-disable-next-line no-nested-ternary
+      byMonthDay: jsonRecurr.BYMONTHDAY !== undefined ? jsonRecurr.BYMONTHDAY : '',
+      byYearDay: ''
+    });
+
+    // Creates Recurring event.
+    newiCalString = IcalStringBuilder.buildICALStringCreateRecurEvent(
+      payload.data,
+      newRecurrencePattern
+    );
+  } else {
+    data.isRecurring = false;
+
+    // Creates non Recurring event.
+    newiCalString = IcalStringBuilder.buildICALStringCreateEvent(payload.data);
+  }
+  data.iCALString = newiCalString;
+
+  const calendar = new dav.Calendar();
+  calendar.url = caldavUrl;
+
+  const addCalendarObject = {
+    data: newiCalString,
+    filename: `${newETag}.ics`,
+    xhr: xhrObject
+  };
+
+  const addResult = await dav.createCalendarObject(calendar, addCalendarObject);
+  if (debug) {
+    console.log('(postEventsCalDav)', addResult);
+  }
+
+  await Promise.all(
+    payload.tempEvents.map((tempEvent) => dbEventActions.deleteEventById(tempEvent.id))
+  );
+
+  // You have to do a full sync as the .ics endpoint might not be valid
+  const allEvents = await asyncGetAllCalDavEvents(
+    payload.auth.email,
+    payload.auth.password,
+    payload.auth.url,
+    payload.auth.caldavType
+  );
+
+  // Etag is a real problem here LOL. This does NOT WORK
+  const justCreatedEvent = allEvents.filter((e) => e.originalId === data.originalId)[0];
+  const appendedResult = await dbEventActions.insertEventsIntoDatabase(justCreatedEvent);
+  return allEvents;
+};
 
 const editCalDavSingle = async (payload) => {
   const debug = true;
@@ -211,6 +417,7 @@ const editCalDavSingle = async (payload) => {
 const editCalDavAllRecurrenceEvents = async (payload) => {
   const debug = true;
   console.log(payload);
+  // debugger;
   try {
     // #region Getting information
     // Get Information (Sequlize)
@@ -278,9 +485,9 @@ const editCalDavAllRecurrenceEvents = async (payload) => {
     const newData = allSpecificRecurringEvent
       .map((e) => e.toJSON())
       .filter((e) => {
-        const dt = moment(e.start.dateTime);
+        const dt = moment.tz(e.start.dateTime, e.start.timezone);
         for (let index = 0; index < recurrencePattern.recurrenceIds.length; index += 1) {
-          const element = moment(recurrencePattern.recurrenceIds[index]);
+          const element = moment.tz(recurrencePattern.recurrenceIds[index], e.start.timezone);
           if (element.isSame(dt)) {
             return false;
           }
@@ -311,6 +518,11 @@ const editCalDavAllRecurrenceEvents = async (payload) => {
       console.log(result);
     }
     // #endregion
+
+    const allEvents = await dbEventActions.getAllEvents();
+    const allRp = await dbRpActions.getAllRp();
+    console.log(allEvents, allRp);
+    // debugger;
   } catch (error) {
     console.log(
       '(editCalDavAllRecurrenceEvents) Error, retrying with pending action!',
@@ -336,6 +548,8 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
 
     const { user } = payload;
     // #endregion
+
+    // debugger;
 
     // #region CalDav sending details
     // Needed information for deleting of Caldav information.
@@ -365,8 +579,8 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       console.log(recurPattern.toJSON());
     }
 
-    const updatedId = uuidv1();
-    const updatedUid = uuidv1();
+    const updatedId = uuidv4();
+    const updatedUid = uuidv4();
 
     const oldRecurringPattern = {};
     const newRecurrencePattern = {};
@@ -386,13 +600,23 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       // ),
       exDates: pattern.exDates
         .split(',')
-        .filter((exDate) => moment(exDate).isAfter(moment(data.start.dateTime)))
+        .map((str) => parseInt(str, 10))
+        .filter((exDate) =>
+          moment
+            .tz(exDate * 1000, data.start.timezone)
+            .isAfter(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+        )
         .join(','),
       recurrenceIds: pattern.recurrenceIds
         .split(',')
-        .filter((recurrId) => moment(recurrId).isAfter(moment(data.start.dateTime)))
+        .map((str) => parseInt(str, 10))
+        .filter((recurrId) =>
+          moment
+            .tz(recurrId * 1000, data.start.timezone)
+            .isAfter(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+        )
         .join(','),
-      recurringTypeId: moment(data.start.dateTime).format('YYYY-MM-DDTHH:mm:ss'),
+      recurringTypeId: data.start.dateTime,
       iCalUID: updatedUid,
       byEaster: '',
       byHour: '',
@@ -412,7 +636,43 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     ) {
       // No end condition for this, figure out later LOL
     } else if (pattern.until === undefined || pattern.until === null) {
-      // debugger;
+      // Parse deleted and edited instances over.
+      const exDates = [];
+      if (pattern.exDates !== undefined && pattern.exDates !== null) {
+        if (typeof pattern.exDates === 'number') {
+          exDates.push(pattern.exDates);
+        } else {
+          exDates.push(
+            ...pattern.exDates
+              .split(',')
+              .map((str) => parseInt(str, 10))
+              .filter((exDate) =>
+                moment
+                  .tz(exDate * 1000, data.start.timezone)
+                  .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+              )
+          );
+        }
+      }
+
+      const recurrenceIds = [];
+      if (pattern.recurrenceIds !== undefined && pattern.recurrenceIds !== null) {
+        if (typeof pattern.recurrenceIds === 'number') {
+          recurrenceIds.push(pattern.recurrenceIds);
+        } else {
+          recurrenceIds.push(
+            ...pattern.recurrenceIds
+              .split(',')
+              .map((str) => parseInt(str, 10))
+              .filter((recurrenceId) =>
+                moment
+                  .tz(recurrenceId * 1000, data.start.timezone)
+                  .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+              )
+          );
+        }
+      }
+
       // The idea here is to first update the old recurrence pattern with until
       // so that we can generate a ruleset as the freq could be a daily/weekly/monthly
       // or have some weird interval.
@@ -429,24 +689,13 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
         // interval: payload.options.rrule.interval,
         freq: pattern.freq,
         interval: pattern.interval,
-        // exDates: pattern.exDates.filter((exDate) =>
-        //   moment(exDate).isBefore(moment(data.start.dateTime))
-        // ),
-        // recurrenceIds: pattern.recurrenceIds.filter((rpDate) =>
-        //   moment(rpDate).isBefore(moment(data.start.dateTime))
-        // ),
-        exDates: pattern.exDates
-          .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
-          .join(','),
-        recurrenceIds: pattern.recurrenceIds
-          .split(',')
-          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
-          .join(','),
+        exDates: exDates.join(','),
+        recurrenceIds: recurrenceIds.join(','),
         recurringTypeId: pattern.recurringTypeId,
-        until: moment(data.start.dateTime)
+        until: moment
+          .tz(data.start.dateTime * 1000, data.start.timezone)
           .subtract(1, 'second')
-          .format('YYYY-MM-DDTHH:mm:ssZ'),
+          .unix(),
         isCount: true
       });
 
@@ -476,28 +725,50 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       // Reassign the values of old pattern, Safety set the exdates and recurrenceids again.
       Object.assign(oldRecurringPattern, {
         numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
-        isCount: true,
-        exDates: pattern.exDates
-          .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
-          .join(','),
-        recurrenceIds: pattern.recurrenceIds
-          .split(',')
-          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
-          .join(',')
+        isCount: true
+        // exDates: pattern.exDates
+        //   .split(',')
+        //   .map((str) => parseInt(str, 10))
+        //   .filter((exDate) =>
+        //     moment
+        //       .tz(exDate * 1000, data.start.timezone)
+        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+        //   )
+        //   .join(','),
+        // recurrenceIds: pattern.recurrenceIds
+        //   .split(',')
+        //   .map((str) => parseInt(str, 10))
+        //   .filter((rpDate) =>
+        //     moment
+        //       .tz(rpDate * 1000, data.start.timezone)
+        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+        //   )
+        //   .join(',')
       });
 
       await dbRpActions.updateRpByOid(data.iCalUID, {
         numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
-        isCount: true,
-        exDates: pattern.exDates
-          .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
-          .join(','),
-        recurrenceIds: pattern.recurrenceIds
-          .split(',')
-          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
-          .join(',')
+        isCount: true
+        // exDates: pattern.exDates
+        //   .split(',')
+        //   .map((str) => parseInt(str, 10))
+        //   .filter((exDate) =>
+        //     moment
+        //       .tz(exDate * 1000, data.start.timezone)
+        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+        //   )
+        //   // .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
+        //   .join(','),
+        // recurrenceIds: pattern.recurrenceIds
+        //   .split(',')
+        //   .map((str) => parseInt(str, 10))
+        //   .filter((rpDate) =>
+        //     moment
+        //       .tz(rpDate * 1000, data.start.timezone)
+        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+        //   )
+        //   // .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
+        //   .join(',')
       });
     } else {
       // Here, we assign the end condition for our recurrence pattern.
@@ -509,30 +780,62 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
 
       // Minus one day, and format it, to ensure that the until is properly formatted.
       // Minus one day due to how expanding of event works for caldav.
-      const updatedUntil = moment(data.start.dateTime)
+      const updatedUntil = moment
+        .tz(data.start.dateTime * 1000, data.start.timezone)
         .subtract(1, 'second')
-        .format('YYYY-MM-DDTHH:mm:ss');
+        .unix();
+
+      // Parse deleted and edited instances over.
+      const exDates = [];
+      if (pattern.exDates !== undefined && pattern.exDates !== null) {
+        if (typeof pattern.exDates === 'number') {
+          exDates.push(pattern.exDates);
+        } else {
+          exDates.push(
+            ...pattern.exDates
+              .split(',')
+              .map((str) => parseInt(str, 10))
+              .filter((exDate) =>
+                moment
+                  .tz(exDate * 1000, data.start.timezone)
+                  .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+              )
+          );
+        }
+      }
+
+      const recurrenceIds = [];
+      if (pattern.recurrenceIds !== undefined && pattern.recurrenceIds !== null) {
+        if (typeof pattern.recurrenceIds === 'number') {
+          recurrenceIds.push(pattern.recurrenceIds);
+        } else {
+          recurrenceIds.push(
+            ...pattern.recurrenceIds
+              .split(',')
+              .map((str) => parseInt(str, 10))
+              .filter((recurrenceId) =>
+                moment
+                  .tz(recurrenceId * 1000, data.start.timezone)
+                  .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
+              )
+          );
+        }
+      }
 
       // Update the old pattern to the start date of the selected event.
       // Ensure that the exdate and recurrenceid does not have duplicates.
       await dbRpActions.updateRpByOid(data.iCalUID, {
         until: updatedUntil,
         isCount: false,
-        exDates: pattern.exDates
-          .split(',')
-          .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
-          .join(','),
-        recurrenceIds: pattern.recurrenceIds
-          .split(',')
-          .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
-          .join(',')
+        exDates: exDates.join(','),
+        recurrenceIds: recurrenceIds.join(',')
       });
     }
 
     // Debug, also meant for generating the new icalstring based off the recurrence pattern.
     // const updatedOldRecurPattern = await recurPatternQuery.exec();
     const updatedOldRecurPattern = await dbRpActions.getOneRpByOId(data.iCalUID);
-    const updatedOldPattern = recurPattern[0].toJSON();
+    const updatedOldPattern = updatedOldRecurPattern.toJSON();
     if (debug) {
       console.log(updatedOldPattern);
     }
@@ -582,7 +885,7 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     const calendar = new dav.Calendar();
     calendar.url = caldavUrl;
 
-    const newETag = uuidv1();
+    const newETag = uuidv4();
     if (debug) {
       console.log(caldavUrl, newETag, etag);
     }
@@ -618,6 +921,8 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
     ];
     const oldFinalResultPromises = oldFinalResult.map((newEvent) => {
       newEvent.owner = user.email;
+      newEvent.caldavType = user.caldavType;
+
       return dbEventActions.insertEventsIntoDatabase(newEvent);
     });
     // #endregion
@@ -656,10 +961,11 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
 
     // Here, we update the etag of every event we have appended into the database,
     // and we update them accordingly after that again.
-    const updateEtag = newResult.map((localDbItem) => {
-      const json = localDbItem.toJSON();
-      json.etag = allEvents.filter((event) => event.iCalUID === json.iCalUID)[0].etag;
-      json.caldavUrl = allEvents.filter((event) => event.iCalUID === json.iCalUID)[0].caldavUrl;
+    const updateEtag = newResult.map((json) => {
+      const foundItem = allEvents.filter((event) => event.iCalUID === json.iCalUID)[0];
+      json.caldavType = user.caldavType;
+      json.etag = foundItem.etag;
+      json.caldavUrl = foundItem.caldavUrl;
       return dbEventActions.insertEventsIntoDatabase(json);
     });
 
@@ -739,6 +1045,7 @@ const deleteCalDavSingle = async (payload) => {
         url: caldavUrl,
         calendarData
       };
+      // debugger;
       // Result will throw error, we can do a seperate check here if needed.
       result = await dav.updateCalendarObject(calendarObject, option);
     } else {
@@ -812,6 +1119,8 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
   const { data, user } = payload;
   const debug = false;
 
+  // debugger;
+
   try {
     // Needed information for deleting of Caldav information.
     // etag - Event tag, there is the same for calendar if needed.
@@ -844,7 +1153,7 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
     const recurrencePattern = recurrence.toJSON();
     if (debug) {
       console.log(recurrencePattern);
-      debugger;
+      // debugger;
     }
 
     // Problem here is that updating the rp based on the exDates and recurringIds.
@@ -854,13 +1163,21 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
     // Compared using moment.
     recurrencePattern.exDates = recurrencePattern.exDates
       .split(',')
-      .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'))
+      .filter((date) =>
+        moment
+          .tz(date * 1000, data.start.timezone)
+          .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone), 'day')
+      )
       .join(',');
 
     // Do the same for edited ids.
     recurrencePattern.recurrenceIds = recurrencePattern.recurrenceIds
       .split(',')
-      .filter((date) => moment(date).isBefore(moment(data.start.dateTime), 'day'))
+      .filter((date) =>
+        moment
+          .tz(date * 1000, data.start.timezone)
+          .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone), 'day')
+      )
       .join(',');
 
     const ruleSet = PARSER.buildRuleSet(
@@ -870,7 +1187,7 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
     );
     const recurDates = ruleSet.all().map((date) => date.toJSON());
     const recurrAfterDates = recurDates.filter((date) =>
-      moment(date).isSameOrAfter(moment.unix(data.start.dateTime))
+      moment(date).isSameOrAfter(moment.tz(data.start.dateTime * 1000, data.start.timezone))
     );
 
     let deleteWholeSeries = false;
@@ -882,9 +1199,15 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
       }
     } else if (recurrencePattern.until !== '') {
       // Need to test util end date, coz date time is ical type.
-      const momentSelectedDt = moment(data.start.dateTime).add(-1, 'second');
-      const momentPreviousDt = moment(recurrencePattern.recurringTypeId);
-      recurrencePattern.until = momentSelectedDt.format('YYYY-MM-DDThh:mm:ss');
+      const momentSelectedDt = moment
+        .tz(data.start.dateTime * 1000, data.start.timezone)
+        .add(-1, 'second');
+      const momentPreviousDt = moment.tz(
+        recurrencePattern.recurringTypeId * 1000,
+        data.start.timezone
+      );
+      // recurrencePattern.until = momentSelectedDt.format('YYYY-MM-DDThh:mm:ss');
+      recurrencePattern.until = momentSelectedDt.unix();
       if (momentSelectedDt.isSame(momentPreviousDt, 'day')) {
         deleteWholeSeries = true;
       }

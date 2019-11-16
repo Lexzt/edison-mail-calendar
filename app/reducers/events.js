@@ -31,10 +31,14 @@ const mergeEvents = (oldEvents, newEvents, user) => {
   return newPayload;
 };
 
-const storeEvents = (oldEvents, newEvents, users) => {
-  // debugger;
+const storeEvents = (oldEvents, payload) => {
   const nonUserEvents = [];
   const userEvents = new Map();
+
+  const newEvents = payload.resp;
+  const { tempEvents } = payload;
+  const { users } = payload;
+  // debugger;
 
   users.forEach((user) => {
     nonUserEvents.push(
@@ -68,6 +72,7 @@ const storeEvents = (oldEvents, newEvents, users) => {
   const newPayload = [...nonUserEvents];
   const newEventsId = newEvents.map((object) => object.id);
   const oldEventsId = oldEvents.map((object) => object.id);
+  const tempEventsId = tempEvents.map((object) => object.id);
 
   newEvents.forEach((e) => {
     newPayload.push(e);
@@ -80,10 +85,10 @@ const storeEvents = (oldEvents, newEvents, users) => {
     // 2. in the new events but not in the old events, it is a deleted event
     //  it is an old event
     oldUserEventsId.forEach((id) => {
-      if (!newEventsId.includes(id)) {
-        if (oldUserEventsId.includes(id)) {
-          newPayload.push(v.filter((e) => e.id === id)[0]);
-        }
+      if (!newEventsId.includes(id) && oldUserEventsId.includes(id) && !tempEventsId.includes(id)) {
+        // if (oldUserEventsId.includes(id) && !tempEventsId.includes(id)) {
+        newPayload.push(v.filter((e) => e.id === id)[0]);
+        // }
       }
     });
   });
@@ -126,7 +131,7 @@ export default function eventsReducer(state = initialState, action) {
       return Object.assign({}, state, { calEvents: allEvents });
     }
     case SUCCESS_STORED_EVENTS: {
-      const newEvents = storeEvents(state.calEvents, action.payload.resp, action.payload.users);
+      const newEvents = storeEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
     }
 

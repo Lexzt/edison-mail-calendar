@@ -43,7 +43,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     const filteredEvents = flatEvents.filter((event) => event !== '');
     const flatFilteredEvents = filteredEvents.reduce((acc, val) => acc.concat(val), []);
     // const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
-    const recurrenceEvents = PARSER.parseRecurrenceEvents(flatFilteredEvents);
+    const recurrencePattern = PARSER.parseRecurrenceEvents(flatFilteredEvents);
 
     debugger;
 
@@ -63,15 +63,14 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     // });
 
     const prevRPs = await Promise.all(
-      recurrenceEvents.map((recurrenceEvent) =>
+      recurrencePattern.map((recurrenceEvent) =>
         dbRpActions.getOneRpByOId(recurrenceEvent.originalId)
       )
     );
 
     let i = 0;
     prevRPs.forEach((prevRP) => {
-      const newRP = recurrenceEvents[i];
-      // console.log(newRP, prevRP);
+      const newRP = recurrencePattern[i];
       if (prevRP === null) {
         promises.push(dbRpActions.insertOrUpdateRp(newRP));
       } else {

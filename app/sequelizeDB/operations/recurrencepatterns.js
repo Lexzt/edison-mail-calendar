@@ -198,8 +198,7 @@ export const updateRpByiCalUID = async (iCalUID, data) => {
 };
 
 export const insertOrUpdateRp = async (rp) => {
-  const debug = true;
-  // debugger;
+  const debug = false;
 
   if (debug) {
     console.log(rp);

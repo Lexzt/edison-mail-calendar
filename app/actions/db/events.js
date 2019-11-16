@@ -15,9 +15,9 @@ export const failStoringEvents = () => ({
   type: FAIL_STORE_EVENTS
 });
 
-export const successStoringEvents = (resp, users) => ({
+export const successStoringEvents = (resp, users, tempEvents) => ({
   type: SUCCESS_STORED_EVENTS,
-  payload: { resp, users }
+  payload: { resp, users, tempEvents }
 });
 
 export const updateStoredEvents = (resp, user) => ({

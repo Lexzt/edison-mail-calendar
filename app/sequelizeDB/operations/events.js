@@ -113,7 +113,20 @@ export const insertEventsIntoDatabase = async (event) => {
 
 // #region Delete Event
 export const deleteEventById = async (id) => {
-  const debug = true;
+  const debug = false;
+
+  if (debug) {
+    const event = await EventsBlock.findOne({
+      where: {
+        id: {
+          [Op.eq]: id
+        }
+      }
+    });
+    console.log(event);
+    debugger;
+  }
+
   const test = await EventsBlock.destroy({
     where: {
       id: {
@@ -121,6 +134,10 @@ export const deleteEventById = async (id) => {
       }
     }
   });
+
+  if (debug) {
+    console.log('Deleted ', test);
+  }
 };
 
 export const deleteEventByOriginalId = async (originalId) => {

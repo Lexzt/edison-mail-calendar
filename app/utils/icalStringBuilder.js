@@ -90,13 +90,16 @@ export const buildRruleObject = (recurrencePattern) => {
 };
 
 export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, eventObject) => {
+  debugger;
   // Build the Dav Calendar Object from the iCalString
   const calendarData = ICAL.parse(eventObject.iCALString);
   const vcalendar = new ICAL.Component(calendarData);
 
   // Get the master event, as they are in order, and remove the ExDates.
   // ExDates are from the recurrence pattern.
-  const vevent = vcalendar.getFirstSubcomponent('vevent');
+  // const vevent = vcalendar.getFirstSubcomponent('vevent');
+  const vevents = vcalendar.getAllSubcomponents('vevent');
+  const vevent = vevents.filter((comp) => comp.hasProperty('rrule'))[0];
   vevent.removeAllProperties('exdate');
 
   // Get all the Edited event to work on later.
@@ -137,7 +140,7 @@ export const buildICALStringDeleteRecurEvent = (recurrencePattern, exDate, event
 
   // For each edited event, find the right one to add.
   recurrencePattern.recurrenceIds.split(',').forEach((date) => {
-    const editedEvent = moment(date);
+    const editedEvent = moment.tz(date * 1000, eventObject.start.timezone);
     const findingEditedComp = allEditedEvent.filter((e2) =>
       moment(e2.getFirstPropertyValue().toJSDate()).isSame(editedEvent, 'day')
     );
@@ -217,7 +220,7 @@ export const buildICALStringUpdateRecurEvent = (recurrencePattern, eventObject, 
     .map((e) => ({
       e,
       result: moment(e.getFirstPropertyValue('recurrence-id').toJSDate()).isSame(
-        moment(eventObject.start.dateTime)
+        moment.tz(eventObject.start.dateTime * 1000, eventObject.start.timezone)
       )
     }));
   const hasDuplicate = filteredResult.filter((anyTrue) => anyTrue.result === true).length > 0;
@@ -415,7 +418,12 @@ export const buildICALStringUpdateFutureRecurMasterEvent = (
   // Idea is to remove the edited events that are the selected event or the following events.
   const result = nonRecurringEvents.map((e2) => {
     const nonMasterVEventTime = moment(e2.getFirstPropertyValue('recurrence-id').toJSDate());
-    if (nonMasterVEventTime.isSameOrAfter(moment(eventObject.start.dateTime), 'day')) {
+    if (
+      nonMasterVEventTime.isSameOrAfter(
+        moment.tz(eventObject.start.dateTime * 1000, eventObject.start.timezone),
+        'day'
+      )
+    ) {
       vcalendar.removeSubcomponent(e2);
       return 'deleted';
     }
@@ -426,7 +434,11 @@ export const buildICALStringUpdateFutureRecurMasterEvent = (
   // Same as previous chunk, but for deleted events now.
   recurringMaster.getAllProperties('exdate').forEach((e) => {
     const exDateMoment = moment(e.getValues()[0].toJSDate());
-    if (exDateMoment.isSameOrAfter(moment(eventObject.start.dateTime))) {
+    if (
+      exDateMoment.isSameOrAfter(
+        moment.tz(eventObject.start.dateTime * 1000, eventObject.start.timezone)
+      )
+    ) {
       recurringMaster.removeProperty(e);
     }
   });
@@ -524,7 +536,7 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
   // If it becomes let it automatically expand the events and not take the events from the parents,
   // Then, come here, and edit this code to not delete or edit but just remove all child elements.
   // Caldav will automatically handle the expansion.
-  const startDt = moment(eventObject.start.dateTime);
+  const startDt = moment.tz(eventObject.start.dateTime * 1000, eventObject.start.timezone);
   nonRecurringEvents.forEach((e) => {
     const nonMasterVEventTime = moment(e.getFirstPropertyValue('recurrence-id').toJSDate());
     let toDelete = false;
@@ -556,7 +568,7 @@ export const buildICALStringUpdateFutureRecurCreateEvent = (
   const startDateTime = new ICAL.Time().fromData(
     {
       year: datetime.year(),
-      month: datetime.month(),
+      month: datetime.month() + 1, // Jan is 0, ical different parsing wtf
       day: datetime.date(),
       hour: datetime.hour(),
       minute: datetime.minute(),

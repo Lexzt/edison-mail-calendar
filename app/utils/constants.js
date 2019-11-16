@@ -174,6 +174,7 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
         // eslint-disable-next-line no-underscore-dangle
         .filter((zone) => zone._name === dbEvent.TimeZone)[0];
 
+      // debugger;
       let tz;
       if (mapZones === undefined || mapZones === null) {
         tz = { _type: 'Atlantic/Reykjavik' }; // Assume default as UTC/GMT

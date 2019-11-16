@@ -216,20 +216,22 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
       })
       .then((recurrence) => {
         const promiseArr = [];
-        recurrence[0].Responses.filter((resp) => resp.errorCode === 0)
-          .map((resp) => resp.Item)
-          .map(async (event) => {
-            const dbRecurrencePattern = parseEwsRecurringPatterns(
-              event.Id.UniqueId,
-              event.Recurrence,
-              event.ICalUid,
-              event.DeletedOccurrences,
-              event.ModifiedOccurrences
-            );
-            exchangeEvents.set(event.ICalUid, event);
+        if (recurrence.length > 0) {
+          recurrence[0].Responses.filter((resp) => resp.errorCode === 0)
+            .map((resp) => resp.Item)
+            .map(async (event) => {
+              const dbRecurrencePattern = parseEwsRecurringPatterns(
+                event.Id.UniqueId,
+                event.Recurrence,
+                event.ICalUid,
+                event.DeletedOccurrences,
+                event.ModifiedOccurrences
+              );
+              exchangeEvents.set(event.ICalUid, event);
 
-            promiseArr.push(dbRpActions.getOneRpByOId(event.Id.UniqueId));
-          });
+              promiseArr.push(dbRpActions.getOneRpByOId(event.Id.UniqueId));
+            });
+        }
         return Promise.all(promiseArr);
       })
       .then((existInDb) => {

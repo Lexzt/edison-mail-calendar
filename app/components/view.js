@@ -93,7 +93,7 @@ export default class View extends React.Component {
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
 
-    dav.debug.enabled = true;
+    // dav.debug.enabled = true;
   }
 
   componentWillMount() {
@@ -112,6 +112,16 @@ export default class View extends React.Component {
 
     moment(); // In case I need moment for debugging in this function
     // debugger;
+
+    // #region Checking of Event Data against Recurrence Patterns
+    // // This is for checking if your recurrence pattern has the proper exdates and recurrenceIds
+    // rpData.forEach((rp) => {
+    //   let json = rp.toJSON();
+    //   console.log(json);
+    //   let events = eventData.filter((event) => event.iCalUID === json.originalId);
+    //   console.log(events);
+    //   console.log(events[0].summary, json.exDates, json.recurrenceIds);
+    // });
 
     // #region UPLOADING LOCAL EVENTS TO EWS
     // // This does not work as ews has some end point limitation due to concurrent connection
@@ -761,6 +771,7 @@ export default class View extends React.Component {
   };
 
   handleEventClick = (event) => {
+    console.log(event);
     this.setState({
       isShowEvent: true,
       currentEvent: event,

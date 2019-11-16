@@ -151,7 +151,59 @@ export default class AddEvent extends Component {
       const { providerType } = JSON.parse(state.selectedProvider);
       const tzid = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      // debugger;
+      // Here we add one day because for example
+      // If I define an event that repeats from the 6th to the 9th,
+      // Rrule will assume 12am on the 9th.
+      // Therefore, I add one day and recompute the string.
+      // eslint-disable-next-line no-underscore-dangle
+      const rrule = ICAL.Recur._stringToData(state.rrule);
+      if (rrule.until !== undefined && providerType === 'CALDAV') {
+        rrule.until.adjust(1, 0, 0, 0, 0);
+      }
+
+      // As rrule is now an object, I need to map it to a string
+      // Ignoring bysecond, minute, hour
+      // As I do not want to initalize objects not created in rrule,
+      // I need to if else, if not undefined gets added in too.
+      const recurObj = {
+        freq: rrule['rrule:freq'],
+        interval: rrule.interval.toString(),
+        until: rrule.until,
+        count: rrule.count
+      };
+      if (rrule.byday) {
+        Object.assign(recurObj, {
+          byday: rrule.byday
+        });
+      }
+      if (rrule.bymonthday) {
+        Object.assign(recurObj, {
+          bymonthday: rrule.bymonthday
+        });
+      }
+      if (rrule.byyearday) {
+        Object.assign(recurObj, {
+          byyearday: rrule.byyearday
+        });
+      }
+      if (rrule.byweekno) {
+        Object.assign(recurObj, {
+          byweekno: rrule.byweekno
+        });
+      }
+      if (rrule.bymonth) {
+        Object.assign(recurObj, {
+          bymonth: rrule.bymonth
+        });
+      }
+      if (rrule.bysetpos) {
+        Object.assign(recurObj, {
+          bysetpos: rrule.bysetpos
+        });
+      }
+      const rruleStr = new ICAL.Recur(recurObj);
+
+      debugger;
 
       props.postEventBegin(
         {
@@ -165,7 +217,8 @@ export default class AddEvent extends Component {
             dateTime: moment.tz(state.endParsed, tzid),
             timezone: tzid
           },
-          rrule: state.rrule
+          isRecurring: state.isRepeating,
+          rrule: rruleStr.toString()
         },
         JSON.parse(state.selectedProvider),
         providerType

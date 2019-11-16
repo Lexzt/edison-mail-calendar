@@ -46,7 +46,6 @@ import { dropDownTime, OUTLOOK, EXCHANGE, GOOGLE, CALDAV } from '../../utils/con
 
 import '../../bootstrap.css';
 import * as recurrenceOptions from '../../utils/recurrenceOptions';
-import { beginStoringEvents } from '../../actions/db/events';
 
 import * as dbEventActions from '../../sequelizeDB/operations/events';
 import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
@@ -171,7 +170,7 @@ export default class EditEvent extends React.Component {
       oldEventJson: state.oldEventJson,
       oldRpJson: state.oldRpJson
     };
-    debugger;
+    // debugger;
     props.beginEditEvent(payload);
     props.history.push('/');
   };
@@ -220,7 +219,7 @@ export default class EditEvent extends React.Component {
       oldEventJson: state.oldEventJson,
       oldRpJson: state.oldRpJson
     };
-    debugger;
+    // debugger;
     props.beginEditRecurrenceSeries(payload);
     props.history.push('/');
   };
@@ -269,7 +268,7 @@ export default class EditEvent extends React.Component {
       oldEventJson: state.oldEventJson,
       oldRpJson: state.oldRpJson
     };
-    debugger;
+    // debugger;
     props.beginEditFutureRecurrenceSeries(payload);
     props.history.push('/');
   };
@@ -396,7 +395,7 @@ export default class EditEvent extends React.Component {
       });
     }
 
-    debugger;
+    // debugger;
     this.setState({
       id: dbEventJSON.id,
       title: dbEventJSON.summary,

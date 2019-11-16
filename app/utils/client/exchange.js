@@ -230,7 +230,7 @@ export const asyncGetRecurrAndSingleExchangeEvents = async (exch) => {
   );
 
   const recurrMasterEvents = await ExchangeBasics.asyncGetExchangeRecurrMasterEvents(exch);
-  debugger;
+  // debugger;
   for (const [key, value] of mapOfRecurrEvents) {
     const recurrMasterId = recurrMasterEvents.get(key).Id;
     value.forEach((event) => (event.RecurrenceMasterId = recurrMasterId));
@@ -507,7 +507,7 @@ export const editEwsRecurrenceObj = (
   byWeekDay, // Used for Weekly/Monthly/Yearly, Repeat on which week day, E.g. Mon, tues
   byWeekNo // Used for Weekly/Monthly/Yearly, Repeat on a specified week number. E.g. 1-4, or last.
 ) => {
-  debugger;
+  // debugger;
   let recurrObj;
   switch (firstOption) {
     case 0:
@@ -604,8 +604,6 @@ export const createNewEwsRecurrenceObj = (
       break;
     case 'WEEKLY':
       recurrObj = new Recurrence.WeeklyPattern();
-      debugger;
-
       let option = [0, 0, 0, 0, 0, 0, 0];
       if (typeof secondOption[1] === 'string') {
         option[parseStringToEwsWeekDay(secondOption[1])] = 1;
@@ -633,7 +631,7 @@ export const createNewEwsRecurrenceObj = (
       } else if (byWeekNo !== '' && byWeekDay !== '') {
         let dayOfWeekIndexNum = parseInt(byWeekNo, 10);
         if (dayOfWeekIndexNum === -1) {
-          debugger;
+          // debugger;
           dayOfWeekIndexNum = 5; // When it is the last weekend all the time/ ??? how to handle
         }
         dayOfWeekIndexNum -= 1; // Becuz exchange feels like saying 0 is the first week
@@ -647,7 +645,7 @@ export const createNewEwsRecurrenceObj = (
           .split(',')
           .filter((str) => str !== '');
         if (splitByMonthDay.length > 0) {
-          debugger;
+          // debugger;
           // As ews can only allow you to loop on one event,
           // we find what day of week and week of month the event is repeating on
           // and loop on those.
@@ -665,7 +663,7 @@ export const createNewEwsRecurrenceObj = (
       break;
     case 'YEARLY':
       const parsedMonth = parseInt(byMonth, 10);
-      debugger;
+      // debugger;
       if (byMonthDay !== undefined) {
         // Slice off the (), and take the number by parsing, but ensure that if empty, not NaN.
         recurrObj = new Recurrence.YearlyPattern();
@@ -675,7 +673,7 @@ export const createNewEwsRecurrenceObj = (
 
         let dayOfWeekIndexNum = parseInt(byWeekNo, 10);
         if (dayOfWeekIndexNum === -1) {
-          debugger;
+          // debugger;
           dayOfWeekIndexNum = 5; // When it is the last weekend all the time/ ??? how to handle
         }
         dayOfWeekIndexNum -= 1; // Becuz exchange feels like saying 0 is the first week
@@ -686,7 +684,7 @@ export const createNewEwsRecurrenceObj = (
       recurrObj.Month = parsedMonth;
       break;
     default:
-      console.log('(editEwsRecurrenceObj) Default 1');
+      console.log('(createNewEwsRecurrenceObj) Default 1');
       return -1;
   }
 

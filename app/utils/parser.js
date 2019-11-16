@@ -11,6 +11,7 @@ const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
 export const parseRecurrenceEvents = (calEvents) => {
   const recurringEvents = [];
+  // debugger;
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
@@ -73,7 +74,6 @@ export const parseRecurrenceEvents = (calEvents) => {
       });
     }
   });
-  // debugger;
   return recurringEvents;
 };
 
@@ -81,7 +81,6 @@ export const convertiCalWeeklyPattern = (rrule) => {
   // debugger;
   const weeklyPattern = [0, 0, 0, 0, 0, 0, 0];
   if (rrule.origOptions.byweekday) {
-    // console.log(rrule.origOptions.byweekday);
     rrule.origOptions.byweekday.forEach((e) => {
       // Need +1 here because weekday starts from 0
       let index = e.weekday + 1;
@@ -182,7 +181,6 @@ export const newParseCalendarObjects = (calendar) => {
       });
   });
 
-  // debugger;
   return flatFilteredEvents;
 };
 
@@ -202,16 +200,28 @@ export const parseCalendarData = (calendarData, etag, url, calendarId) => {
   const results = [];
   const jCalData = ICAL.parse(calendarData);
   const comp = new ICAL.Component(jCalData);
-  const modifiedEvents = comp.getAllSubcomponents('vevent');
-  const masterEvent = comp.getFirstSubcomponent('vevent');
+  // const modifiedEvents = comp.getAllSubcomponents('vevent');
+  const vevents = comp.getAllSubcomponents('vevent');
+  const modifiedEvents = vevents.filter((indivComp) => !indivComp.hasProperty('rrule'));
+  let masterEvent;
+  // This means it is recurring because there is more than one event per ics.
+  if (vevents.length > 1) {
+    masterEvent = vevents.filter((indivComp) => indivComp.hasProperty('rrule'))[0];
+  } else {
+    // Single or recurring event with no edited events
+    masterEvent = vevents[0];
+  }
+
+  if (masterEvent === undefined) {
+    debugger;
+  }
+  // const masterEvent = comp.getFirstSubcomponent('vevent');
   const icalMasterEvent = new ICAL.Event(masterEvent);
   const attendees = getAttendees(masterEvent);
-  const summary = comp.getFirstSubcomponent('vevent').getFirstPropertyValue('summary');
-  // if (icalMasterEvent.summary === '(ICloud) Daily, Till 28th Dec , Last Deleted') {
-  //   debugger;
-  // }
+
   if (icalMasterEvent.isRecurring()) {
-    const recurrenceIds = getRecurrenceIds(modifiedEvents);
+    console.log(icalMasterEvent);
+    const recurrenceIds = getRecurrenceIds(vevents);
     const exDates = getExDates(masterEvent);
 
     // I need to figure out how to parse the data into db here.
@@ -221,7 +231,7 @@ export const parseCalendarData = (calendarData, etag, url, calendarId) => {
     const iCALString = masterEvent.getFirstPropertyValue('rrule').toString();
     if (recurrenceIds.length > 0) {
       // modified events from recurrence series
-      for (let i = 1; i < modifiedEvents.length; i += 1) {
+      for (let i = 0; i < modifiedEvents.length; i += 1) {
         results.push({
           eventData: parseModifiedEvent(comp, etag, url, modifiedEvents[i], calendarId)
         });
@@ -248,7 +258,10 @@ export const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) =
       ? ''
       : modifiedEvent.getFirstPropertyValue('dtstart');
 
-  const tz = modifiedEvent.getFirstPropertyValue('tzid');
+  let tz = modifiedEvent.getFirstPropertyValue('tzid');
+  if (tz === null) {
+    tz = 'UTC';
+  }
   let dtstartMoment = moment.tz(dtstart.toUnixTime() * 1000, tz);
   dtstartMoment = dtstartMoment.tz('GMT').tz(tz, true);
 
@@ -335,7 +348,24 @@ export const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) =
 };
 
 export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
-  const masterEvent = component.getFirstSubcomponent('vevent');
+  // const masterEvent = component.getFirstSubcomponent('vevent');
+
+  // const vevents = component.getAllSubcomponents('vevent');
+  // const masterEvent = vevents.filter((comp) => comp.hasProperty('rrule'))[0];
+  // if (masterEvent === undefined) {
+  //   debugger;
+  // }
+
+  const vevents = component.getAllSubcomponents('vevent');
+  let masterEvent;
+  // This means it is recurring because there is more than one event per ics.
+  if (vevents.length > 1) {
+    masterEvent = vevents.filter((indivComp) => indivComp.hasProperty('rrule'))[0];
+  } else {
+    // Single or recurring event with no edited events
+    masterEvent = vevents[0];
+  }
+
   const tz = component.getFirstSubcomponent('vtimezone').getFirstPropertyValue('tzid');
   // if (masterEvent.getFirstPropertyValue('summary') === 'Recurring through DST') {
   //   debugger;
@@ -457,7 +487,11 @@ export const getExDates = (masterEvent) => {
   if (masterEvent.hasProperty('exdate')) {
     const exdateProps = masterEvent.getAllProperties('exdate');
     exdateProps.forEach((exdate) => {
-      const tz = exdate.getParameter('tzid');
+      let tz = exdate.getParameter('tzid');
+      // This means it is GMT/UTC
+      if (tz === null) {
+        tz = 'UTC';
+      }
       let deletedEventMoment = moment.tz(exdate.getFirstValue().toUnixTime() * 1000, tz);
       deletedEventMoment = deletedEventMoment.tz('GMT').tz(tz, true);
 
@@ -471,7 +505,11 @@ export const getRecurrenceIds = (vevents) => {
   const recurrenceIds = [];
   vevents.forEach((evt, index) => {
     if (evt.getFirstPropertyValue('recurrence-id')) {
-      const tz = evt.getFirstPropertyValue('tzid');
+      let tz = evt.getFirstPropertyValue('tzid');
+      // This means it is GMT/UTC
+      if (tz === null) {
+        tz = 'UTC';
+      }
       let editedIdMoment = moment.tz(
         evt.getFirstPropertyValue('recurrence-id').toUnixTime() * 1000,
         tz
@@ -535,46 +573,49 @@ export const expandSeries = async (recurringEvents) => {
   return expandedSeries;
 };
 
-export const parseRecurrence = (pattern, recurMasterEvent) => {
+export const parseRecurrence = (recurPattern, recurMasterEvent) => {
   const recurEvents = [];
   const ruleSet = buildRuleSet(
-    pattern,
+    recurPattern,
     recurMasterEvent.start.dateTime,
     recurMasterEvent.start.timezone
   );
-  // console.log(ruleSet);
-
-  // if (
-  //   recurMasterEvent.summary ===
-  //   '(ICloud) Monthly Event, Once a month, Till Date, 1 Edited, 1 Deleted'
-  // ) {
-  //   debugger;
-  // }
 
   // Edge case for when there is two timezones due to daylight savings
   // e.g. you will get one -800, and one -700 due to change of daylight savings
   // resulting in ruleSet generating wrong values as it does an === check.
   // In order to fix, just run a fitler on the recurDates as a safety net check.
   const mergedList = [
-    ...pattern.recurrenceIds
+    ...recurPattern.recurrenceIds
       .split(',')
       .filter((str) => str !== '')
       .map((str) => parseInt(str, 10)),
-    ...pattern.exDates
+    ...recurPattern.exDates
       .split(',')
       .filter((str) => str !== '')
       .map((str) => parseInt(str, 10))
   ];
 
   const allDates = ruleSet.all();
-  // console.log(allDates);
   if (allDates.length <= 0) {
-    console.log('Inspect what is going on in the future');
-    console.log(pattern, recurMasterEvent);
+    // This means that the caldav server has an event that when expanded,
+    // has 0 events to deal with. This could be due to several reasons
+    // For e.g. another calendar app uploads an event with 0 events for some reason
+    // Therefore, expansion fails, and we ignore.
+    // We could help the user tidy up their events but I think that is a dangerous game to play.
     // debugger;
+
+    // const test = buildRuleSet(
+    //   recurPattern,
+    //   recurMasterEvent.start.dateTime,
+    //   recurMasterEvent.start.timezone
+    // );
+    console.log('(Error) 0 expanded event found', recurPattern, recurMasterEvent);
     return [];
   }
+  // Base TZ for all events.
   const base = allDates[0];
+
   // isNormalizedTz means all time zone from the recurrence series is the same.
   const isNormalizedTz = ruleSet
     .all()
@@ -596,7 +637,6 @@ export const parseRecurrence = (pattern, recurMasterEvent) => {
     const tzedRuleset = ruleSet.all().map((date) => moment.tz(date.getTime(), eventTz));
     if (tzedRuleset.length > 0) {
       const newBase = tzedRuleset[0];
-      // console.log(newBase);
       recurDates.push(moment(newBase.toJSON()).unix());
       for (let i = 1; i < tzedRuleset.length; i += 1) {
         tzedRuleset[i].hour(newBase.hour());
@@ -841,10 +881,10 @@ export const buildRuleObject = (pattern, startTime, tz) => {
     (pattern.numberOfRepeats === undefined || pattern.numberOfRepeats === null)
   ) {
     ruleObject.until = TEMPORARY_RECURRENCE_END;
-  } else if (pattern.until === undefined || pattern.until === null) {
+  } else if (pattern.until === undefined || pattern.until === null || pattern.until === '') {
     ruleObject.count = pattern.numberOfRepeats;
   } else {
-    const patternJson = moment.tz(pattern.until * 1000, 'US/Pacific').toObject();
+    const patternJson = moment.tz(pattern.until * 1000, tz).toObject();
     ruleObject.until = new Date(
       Date.UTC(
         patternJson.years,
@@ -899,6 +939,7 @@ export const getModifiedThenDeletedDates = (exDates, recurDates) => {
 export const buildRuleSet = (pattern, start, tz) => {
   // Create new ruleset based off the rule object.
   const rruleSet = new RRuleSet();
+  // debugger;
   const ruleObject = buildRuleObject(pattern, start, tz);
   // console.log(ruleObject);
   rruleSet.rrule(new RRule(ruleObject));
