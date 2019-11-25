@@ -45,7 +45,7 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     // const eventPersons = PARSER.parseEventPersons(flatFilteredEvents);
     const recurrencePattern = PARSER.parseRecurrenceEvents(flatFilteredEvents);
 
-    debugger;
+    // debugger;
 
     const promises = [];
     // This is broke, upsert makes no sense atm.

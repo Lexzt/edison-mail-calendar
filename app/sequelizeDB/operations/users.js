@@ -21,7 +21,7 @@ export const insertUserIntoDatabase = async (user) => {
       console.log('(Log) No User of ', user, ', Upserting');
     }
 
-    UserBlock.upsert(user);
+    await UserBlock.upsert(user);
   } else if (dbUser.length > 1) {
     console.log('(Error) Duplicate user in the database');
   } else {
@@ -29,7 +29,7 @@ export const insertUserIntoDatabase = async (user) => {
       console.log('(Log) Found User of ', user, ', Updating');
     }
 
-    UserBlock.update(
+    await UserBlock.update(
       {
         originalId: user.originalId,
         email: user.email,
@@ -60,3 +60,8 @@ export const findUser = async (providerType, owner) =>
       email: { [Op.eq]: owner }
     }
   });
+
+export const getAllUsers = async () => {
+  const events = await UserBlock.findAll();
+  return events;
+};

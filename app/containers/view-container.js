@@ -77,7 +77,7 @@ const mapDispatchToProps = (dispatch) => ({
   onExpiredGoogle: (user) => dispatch(expiredGoogleAuth(user)),
 
   // Start/End Polling actions for sync
-  beginPollingEvents: () => dispatch(beginPollingEvents()),
+  beginPollingEvents: (users) => dispatch(beginPollingEvents(users)),
   endPollingEvents: () => dispatch(endPollingEvents()),
 
   // Start/End Pending actions for offline actions

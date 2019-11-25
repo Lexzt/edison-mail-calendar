@@ -98,7 +98,9 @@ const storeEvents = (oldEvents, payload) => {
 };
 
 const syncEvents = (oldEvents, newEvents) => {
+  // debugger;
   const newPayload = [...oldEvents];
+  console.log(oldEvents, newEvents);
   for (const newEvent of newEvents) {
     const pos = newPayload.map((object) => object.id).indexOf(newEvent.event.id);
     switch (newEvent.type) {
@@ -139,6 +141,7 @@ export default function eventsReducer(state = initialState, action) {
     // It is currently syncing for one user only.
     // I need it to sync for every user that is valid.
     case SYNC_STORED_EVENTS: {
+      console.log('SYNC_STORED_EVENTS', state.calEvents, action.payload);
       const newEvents = syncEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
     }

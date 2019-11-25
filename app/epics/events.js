@@ -76,7 +76,8 @@ import {
   getEventsFailure,
   clearAllEventsSuccess,
   endPollingEvents,
-  EDIT_EVENT_BEGIN
+  EDIT_EVENT_BEGIN,
+  beginPollingEvents
 } from '../actions/events';
 import * as Credentials from '../utils/Credentials';
 import ServerUrls from '../utils/serverUrls';
@@ -84,6 +85,7 @@ import { asyncGetAllCalDavEvents } from '../utils/client/caldav';
 import * as IcalStringBuilder from '../utils/icalStringBuilder';
 
 import * as dbGeneralActions from '../sequelizeDB/operations/general';
+import * as dbUsersActions from '../sequelizeDB/operations/users';
 
 import * as dbEventActions from '../sequelizeDB/operations/events';
 import * as dbRpActions from '../sequelizeDB/operations/recurrencepatterns';
@@ -91,6 +93,7 @@ import * as dbPendingActionActions from '../sequelizeDB/operations/pendingaction
 import { createEwsEventBegin } from '../actions/providers/exchange';
 import { createCaldavEventBegin } from '../actions/providers/caldav';
 import { parseRecurrenceEvents, parseRecurrence } from '../utils/parser';
+import { SUCCESS_STORE_AUTH } from '../actions/db/auth';
 
 const dav = require('dav');
 const uuidv1 = require('uuid/v1');
@@ -940,6 +943,22 @@ export const clearAllEventsEpics = (action$) =>
 // #endregion
 
 // #region Polling Epics
+export const successStoreAuthEpics = (action$) =>
+  action$.pipe(
+    ofType(SUCCESS_STORE_AUTH),
+    mergeMap((action) =>
+      from(dbUsersActions.getAllUsers()).pipe(
+        mergeMap((resp) => {
+          console.log(resp.map((mapToJson) => mapToJson.toJSON()));
+          return of(beginPollingEvents(resp.map((mapToJson) => mapToJson.toJSON())));
+        }),
+        catchError((error) => {
+          of(console.log(error));
+        })
+      )
+    )
+  );
+
 export const pollingEventsEpics = (action$) => {
   const stopPolling$ = action$.pipe(ofType(END_POLLING_EVENTS));
   return action$.pipe(
@@ -949,7 +968,10 @@ export const pollingEventsEpics = (action$) => {
       interval(10 * 1000).pipe(
         takeUntil(stopPolling$),
         switchMap(() => from(syncEvents(action))),
-        map((results) => syncStoredEvents(results))
+        map((results) => {
+          console.log(results);
+          return syncStoredEvents(results);
+        })
       )
     )
   );
@@ -958,181 +980,220 @@ export const pollingEventsEpics = (action$) => {
 const syncEvents = async (action) => {
   // Based off which user it is supposed to sync
   // const { user } = action.payload;
-  const user = {
-    username: Credentials.ICLOUD_USERNAME,
-    password: Credentials.ICLOUD_PASSWORD,
-    url: 'https://caldav.icloud.com/',
-    providerType: Providers.CALDAV
-  };
+  // const user = {
+  //   email: Credentials.ICLOUD_USERNAME,
+  //   password: Credentials.ICLOUD_PASSWORD,
+  //   url: 'https://caldav.icloud.com/',
+  //   providerType: Providers.CALDAV,
+  //   caldavType: 'ICLOUD'
+  // };
 
-  // Check which provider
-  switch (user.providerType) {
-    case Providers.GOOGLE:
-      break;
-    case Providers.OUTLOOK:
-      break;
-    case Providers.EXCHANGE:
-      // For Exchange, We get all appointments based off the user,
-      // And we check if there is anything new.
-      // If there is nothing new, we return nothing.
-      try {
-        const exch = new ExchangeService();
-        exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
-        exch.Credentials = new ExchangeCredentials(user.email, user.password);
+  // const user = {
+  //   email: 'e0176993@u.nus.edu',
+  //   password: 'Ggrfw4406@nus6',
+  //   url: 'https://outlook.office365.com/Ews/Exchange.asmx',
+  //   providerType: Providers.EXCHANGE
+  // };
 
-        const appts = await asyncGetRecurrAndSingleExchangeEvents(exch);
+  const { users } = action;
+  console.log(users);
+  const userEventsResults = await Promise.all(
+    users.map(async (user) => {
+      // Check which provider
+      switch (user.providerType) {
+        case Providers.GOOGLE:
+          break;
+        case Providers.OUTLOOK:
+          break;
+        case Providers.EXCHANGE:
+          // For Exchange, We get all appointments based off the user,
+          // And we check if there is anything new.
+          // If there is nothing new, we return nothing.
+          try {
+            const exch = new ExchangeService();
+            exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
+            exch.Credentials = new ExchangeCredentials(user.email, user.password);
 
-        // However, we need to get all items from database too, as created offline events
-        // does not exist on the server yet.
-        const dbEvents = await dbEventActions.getAllEvents();
-        const updatedEvents = [];
-        const listOfPriomises = [];
+            // debugger;
 
-        for (const appt of appts) {
-          const dbObj = dbEvents.filter((dbEvent) => dbEvent.originalId === appt.Id.UniqueId);
-          const filteredEvent = Providers.filterIntoSchema(
-            appt,
-            Providers.EXCHANGE,
-            user.email,
-            false
-          );
+            const appts = await asyncGetRecurrAndSingleExchangeEvents(exch);
 
-          if (dbObj.length === 0) {
-            // New object from server, add and move on to next one.
-            updatedEvents.push({ event: filteredEvent, type: 'create' });
-            // listOfPriomises.push(db.events.upsert(filteredEvent));
-            listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
-          } else {
-            // Sync old objects and compare in case.
-            const dbEvent = dbObj[0];
-            const lastUpdatedTime = moment(dbEvent.updated);
+            // However, we need to get all items from database too, as created offline events
+            // does not exist on the server yet.
+            const dbEvents = await dbEventActions.getAllEvents();
+            const updatedEvents = [];
+            const listOfPriomises = [];
 
-            if (
-              appt.Id.UniqueId === dbEvent.originalId &&
-              appt.LastModifiedTime.getMomentDate() > lastUpdatedTime
-            ) {
-              console.log(
-                appt.LastModifiedTime.getMomentDate(),
-                lastUpdatedTime,
-                appt.LastModifiedTime.getMomentDate() > lastUpdatedTime
+            for (const appt of appts) {
+              const dbObj = dbEvents.filter((dbEvent) => dbEvent.originalId === appt.Id.UniqueId);
+              const filteredEvent = Providers.filterIntoSchema(
+                appt,
+                Providers.EXCHANGE,
+                user.email,
+                false
               );
 
-              updatedEvents.push({ event: filteredEvent, type: 'update' });
-              // Problem here now is due to upsert changing its behavior.
-              // Upsert is based on the primary key, and as our UUID is now not relying on originalId,
-              // We got an issue.
-              // This means we have to write a query to update based off the filteredEvent data
-              // but keep the primary key.
-              filteredEvent.id = dbEvent.id;
+              if (dbObj.length === 0) {
+                // New object from server, add and move on to next one.
+                updatedEvents.push({ event: filteredEvent, type: 'create' });
+                // listOfPriomises.push(db.events.upsert(filteredEvent));
+                listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
+              } else {
+                // Sync old objects and compare in case.
+                const dbEvent = dbObj[0];
+                const lastUpdatedTime = moment(dbEvent.updated);
+
+                if (
+                  appt.Id.UniqueId === dbEvent.originalId &&
+                  appt.LastModifiedTime.getMomentDate() > lastUpdatedTime
+                ) {
+                  console.log(
+                    appt.LastModifiedTime.getMomentDate(),
+                    lastUpdatedTime,
+                    appt.LastModifiedTime.getMomentDate() > lastUpdatedTime
+                  );
+
+                  updatedEvents.push({ event: filteredEvent, type: 'update' });
+                  // Problem here now is due to upsert changing its behavior.
+                  // Upsert is based on the primary key, and as our UUID is now not relying on originalId,
+                  // We got an issue.
+                  // This means we have to write a query to update based off the filteredEvent data
+                  // but keep the primary key.
+                  filteredEvent.id = dbEvent.id;
+                  listOfPriomises.push(
+                    dbEventActions.updateEventByOriginalId(filteredEvent.originalId, filteredEvent)
+                  );
+                }
+              }
+            }
+
+            // debugger;
+
+            // Check for deleted events, as if it not in the set, it means that it could be deleted.
+            // In database, but not on server, as we are taking server, we just assume delete.
+            for (const dbEvent of dbEvents) {
+              const result = appts.find((appt) => appt.Id.UniqueId === dbEvent.originalId);
+
+              // Means we found something, move on to next object or it has not been uploaded to the server yet.
+              if (
+                dbEvent.providerType !== Providers.EXCHANGE ||
+                result !== undefined ||
+                dbEvent.createdOffline === true
+              ) {
+                continue;
+              }
+              console.log('Found an Exchange event not on server, but is local', dbEvent);
+
+              // Means not found, delete it if it is not a new object.
+              updatedEvents.push({
+                event: Providers.filterEventIntoSchema(dbEvent),
+                type: 'delete'
+              });
+              listOfPriomises.push(dbEventActions.deleteEventByOriginalId(dbEvent.originalId));
+            }
+            const rest = await Promise.all(listOfPriomises);
+            // debugger;
+            console.log(updatedEvents);
+            return updatedEvents;
+          } catch (error) {
+            // Return empty array, let next loop handle syncing.
+            return [];
+          }
+        case Providers.CALDAV:
+          try {
+            const events = await asyncGetAllCalDavEvents(
+              user.email,
+              user.password,
+              user.url,
+              user.caldavType
+            );
+            const dbEvents = await dbEventActions.getAllEvents();
+            const updatedEvents = [];
+            const listOfPriomises = [];
+
+            for (const event of events) {
+              const dbObj = dbEvents.filter(
+                (dbEvent) =>
+                  dbEvent.start.dateTime === event.start.dateTime &&
+                  dbEvent.originalId === event.originalId
+              );
+              const filteredEvent = Providers.filterIntoSchema(
+                event,
+                Providers.CALDAV,
+                user.email,
+                false
+              );
+
+              // debugger;
+
+              if (dbObj.length === 0) {
+                // New object from server, add and move on to next one.
+                updatedEvents.push({ event: filteredEvent, type: 'create' });
+                listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
+              } else {
+                // Sync old objects and compare in case.
+                const dbEvent = dbObj[0];
+
+                // Just update, coz caldav, server is always truth, no matter what
+                // Also, the damn updated field is never updated. Wtf.
+                updatedEvents.push({ event: filteredEvent, type: 'update' });
+                filteredEvent.id = dbEvent.id;
+                listOfPriomises.push(
+                  dbEventActions.updateEventByiCalUIDandStartDateTime(
+                    filteredEvent.iCalUID,
+                    event.start.dateTime,
+                    filteredEvent
+                  )
+                );
+              }
+            }
+
+            // debugger;
+
+            // Check for deleted events, as if it not in the set, it means that it could be deleted.
+            // In database, but not on server, as we are taking server, we just assume delete.
+            for (const dbEvent of dbEvents) {
+              const result = events.find(
+                (event) =>
+                  dbEvent.start.dateTime === event.start.dateTime &&
+                  dbEvent.originalId === event.originalId &&
+                  dbEvent.providerType === event.providerType
+              );
+              // Means we found something, move on to next object or it has not been uploaded to the server yet.
+              if (
+                dbEvent.providerType !== Providers.CALDAV ||
+                result !== undefined ||
+                dbEvent.createdOffline === true
+              ) {
+                continue;
+              }
+              console.log('Found a event not on server, but is local', dbEvent);
+
+              // Means not found, delete it if it is not a new object.
+              updatedEvents.push({
+                event: Providers.filterEventIntoSchema(dbEvent),
+                type: 'delete'
+              });
               listOfPriomises.push(
-                dbEventActions.updateEventByOriginalId(filteredEvent.originalId, filteredEvent)
+                dbEventActions.deleteEventByiCalUIDandStartDateTime(
+                  dbEvent.originalId,
+                  dbEvent.start.dateTime
+                )
               );
             }
+            await Promise.all(listOfPriomises);
+            return updatedEvents;
+          } catch (e) {
+            console.log(e);
+            return [];
           }
-        }
-
-        // Check for deleted events, as if it not in the set, it means that it could be deleted.
-        // In database, but not on server, as we are taking server, we just assume delete.
-        for (const dbEvent of dbEvents) {
-          const result = appts.find((appt) => appt.Id.UniqueId === dbEvent.originalId);
-          // Means we found something, move on to next object or it has not been uploaded to the server yet.
-          if (result !== undefined || dbEvent.createdOffline === true) {
-            continue;
-          }
-          console.log('Found a event not on server, but is local', dbEvent);
-
-          // Means not found, delete it if it is not a new object.
-          updatedEvents.push({
-            event: Providers.filterEventIntoSchema(dbEvent),
-            type: 'delete'
-          });
-          listOfPriomises.push(dbEventActions.deleteEventByOriginalId(dbEvent.originalId));
-        }
-        await Promise.all(listOfPriomises);
-        console.log(updatedEvents);
-        return updatedEvents;
-      } catch (error) {
-        // Return empty array, let next loop handle syncing.
-        return [];
+        default:
+          break;
       }
-    case Providers.CALDAV:
-      try {
-        const events = await asyncGetAllCalDavEvents(user.username, user.password, user.url);
-        const dbEvents = await dbEventActions.getAllEvents();
-        const updatedEvents = [];
-        const listOfPriomises = [];
-        // debugger;
-
-        for (const event of events) {
-          const dbObj = dbEvents.filter(
-            (dbEvent) =>
-              dbEvent.start.dateTime === event.start.dateTime &&
-              dbEvent.originalId === event.originalId
-          );
-          const filteredEvent = Providers.filterIntoSchema(
-            event,
-            Providers.CALDAV,
-            user.email,
-            false
-          );
-
-          if (dbObj.length === 0) {
-            // New object from server, add and move on to next one.
-            updatedEvents.push({ event: filteredEvent, type: 'create' });
-            listOfPriomises.push(dbEventActions.insertEventsIntoDatabase(filteredEvent));
-          } else {
-            // Sync old objects and compare in case.
-            const dbEvent = dbObj[0];
-
-            // Just update, coz caldav, server is always truth, no matter what
-            // Also, the damn updated field is never updated. Wtf.
-            updatedEvents.push({ event: filteredEvent, type: 'update' });
-            filteredEvent.id = dbEvent.id;
-            listOfPriomises.push(
-              dbEventActions.updateEventByiCalUIDandStartDateTime(
-                filteredEvent.iCalUID,
-                event.start.dateTime,
-                filteredEvent
-              )
-            );
-          }
-        }
-
-        // Check for deleted events, as if it not in the set, it means that it could be deleted.
-        // In database, but not on server, as we are taking server, we just assume delete.
-        for (const dbEvent of dbEvents) {
-          const result = events.find(
-            (event) =>
-              dbEvent.start.dateTime === event.start.dateTime &&
-              dbEvent.originalId === event.originalId
-          );
-          // Means we found something, move on to next object or it has not been uploaded to the server yet.
-          if (result !== undefined || dbEvent.createdOffline === true) {
-            continue;
-          }
-          console.log('Found a event not on server, but is local', dbEvent);
-
-          // Means not found, delete it if it is not a new object.
-          updatedEvents.push({
-            event: Providers.filterEventIntoSchema(dbEvent),
-            type: 'delete'
-          });
-          listOfPriomises.push(
-            dbEventActions.deleteEventByiCalUIDandStartDateTime(
-              dbEvent.originalId,
-              dbEvent.start.dateTime
-            )
-          );
-        }
-        await Promise.all(listOfPriomises);
-        return updatedEvents;
-      } catch (e) {
-        console.log(e);
-        return [];
-      }
-    default:
-      break;
-  }
+    })
+  );
+  console.log(userEventsResults);
+  return userEventsResults.reduce((prev, curr) => prev.concat(curr));
 };
 // #endregion
 

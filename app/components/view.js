@@ -122,6 +122,7 @@ export default class View extends React.Component {
     //   console.log(events);
     //   console.log(events[0].summary, json.exDates, json.recurrenceIds);
     // });
+    // #endregion
 
     // #region UPLOADING LOCAL EVENTS TO EWS
     // // This does not work as ews has some end point limitation due to concurrent connection
@@ -528,167 +529,11 @@ export default class View extends React.Component {
   }
 
   buildTitleStringFromRP = (e) => {
-    // const outputStr = [];
-    // let firstDeleted = false;
-    // let firstEdited = false;
-    // let lastDeleted = false;
-    // let lastEdited = false;
-
-    // const { rp } = e;
-    // const { events } = e;
-
-    // function formatString(str) {
-    //   return str
-    //     .replace(/(\B)[^ ]*/g, (match) => match.toLowerCase())
-    //     .replace(/^[^ ]/g, (match) => match.toUpperCase());
-    // }
-
-    // function parseWeekDayNoToString(strWeekDay) {
-    //   switch (strWeekDay) {
-    //     case 0:
-    //       return 'SU';
-    //     case 1:
-    //       return 'MO';
-    //     case 2:
-    //       return 'TU';
-    //     case 3:
-    //       return 'WE';
-    //     case 4:
-    //       return 'TH';
-    //     case 5:
-    //       return 'FR';
-    //     case 6:
-    //       return 'SA';
-    //     default:
-    //       break;
-    //   }
-    // }
-
-    // outputStr.push(formatString(`${rp.freq} Event`));
-    // // outputStr.push(`${rp.interval} Interval`);
-
-    // switch (rp.freq) {
-    //   case 'DAILY':
-    //     // Do nothing
-    //     break;
-    //   case 'WEEKLY':
-    //     // Weekly can be once or x amount of times a week
-    //     // const isMultiple = rp.byWeekDay.split(',');
-    //     // if (isMultiple.length === 0) {
-    //     //   let day = '';
-    //     //   let i = 0;
-    //     //   rp.weeklyPattern.split(',').forEach((dayIndex) => {
-    //     //     if (dayIndex === '1') {
-    //     //       day = parseWeekDayNoToString(i);
-    //     //     }
-    //     //     i += 1;
-    //     //   });
-    //     //   outputStr.push(`Once a week (${day})`);
-    //     // } else {
-    //     //   outputStr.push(`${rp.byWeekDay.length} time a week ${rp.byWeekDay}`);
-    //     // }
-
-    //     const repeatPerWeek = rp.weeklyPattern.split(',').filter((str) => str === '1').length;
-    //     const isMultiple = repeatPerWeek !== 1;
-    //     if (!isMultiple) {
-    //       let day = '';
-    //       let i = 0;
-    //       rp.weeklyPattern.split(',').forEach((dayIndex) => {
-    //         if (dayIndex === '1') {
-    //           day = parseWeekDayNoToString(i);
-    //         }
-    //         i += 1;
-    //       });
-    //       outputStr.push(`Once a week (${day})`);
-    //     } else {
-    //       // debugger;
-    //       outputStr.push(`${repeatPerWeek} times a week ${rp.byWeekDay}`);
-    //     }
-    //     break;
-    //   case 'MONTHLY':
-    //     break;
-    //   case 'YEARLY':
-    //     break;
-    //   default:
-    //     break;
-    // }
-
-    // if (events[0].summary.includes('First Deleted')) {
-    //   firstDeleted = true;
-    // }
-    // if (events[0].summary.includes('Last Deleted')) {
-    //   lastDeleted = true;
-    // }
-    // if (events[0].summary.includes('First Edited')) {
-    //   firstEdited = true;
-    // }
-    // if (events[0].summary.includes('Last Edited')) {
-    //   lastEdited = true;
-    // }
-
-    // if (rp.numberOfRepeats) {
-    //   outputStr.push(`${rp.numberOfRepeats} times`);
-    // } else if (rp.until) {
-    //   if (events[0].summary.includes('Times')) {
-    //     // console.log(events[0].summary.split(', ')[1]);
-    //     // debugger;
-    //     outputStr.push(events[0].summary.split(', ')[1]);
-    //   } else {
-    //     outputStr.push(`Till Date`);
-    //   }
-    // } else {
-    //   // // No end current not handled.
-    //   // outputStr.push('No End');
-    // }
-
-    // if (typeof rp.exDates === 'number') {
-    //   // We assume here that it is a single deleted instance
-    //   if (events[0].summary.includes('First Deleted')) {
-    //     firstDeleted = true;
-    //   } else if (events[0].summary.includes('Last Deleted')) {
-    //     lastDeleted = true;
-    //   } else {
-    //     outputStr.push('1 Deleted');
-    //   }
-    // } else if (rp.exDates !== '') {
-    //   // We don't need to know the values, but we will have multiple deleted instance
-    //   outputStr.push('Multiple Deleted');
-    // }
-
-    // if (typeof rp.recurrenceIds === 'number') {
-    //   // We assume here that it is a single edited instance
-    //   if (rp.recurrenceIds.toString() === rp.recurringTypeId.toString()) {
-    //     firstEdited = true;
-    //   } else if (events[0].summary.includes('Last Edited')) {
-    //     lastEdited = true;
-    //   } else {
-    //     outputStr.push('1 Edited');
-    //   }
-    // } else if (rp.recurrenceIds !== '') {
-    //   // We don't need to know the values, but we will have multiple deleted instance
-    //   outputStr.push('Multiple Edited');
-    // }
-
-    // if (firstDeleted) {
-    //   outputStr.push('First Deleted');
-    // }
-    // if (firstEdited) {
-    //   outputStr.push('First Edited');
-    // }
-    // if (lastEdited) {
-    //   outputStr.push('Last Deleted');
-    // }
-    // if (lastDeleted) {
-    //   outputStr.push('Last Edited');
-    // }
-    // return outputStr.join(', ');
-
     const { rp, events } = e;
     const str = events[0].summary
       .replace(/\(.*?\)/, '')
       .trim()
       .replace(/\//g, ',');
-    // debugger;
     return str;
   };
 

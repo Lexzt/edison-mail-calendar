@@ -220,7 +220,7 @@ export const parseCalendarData = (calendarData, etag, url, calendarId) => {
   const attendees = getAttendees(masterEvent);
 
   if (icalMasterEvent.isRecurring()) {
-    console.log(icalMasterEvent);
+    // console.log(icalMasterEvent);
     const recurrenceIds = getRecurrenceIds(vevents);
     const exDates = getExDates(masterEvent);
 

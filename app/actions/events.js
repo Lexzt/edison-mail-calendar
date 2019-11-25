@@ -177,8 +177,9 @@ export const clearAllEventsSuccess = () => ({
 // #endregion
 
 // #region Polling
-export const beginPollingEvents = (payload) => ({
-  type: BEGIN_POLLING_EVENTS
+export const beginPollingEvents = (users) => ({
+  type: BEGIN_POLLING_EVENTS,
+  users
 });
 
 export const endPollingEvents = (payload) => ({
