@@ -46,9 +46,9 @@ const convertHour = (i) => {
   return `${i.toString()}:`;
 };
 
-export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
+export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurrence) => {
   const schemaCastedDbObject = {};
-
+  debugger;
   switch (type) {
     case GOOGLE: {
       [
@@ -170,14 +170,23 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
 
         Talk to shuhao tmr, and ask how you think we should deal with this case.
       */
-      const mapZones = windowZones.default.supplementalData.windowsZones.mapTimezones.windowZone
+      const allMapZones = windowZones.default.supplementalData.windowsZones.mapTimezones.windowZone;
+      let mapZones;
+
+      if (local) {
+        mapZones = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } else {
+        // This is because you will get a null error when accessing dbEvent that does not exist.
         // eslint-disable-next-line no-underscore-dangle
-        .filter((zone) => zone._name === dbEvent.TimeZone)[0];
+        mapZones = allMapZones.filter((zone) => zone._name === dbEvent.TimeZone)[0];
+      }
 
       // debugger;
       let tz;
       if (mapZones === undefined || mapZones === null) {
         tz = { _type: 'Atlantic/Reykjavik' }; // Assume default as UTC/GMT
+      } else if (local) {
+        tz = { _type: mapZones };
       } else {
         // eslint-disable-next-line no-underscore-dangle
         tz = mapZones.mapZone.filter((terrZone) => terrZone._territory === '001')[0]; // This assumes golden territory as discussed previously due to windows timezone.
@@ -203,13 +212,33 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id) => {
       schemaCastedDbObject.incomplete = false;
       schemaCastedDbObject.local = local;
       schemaCastedDbObject.hide = false;
-      schemaCastedDbObject.isRecurring = dbEvent.AppointmentType !== 'Single';
       // schemaCastedDbObject.attendee = [];
-      schemaCastedDbObject.iCalUID = dbEvent.ICalUid;
-      if (schemaCastedDbObject.isRecurring && dbEvent.RecurrenceMasterId) {
-        schemaCastedDbObject.recurringEventId = dbEvent.RecurrenceMasterId.UniqueId;
+
+      // The problem here now is that appointment type can be a recurring object but we dk
+      // And I cannot access this or icaluid w/o try catch or checking if its local.
+      // Therefore, I need to think that if it is a recurring object, and is local, how?
+      // Services like outlook just say no to you, lel,
+      if (!local) {
+        schemaCastedDbObject.isRecurring = dbEvent.AppointmentType !== 'Single';
+        schemaCastedDbObject.iCalUID = dbEvent.ICalUid;
+        if (schemaCastedDbObject.isRecurring && dbEvent.RecurrenceMasterId) {
+          schemaCastedDbObject.recurringEventId = dbEvent.RecurrenceMasterId.UniqueId;
+        } else {
+          // console.log('Appointment might not have a recurring id');
+        }
       } else {
-        // console.log('Appointment might not have a recurring id');
+        // If we get here, we assume its a pending object, that might not have legit data.
+        // Therefore, iCalUID does not really matter as it will be deleted in the future.
+        // In this case, everytime local is true, there will be an id param. I am just re-using that
+        schemaCastedDbObject.isRecurring = exchangeRecurrence !== undefined;
+        schemaCastedDbObject.iCalUID = id;
+        // Completeness only
+        if (schemaCastedDbObject.isRecurring) {
+          // So recurringEventId keeps the bond between the recurring master object
+          schemaCastedDbObject.recurringEventId = exchangeRecurrence.id;
+        } else {
+          // console.log('Appointment might not have a recurring id');
+        }
       }
       // { iCalUID: { value: 'ICalUid', defaultValue: '', type: 'needed' } },
 

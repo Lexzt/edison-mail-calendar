@@ -638,7 +638,7 @@ export default class View extends React.Component {
       password: state.exchangePwd
     });
     // this.authorizeCaldavCodeRequest(FASTMAIL_USERNAME, FASTMAIL_PASSWORD, 'FASTMAIL');
-    this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
+    // this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
     // this.authorizeCaldavCodeRequest(YAHOO_USERNAME, YAHOO_PASSWORD, 'YAHOO');
   };
 

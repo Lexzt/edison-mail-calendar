@@ -282,68 +282,13 @@ const createEvent = async (payload) => {
   const debug = false;
 
   // Create the event, be it recurrence or what and insert.
-  const dbEvents = createEventDb(payload.data, payload.auth);
+  const tempEventAndRp = createEventDb(payload.data, payload.auth);
+  const dbEvents = tempEventAndRp.events;
+  const dbRp = tempEventAndRp.rp;
   await Promise.all(dbEvents.map((event) => dbEventActions.insertEventsIntoDatabase(event)));
-  // debugger;
+  await dbRpActions.insertOrUpdateRp(dbRp);
   payload.tempEvents = dbEvents;
-
-  // // In order to show immediate action
-  // // We hide the thing first by updating the database
-  // // And await if there are any possible deletion errors
-  // await dbEventActions.hideEventById(id);
-
-  // // #region Getting information
-  // // Get Information
-  // const data = await dbEventActions.getOneEventById(id);
-  // const user = await dbUserActions.findUser(data.providerType, data.owner);
-  // if (debug) {
-  //   console.log(data, user);
-  // }
-  // // #endregion
-
-  // // Edge case, means user created an event offline, and is yet to upload it to service.
-  // // In that case, we shuld remove it from pending action if it exists.
-  // if (data.local === true) {
-  //   await dbPendingActionActions.deletePendingActionById(data.originalId);
-  //   await dbEventActions.deleteEventById(id);
-
-  //   return {
-  //     providerType: data.providerType,
-  //     user: Providers.filterUsersIntoSchema(user)
-  //   };
-  // }
-
-  // // if it is a recurring event, I need to add it into the ExDates, which is located in our RP database.
-  // if (data.isRecurring) {
-  //   switch (data.providerType) {
-  //     case Providers.GOOGLE:
-  //       console.log(data.providerType, ' not handling adding of exDates for recurring pattern');
-  //       break;
-  //     case Providers.OUTLOOK:
-  //       console.log(data.providerType, ' not handling adding of exDates for recurring pattern');
-  //       break;
-  //     case Providers.EXCHANGE:
-  //       await dbRpActions.addExDateByiCalUID(data.iCalUID, data.start.dateTime);
-  //       break;
-  //     case Providers.CALDAV:
-  //       await dbRpActions.addExDateByOid(data.iCalUID, data.start.dateTime);
-  //       break;
-  //     default:
-  //       console.log(
-  //         'Unhandled provider: ',
-  //         data.providerType,
-  //         ' for adding of exDates for recurring pattern'
-  //       );
-  //       break;
-  //   }
-  // }
-
-  // // Set up the payload for the providers to handle.
-  // const payload = {
-  //   data: data.toJSON(),
-  //   user: user.toJSON()
-  // };
-  // const d = performance.now();
+  payload.tempRp = dbRp;
 
   // Based off which provider, we will have different delete functions.
   switch (payload.providerType) {
@@ -366,24 +311,21 @@ const createEvent = async (payload) => {
       try {
         return createEwsEventBegin(payload);
       } catch (exchangeError) {
+        // debugger;
         // // Delete doc is meant for both offline and online actions.
         // // This means item has been deleted on server, maybe by another user
         // // Handle this differently.
         // if (exchangeError.ErrorCode === 249) {
         //   // Just remove it from database instead, and break;
-        //   await dbEventActions.deleteEventById(data.id);
+        //   await dbEventActions.deleteEventById(payload.id);
         //   break;
         // }
         // // Upsert it to the pending action, let pending action automatically handle it.
         // await dbPendingActionActions.insertPendingActionIntoDatabase({
         //   uniqueId: uuidv4(),
-        //   eventId: data.originalId,
+        //   eventId: payload.originalId,
         //   status: 'pending',
-        //   type: 'delete'
-        // });
-        // await dbEventActions.updateEventById(data.id, {
-        //   hide: true,
-        //   local: true
+        //   type: 'create'
         // });
       }
       break;
@@ -450,7 +392,7 @@ const postEventsOutlook = (payload) =>
 // I also need to remove it upon successful posting of an event.
 const createEventDb = (data, auth) => {
   console.log(data);
-  // debugger;
+  debugger;
   const basicEvent = {
     id: uuidv4(),
     originalId: uuidv4(),
@@ -494,9 +436,12 @@ const createEventDb = (data, auth) => {
     console.log(rp);
     // debugger;
     const events = parseRecurrence(rp[0], basicEvent);
-    return events;
+    // This basically just sets the originalId of the recurrence pattern to the generic icaluid
+    // so CRUD actions can be performed locally
+    rp[0].originalId = events[0].iCalUID;
+    return { events, rp: rp[0] };
   }
-  return [basicEvent];
+  return { events: basicEvent };
 };
 
 const createEventExchange = (data, user) => {
@@ -1205,26 +1150,21 @@ export const pendingActionsEpics = (action$) => {
     ofType(BEGIN_PENDING_ACTIONS),
     switchMap((action) =>
       // At a 5 second interval
-      interval(5 * 1000).pipe(
+      interval(10 * 1000).pipe(
         // Stop when epics see a end pending action
         takeUntil(stopPolling$),
-        concatMap(
-          () =>
-            // Get the db
-            // from(getDb()).pipe(
-            // exhaustMap((db) =>
-            // Get all the pending actions
-            from(dbPendingActionActions.getAllPendingActions()).pipe(
-              // For each pending action, run the correct result
-              mergeMap((actions) =>
-                from(handlePendingActions(action.payload, actions)).pipe(
-                  // Return an array of result, reduced accordingly.
-                  mergeMap((result) => of(...result))
-                )
+        concatMap(() =>
+          // Get the db
+          // Get all the pending actions
+          from(dbPendingActionActions.getAllPendingActions()).pipe(
+            // For each pending action, run the correct result
+            mergeMap((actions) =>
+              from(handlePendingActions(action.payload, actions)).pipe(
+                // Return an array of result, reduced accordingly.
+                mergeMap((result) => of(...result))
               )
             )
-          // )
-          // )
+          )
         )
       )
     )
@@ -1234,9 +1174,33 @@ export const pendingActionsEpics = (action$) => {
 const reflect = (p) =>
   p.then((v) => ({ v, status: 'fulfilled' }), (e) => ({ e, status: 'rejected' }));
 
+/*
+YOU STOPPED HERE FOR THANKSGIVIGN WEEKEND!!
+
+So what happened before thanksgiving was
+You were dealing with creating an offline recurrence event pending action
+And you just finished createEwsEvent on exchange.js provider epics.
+
+Now, upon an error, you throw a begin pending actions for pending action epics to handle
+However, in order to begin pending actions, its previously needed the user information
+and due to how you were handling it with rxdb, you prob will have error when accessing data
+
+Therefore, the list of things we should do is
+
+1. Remove users params from handle pending actions by querying the db for the users directly.
+2. Add what happens when it is a recurrence event
+  - The database has a temp store of the rp.
+  - Therefore, all you need to do is query the database based off the originalId
+  - Then from there, attempt to cast the action and retrieve if success.
+
+3. When merging the event together,
+  - If Success
+    - Remove the temp events based off the iCalUID
+    - Remove the recurrence pattern if it is a recurrence event, e.g. local should be true.
+4. Checking the updating moment will not work as updated might be outdated. You are also using unix now.
+*/
 const handlePendingActions = async (users, actions) => {
   // Get all events for resolving conflict.
-  // const docs = await db.events.find().exec();
   const docs = await dbEventActions.getAllEvents();
 
   // Promises array for each of our async action.

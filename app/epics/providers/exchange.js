@@ -19,7 +19,12 @@ import {
 import uuidv4 from 'uuid';
 import ICAL from 'ical.js';
 
-import { getEventsSuccess, getEventsFailure, postEventSuccess } from '../../actions/events';
+import {
+  getEventsSuccess,
+  getEventsFailure,
+  postEventSuccess,
+  beginPendingActions
+} from '../../actions/events';
 import {
   GET_EXCHANGE_EVENTS_BEGIN,
   EDIT_EXCHANGE_SINGLE_EVENT_BEGIN,
@@ -101,7 +106,12 @@ export const createExchangeEventEpics = (action$) =>
               action.payload.tempEvents
             )
           )
-          .catch((err) => console.log(err))
+          .catch((err) => {
+            console.log('(Exchange) Pending action for creation of event');
+            console.log(err);
+            return beginPendingActions();
+            // Dispatch start pending actions here if needed in the future
+          })
       ]).mergeAll()
     )
   );
@@ -219,7 +229,7 @@ const createEwsEvent = (payload) =>
     exch.Credentials = new ExchangeCredentials(payload.auth.email, payload.auth.password);
 
     const { data } = payload;
-    debugger;
+    // debugger;
     // Posting event so create new appointment
     const newEvent = new Appointment(exch);
 
@@ -233,14 +243,14 @@ const createEwsEvent = (payload) =>
     newEvent.Start = startDate;
     newEvent.End = new DateTime(moment.tz(payload.data.end.dateTime, payload.data.end.timezone));
 
-    debugger;
+    // debugger;
 
     const isRecurring = data.rrule !== '';
     if (data.isRecurring) {
       const newRecurrencePattern = {};
       const updatedId = uuidv4();
       const updatedUid = uuidv4();
-      debugger;
+      // debugger;
 
       // eslint-disable-next-line no-underscore-dangle
       const jsonRecurr = ICAL.Recur._stringToData(data.rrule);
@@ -259,118 +269,203 @@ const createEwsEvent = (payload) =>
       newEvent.Recurrence = ewsReucrr;
     }
 
-    exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
-      const uploadingId = result.folders.filter(
-        (folder) => folder.DisplayName === 'Uploading Calendar'
-      )[0];
+    exch
+      .FindFolders(WellKnownFolderName.Calendar, new FolderView(10))
+      .then((result) => {
+        const uploadingId = result.folders.filter(
+          (folder) => folder.DisplayName === 'Uploading Calendar'
+        )[0];
 
-      // Save to create a new event
-      newEvent
-        .Save(uploadingId.Id, SendInvitationsMode.SendToAllAndSaveCopy)
-        .then(
-          // On success
-          async () => {
-            // Re-get the new item with new variables set by EWS/
-            const item = await Item.Bind(exch, newEvent.Id);
-            console.log(item);
+        // Save to create a new event
+        newEvent
+          .Save(uploadingId.Id, SendInvitationsMode.SendToAllAndSaveCopy)
+          .then(
+            // On success
+            async () => {
+              // Re-get the new item with new variables set by EWS/
+              const item = await Item.Bind(exch, newEvent.Id);
+              console.log(item);
 
-            debugger;
+              debugger;
 
-            await Promise.all(
-              payload.tempEvents.map((tempEvent) => dbEventActions.deleteEventById(tempEvent.id))
-            );
-
-            if (item.AppointmentType === 'Single') {
-              // Update database by filtering the new item into our schema.
-              await dbEventActions.insertEventsIntoDatabase(
-                Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
+              await Promise.all(
+                payload.tempEvents.map((tempEvent) => dbEventActions.deleteEventById(tempEvent.id))
               );
-              // resolve({ item, tempEvents: payload.tempEvent });
-              resolve([item]);
-            } else if (item.AppointmentType === 'RecurringMaster') {
-              debugger;
-              // If it is a recurring master event, we need to rely on ews to expand our events.
-              const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
-              const newRecurrExpandedEvents = allExchangeEvents
-                .filter((serverEvent) => serverEvent.ICalUid === item.ICalUid)
-                .map((newExpandedSingleEvent) => {
-                  newExpandedSingleEvent.RecurrenceMasterId = item.Id;
-                  return newExpandedSingleEvent;
-                });
 
-              const rpList = await dbRpActions.getAllRp();
-              const oldRecurrExpandedEvents = allExchangeEvents
-                .filter((serverEvent) => serverEvent.ICalUid !== item.ICalUid)
-                .map((oldExpandedSingleEvent) => {
-                  const prevRp = rpList.filter(
-                    (rp) => rp.iCalUID === oldExpandedSingleEvent.ICalUid
-                  );
-                  console.log(prevRp, oldExpandedSingleEvent);
-                  // debugger;
-                  if (oldExpandedSingleEvent.IsRecurring && prevRp.length > 0) {
-                    oldExpandedSingleEvent.RecurrenceMasterId = { UniqueId: prevRp[0].originalId };
-                  }
-                  return oldExpandedSingleEvent;
-                });
-              debugger;
+              if (item.AppointmentType === 'Single') {
+                // Update database by filtering the new item into our schema.
+                await dbEventActions.insertEventsIntoDatabase(
+                  Providers.filterIntoSchema(item, Providers.EXCHANGE, payload.auth.email, false)
+                );
+                // resolve({ item, tempEvents: payload.tempEvent });
+                resolve([item]);
+              } else if (item.AppointmentType === 'RecurringMaster') {
+                debugger;
+                // If it is a recurring master event, we need to rely on ews to expand our events.
+                const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
+                const newRecurrExpandedEvents = allExchangeEvents
+                  .filter((serverEvent) => serverEvent.ICalUid === item.ICalUid)
+                  .map((newExpandedSingleEvent) => {
+                    newExpandedSingleEvent.RecurrenceMasterId = item.Id;
+                    return newExpandedSingleEvent;
+                  });
 
-              // const promiseArr = [];
-              // promiseArr.push(
-              //   ...newRecurrExpandedEvents.map((updatedSingleEvent) =>
-              //     dbEventActions.insertEventsIntoDatabase(
-              //       Providers.filterIntoSchema(
-              //         updatedSingleEvent,
-              //         Providers.EXCHANGE,
-              //         payload.auth.email,
-              //         false
-              //       )
-              //     )
-              //   )
+                const rpList = await dbRpActions.getAllRp();
+                const oldRecurrExpandedEvents = allExchangeEvents
+                  .filter((serverEvent) => serverEvent.ICalUid !== item.ICalUid)
+                  .map((oldExpandedSingleEvent) => {
+                    const prevRp = rpList.filter(
+                      (rp) => rp.iCalUID === oldExpandedSingleEvent.ICalUid
+                    );
+                    console.log(prevRp, oldExpandedSingleEvent);
+                    // debugger;
+                    if (oldExpandedSingleEvent.IsRecurring && prevRp.length > 0) {
+                      oldExpandedSingleEvent.RecurrenceMasterId = {
+                        UniqueId: prevRp[0].originalId
+                      };
+                    }
+                    return oldExpandedSingleEvent;
+                  });
+                debugger;
+
+                // const promiseArr = [];
+                // promiseArr.push(
+                //   ...newRecurrExpandedEvents.map((updatedSingleEvent) =>
+                //     dbEventActions.insertEventsIntoDatabase(
+                //       Providers.filterIntoSchema(
+                //         updatedSingleEvent,
+                //         Providers.EXCHANGE,
+                //         payload.auth.email,
+                //         false
+                //       )
+                //     )
+                //   )
+                // );
+
+                await dbRpActions.insertOrUpdateRp(
+                  parseEwsRecurringPatterns(
+                    item.Id.UniqueId,
+                    item.Recurrence,
+                    item.ICalUid,
+                    null,
+                    null
+                  )
+                );
+
+                // const finalEventsArr = await Promise.all(promiseArr);
+                // resolve([...newRecurrExpandedEvents, ...oldRecurrExpandedEvents]);
+                resolve(newRecurrExpandedEvents);
+              }
+            },
+            // On error
+            async (error) => {
+              // debugger;
+              // // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
+              // const obj = {
+              //   uniqueId: uuidv4(),
+              //   eventId: uuidv4(),
+              //   status: 'pending',
+              //   type: 'create'
+              // };
+
+              // // Filter temp object into our schema
+              // const savedObj = Providers.filterIntoSchema(
+              //   newEvent,
+              //   Providers.EXCHANGE,
+              //   payload.auth.email,
+              //   true,
+              //   obj.eventId
               // );
+              // savedObj.createdOffline = true;
 
-              await dbRpActions.insertOrUpdateRp(
-                parseEwsRecurringPatterns(
-                  item.Id.UniqueId,
-                  item.Recurrence,
-                  item.ICalUid,
-                  null,
-                  null
-                )
-              );
-
-              // const finalEventsArr = await Promise.all(promiseArr);
-              // resolve([...newRecurrExpandedEvents, ...oldRecurrExpandedEvents]);
-              resolve(newRecurrExpandedEvents);
+              // // Append pending actions for retrying and events for UI display.
+              // await dbEventActions.insertEventsIntoDatabase(savedObj);
+              // await dbPendingActionsActions.insertPendingActionIntoDatabase(obj);
+              // debugger;
+              // throw error;
+              throwError(error);
             }
-          },
-          // On error
-          async (error) => {
-            // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
+          )
+          .catch((error) => {
+            throwError(error);
+          });
+      })
+      .catch(
+        // On error
+        async (error) => {
+          debugger;
+          // try {
+          console.log(payload.tempEvents);
+          if (!data.isRecurring) {
             const obj = {
               uniqueId: uuidv4(),
-              eventId: uuidv4(),
+              eventId: payload.tempEvents[0].id,
               status: 'pending',
               type: 'create'
             };
 
-            // Filter temp object into our schema
-            const savedObj = Providers.filterIntoSchema(
-              newEvent,
-              Providers.EXCHANGE,
-              payload.auth.email,
-              true,
-              obj.eventId
-            );
-            savedObj.createdOffline = true;
-
-            // Append pending actions for retrying and events for UI display.
-            await dbEventActions.insertEventsIntoDatabase(savedObj);
+            await dbEventActions.updateEventByOriginalId(payload.tempEvents[0].originalId, {
+              local: true,
+              createdOffline: true,
+              incomplete: true
+            });
             await dbPendingActionsActions.insertPendingActionIntoDatabase(obj);
-            throw error;
+          } else {
+            // Assuming master events are the first event, as there is no other way to check which is
+            // We have to find the earliest event and insert it as a pending action.
+            // Problem being is that we also need to know the recurrence rule and store it somewhere
+            // I would store it in pending actions, but it kinda makes no sense
+            // Storing it in iCALString is kinda dangerous as its not a legit iCALString.
+            // Wait, I can just retrieve it from the rp in runtime right? NOPE
+            // I am so lazy rn and I cannot figure out the best solution.
+            debugger;
+            console.log(payload);
+            const sorted = payload.tempEvents.sort(
+              (first, second) => first.start.dateTime > second.start.dateTime
+            );
+            console.log(sorted);
+            const masterEvent = sorted[0];
+            const obj = {
+              uniqueId: uuidv4(),
+              eventId: masterEvent.id,
+              status: 'pending',
+              type: 'create'
+            };
+
+            await dbEventActions.updateEventRecurringEventId(masterEvent.iCalUID, {
+              local: true,
+              createdOffline: true,
+              incomplete: true
+            });
+            await dbPendingActionsActions.insertPendingActionIntoDatabase(obj);
           }
-        )
-        .catch((error) => throwError(error));
-    });
+          // Still need throw error but we will deal with it accordingly properly.
+          reject(error);
+
+          // Creating a temp object with uniqueid due to not having any internet, retry w/ pending action
+
+          // // Filter temp object into our schema
+          // const savedObj = Providers.filterIntoSchema(
+          //   newEvent,
+          //   Providers.EXCHANGE,
+          //   payload.auth.email,
+          //   true,
+          //   obj.eventId,
+          //   data.isRecurring ? newEvent.Recurrence : undefined
+          // );
+          // savedObj.createdOffline = true;
+
+          // // Append pending actions for retrying and events for UI display.
+          // await dbEventActions.insertEventsIntoDatabase(savedObj);
+          // await dbPendingActionsActions.insertPendingActionIntoDatabase(obj);
+          // debugger;
+          // throw error;
+          // } catch (PendingActionError) {
+          //   debugger;
+          //   console.log('what', PendingActionError);
+          // }
+        }
+      );
 
     // // Save to create a new event
     // newEvent
