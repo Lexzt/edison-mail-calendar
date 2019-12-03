@@ -30,6 +30,7 @@ import {
 } from 'ews-javascript-api';
 import moment from 'moment';
 import uuidv4 from 'uuid';
+import ICAL from 'ical.js';
 import * as ProviderTypes from '../constants';
 import {
   deleteEventSuccess,
@@ -40,6 +41,8 @@ import {
 import * as dbEventActions from '../../sequelizeDB/operations/events';
 import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 import * as ExchangeBasics from './exchangebasics';
+
+const uuidv1 = require('uuid/v1');
 
 export const filterExchangeUser = (jsonObj) => ({
   personId: uuidv4(),
@@ -55,19 +58,55 @@ export const asyncCreateExchangeEvent = async (username, password, url, payload)
     exch.Url = new Uri(url);
     exch.Credentials = new ExchangeCredentials(username, password);
 
+    const startDate = new DateTime(
+      moment.tz(payload.start.dateTime * 1000, payload.start.timezone)
+    );
+
     const newEvent = new Appointment(exch);
     newEvent.Subject = payload.summary;
-    newEvent.Body = new MessageBody('');
-    newEvent.Start = new DateTime(moment.tz(payload.start.dateTime, payload.start.timezone));
-    newEvent.End = new DateTime(moment.tz(payload.end.dateTime, payload.end.timezone));
+    newEvent.Body = new MessageBody(payload.description);
+    newEvent.Start = new DateTime(startDate);
+    newEvent.End = new DateTime(moment.tz(payload.end.dateTime * 1000, payload.end.timezone));
+
+    if (payload.isRecurring) {
+      const newRecurrencePattern = {};
+      const updatedId = uuidv1();
+      const updatedUid = uuidv1();
+      const rrule = await dbRpActions.getOneRpByOId(payload.recurringEventId);
+
+      // eslint-disable-next-line no-underscore-dangle
+      const jsonRecurr = ICAL.Recur._stringToData(rrule.toJSON().iCALString);
+      const ewsReucrr = createNewEwsRecurrenceObj(
+        jsonRecurr.freq,
+        [0, jsonRecurr.BYDAY, 0, 0],
+        jsonRecurr.interval,
+        startDate,
+        jsonRecurr.until,
+        jsonRecurr.count,
+        jsonRecurr.BYMONTH,
+        jsonRecurr.BYMONTHDAY,
+        jsonRecurr.BYDAY,
+        jsonRecurr.BYSETPOS
+      );
+      newEvent.Recurrence = ewsReucrr;
+    }
 
     let uploadingCalendar;
-    await exch.FindFolders(WellKnownFolderName.Calendar, new FolderView(10)).then((result) => {
-      // eslint-disable-next-line prefer-destructuring
-      uploadingCalendar = result.folders.filter(
-        (folder) => folder.DisplayName === 'Uploading Calendar'
-      )[0];
-    });
+    await exch
+      .FindFolders(WellKnownFolderName.Calendar, new FolderView(10))
+      .then((result) => {
+        // eslint-disable-next-line prefer-destructuring
+        uploadingCalendar = result.folders.filter(
+          (folder) => folder.DisplayName === 'Uploading Calendar'
+        )[0];
+      })
+      .catch((error) => {
+        // If we get here, it means pending action has failed, and therefore
+        // It is time to exit and not bother trying.
+        // Let the next pending action retry on its own.
+        throw error;
+      });
+    debugger;
 
     return await newEvent
       .Save(uploadingCalendar.Id, SendInvitationsMode.SendToAllAndSaveCopy)
@@ -75,23 +114,101 @@ export const asyncCreateExchangeEvent = async (username, password, url, payload)
       .then(
         async () => {
           const item = await Item.Bind(exch, newEvent.Id);
-          const filteredItem = ProviderTypes.filterIntoSchema(
-            item,
-            ProviderTypes.EXCHANGE,
-            username,
-            false
-          );
-          filteredItem.createdOffline = true;
-          const result = await dbEventActions.getAllEventByOriginalId(newEvent.Id.UniqueId);
+          const returnEvents = [];
 
-          if (result.length === 0) {
-            await dbEventActions.insertEventsIntoDatabase(filteredItem);
-          } else if (result.length === 1) {
-            await dbEventActions.updateEventByOriginalId(newEvent.Id.UniqueId, filteredItem);
-          } else {
-            console.log('we should really not be here', result);
+          if (item.AppointmentType === 'Single') {
+            const promiseArr = [
+              dbEventActions.deleteEventByOriginaliCalUID(payload.iCalUID),
+              dbEventActions.insertEventsIntoDatabase(
+                ProviderTypes.filterIntoSchema(item, ProviderTypes.EXCHANGE, username, false)
+              )
+            ];
+            await Promise.all(promiseArr);
+            // // Update database by filtering the new item into our schema.
+            // await dbEventActions.insertEventsIntoDatabase(
+            //   ProviderTypes.filterIntoSchema(item, ProviderTypes.EXCHANGE, username, false)
+            // );
+            returnEvents.push(item);
+          } else if (item.AppointmentType === 'RecurringMaster') {
+            debugger;
+            // If it is a recurring master event, we need to rely on ews to expand our events.
+            const allExchangeEvents = await ExchangeBasics.asyncGetAllExchangeEvents(exch);
+            const newRecurrExpandedEvents = allExchangeEvents
+              .filter((serverEvent) => serverEvent.ICalUid === item.ICalUid)
+              .map((newExpandedSingleEvent) => {
+                newExpandedSingleEvent.RecurrenceMasterId = item.Id;
+                return newExpandedSingleEvent;
+              });
+
+            const rpList = await dbRpActions.getAllRp();
+            // // If you want the old recurring events, this is how to filter it.
+            // const oldRecurrExpandedEvents = allExchangeEvents
+            //   .filter((serverEvent) => serverEvent.ICalUid !== item.ICalUid)
+            //   .map((oldExpandedSingleEvent) => {
+            //     const prevRp = rpList.filter((rp) => rp.iCalUID === oldExpandedSingleEvent.ICalUid);
+            //     console.log(prevRp, oldExpandedSingleEvent);
+            //     // debugger;
+            //     if (oldExpandedSingleEvent.IsRecurring && prevRp.length > 0) {
+            //       oldExpandedSingleEvent.RecurrenceMasterId = {
+            //         UniqueId: prevRp[0].originalId
+            //       };
+            //     }
+            //     return oldExpandedSingleEvent;
+            //   });
+
+            // const promiseArr = [
+            //   dbEventActions.deleteEventByOriginaliCalUID(payload.iCalUID),
+            //   dbRpActions.deleteRpByiCalUID(payload.iCalUID),
+            //   dbRpActions.insertOrUpdateRp(
+            //     parseEwsRecurringPatterns(
+            //       item.Id.UniqueId,
+            //       item.Recurrence,
+            //       item.ICalUid,
+            //       null,
+            //       null
+            //     )
+            //   ),
+            //   newRecurrExpandedEvents.map((newServerEvent) =>
+            //     dbEventActions.insertEventsIntoDatabase(
+            //       ProviderTypes.filterIntoSchema(
+            //         newServerEvent,
+            //         ProviderTypes.EXCHANGE,
+            //         username,
+            //         false
+            //       )
+            //     )
+            //   )
+            // ];
+            // await Promise.all(promiseArr);
+            debugger;
+
+            // Nuke the temp events first, because network managed to get the ID of the posting event.
+            await dbEventActions.deleteEventByOriginaliCalUID(payload.iCalUID);
+
+            // Nuke the temp RP, because network managed to get the ID of the posting event.
+            await dbRpActions.deleteRpByiCalUID(payload.iCalUID);
+
+            // Insert in the new RP
+            await dbRpActions.insertOrUpdateRp(
+              parseEwsRecurringPatterns(item.Id.UniqueId, item.Recurrence, item.ICalUid, null, null)
+            );
+
+            // Insert in the new events
+            await Promise.all(
+              newRecurrExpandedEvents.map((newServerEvent) =>
+                dbEventActions.insertEventsIntoDatabase(
+                  ProviderTypes.filterIntoSchema(
+                    newServerEvent,
+                    ProviderTypes.EXCHANGE,
+                    username,
+                    false
+                  )
+                )
+              )
+            );
+            returnEvents.push(...newRecurrExpandedEvents);
           }
-          return postEventSuccess([item], 'EXCHANGE', username);
+          return postEventSuccess(returnEvents, 'EXCHANGE', username);
         },
         (error) => {
           throw error;
@@ -230,12 +347,16 @@ export const asyncGetRecurrAndSingleExchangeEvents = async (exch) => {
   );
 
   const recurrMasterEvents = await ExchangeBasics.asyncGetExchangeRecurrMasterEvents(exch);
-  // debugger;
-  for (const [key, value] of mapOfRecurrEvents) {
-    const recurrMasterId = recurrMasterEvents.get(key).Id;
-    value.forEach((event) => (event.RecurrenceMasterId = recurrMasterId));
-    exchangeEventsWithBody.push(...value);
+  try {
+    for (const [key, value] of mapOfRecurrEvents) {
+      const recurrMasterId = recurrMasterEvents.get(key).Id;
+      value.forEach((event) => (event.RecurrenceMasterId = recurrMasterId));
+      exchangeEventsWithBody.push(...value);
+    }
+  } catch (e) {
+    console.log('Mapping of recursive master event to expanded events has issue!', e);
   }
+
   return exchangeEventsWithBody;
 };
 

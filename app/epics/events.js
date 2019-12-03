@@ -285,6 +285,7 @@ const createEvent = async (payload) => {
   const tempEventAndRp = createEventDb(payload.data, payload.auth);
   const dbEvents = tempEventAndRp.events;
   const dbRp = tempEventAndRp.rp;
+
   await Promise.all(dbEvents.map((event) => dbEventActions.insertEventsIntoDatabase(event)));
   await dbRpActions.insertOrUpdateRp(dbRp);
   payload.tempEvents = dbEvents;
@@ -337,7 +338,7 @@ const createEvent = async (payload) => {
       }
       break;
     default:
-      console.log(`Delete feature for ${payload.providerType} not handled`);
+      console.log(`Create feature for ${payload.providerType} not handled`);
       break;
   }
 
@@ -910,7 +911,7 @@ export const pollingEventsEpics = (action$) => {
     // ofType(BEGIN_POLLING_EVENTS, UPDATE_STORED_EVENTS),
     ofType(BEGIN_POLLING_EVENTS),
     switchMap((action) =>
-      interval(10 * 1000).pipe(
+      interval(20 * 1000).pipe(
         takeUntil(stopPolling$),
         switchMap(() => from(syncEvents(action))),
         map((results) => {
@@ -944,6 +945,7 @@ const syncEvents = async (action) => {
   console.log(users);
   const userEventsResults = await Promise.all(
     users.map(async (user) => {
+      debugger;
       // Check which provider
       switch (user.providerType) {
         case Providers.GOOGLE:
@@ -959,9 +961,9 @@ const syncEvents = async (action) => {
             exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
             exch.Credentials = new ExchangeCredentials(user.email, user.password);
 
-            // debugger;
-
             const appts = await asyncGetRecurrAndSingleExchangeEvents(exch);
+
+            debugger;
 
             // However, we need to get all items from database too, as created offline events
             // does not exist on the server yet.
@@ -1159,7 +1161,7 @@ export const pendingActionsEpics = (action$) => {
           from(dbPendingActionActions.getAllPendingActions()).pipe(
             // For each pending action, run the correct result
             mergeMap((actions) =>
-              from(handlePendingActions(action.payload, actions)).pipe(
+              from(handlePendingActions(actions)).pipe(
                 // Return an array of result, reduced accordingly.
                 mergeMap((result) => of(...result))
               )
@@ -1199,18 +1201,23 @@ Therefore, the list of things we should do is
     - Remove the recurrence pattern if it is a recurrence event, e.g. local should be true.
 4. Checking the updating moment will not work as updated might be outdated. You are also using unix now.
 */
-const handlePendingActions = async (users, actions) => {
+const handlePendingActions = async (actions) => {
   // Get all events for resolving conflict.
   const docs = await dbEventActions.getAllEvents();
+  const dbUsers = await dbUsersActions.getAllUsers();
+  const users = dbUsers.map((user) => user.toJSON());
 
   // Promises array for each of our async action.
   const promisesArr = actions.map(async (action) => {
     // Find the corresponding item in our database that is in the pending action.
-    const rxDbObj = docs.filter((obj) => obj.originalId === action.eventId)[0];
+    const rxDbObj = docs.filter((obj) => obj.id === action.eventId)[0].toJSON();
     // Find the correct user credentials.
-    const user = users[rxDbObj.providerType].filter(
-      (indivAcc) => indivAcc.owner === rxDbObj.email
+    const user = users.filter(
+      (indivAcc) =>
+        indivAcc.providerType === rxDbObj.providerType && indivAcc.owner === rxDbObj.email
     )[0];
+
+    debugger;
 
     // Declare here for ease over all providers, not used for create events.
     let serverObj;
@@ -1309,14 +1316,12 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
         break;
     }
 
+    debugger;
+
     // Only if success
     if (result.type === 'POST_EVENT_SUCCESS') {
       // Remove the pending action first
-      await dbPendingActionActions.deletePendingActionById(localObj.originalId);
-
-      // Remove the temp event if it exists. For newly created events.
-      await dbEventActions.deleteEventByOriginalId(localObj.originalId);
-
+      await dbPendingActionActions.deletePendingActionById(localObj.id);
       return result;
     }
   }

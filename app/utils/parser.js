@@ -675,6 +675,7 @@ export const parseRecurrence = (recurPattern, recurMasterEvent) => {
       // attendee: recurMasterEvent.attendee,
       originalId: recurMasterEvent.originalId,
       // creator: recurMasterEvent.creator,
+      owner: recurMasterEvent.owner,
       isRecurring: recurMasterEvent.isRecurring,
       providerType: recurMasterEvent.providerType,
       calendarId: recurMasterEvent.calendarId,

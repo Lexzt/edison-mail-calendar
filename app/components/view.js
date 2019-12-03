@@ -85,8 +85,8 @@ export default class View extends React.Component {
       isShowEvent: false,
       currentEventStartDateTime: '',
       currentEventEndDateTime: '',
-      exchangeEmail: 'e0176993@u.nus.edu',
-      exchangePwd: 'Ggrfw4406@nus6'
+      exchangeEmail: 'fongzhizhong@gmail.com',
+      exchangePwd: 'Ggrfw4406@micro2'
     };
     let incrementalSync;
 

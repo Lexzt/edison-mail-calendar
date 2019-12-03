@@ -182,14 +182,15 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
       )[0];
     });
 
+    // I added 10 incase there are additional items, doesn't harm the api.
     await exch
-      .FindItems(uploadingCalendar.Id, new ItemView(100))
+      .FindItems(uploadingCalendar.Id, new ItemView(uploadingCalendar.TotalCount + 10))
       // .FindItems(WellKnownFolderName.Calendar, new ItemView(100))
       .then((resp) => resp.Items.filter((item) => item.AppointmentType === 'RecurringMaster'))
       .then((recurringMasterEvents) => {
         const setKeyId = new Set();
         recurringMasterEvents.forEach((item) => setKeyId.add(new ItemId(item.Id.UniqueId)));
-        // debugger;
+        debugger;
         const additonalProps = new PropertySet(BasePropertySet.IdOnly, [
           AppointmentSchema.Recurrence,
           AppointmentSchema.Body,
