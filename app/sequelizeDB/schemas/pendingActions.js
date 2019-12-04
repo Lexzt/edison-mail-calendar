@@ -18,6 +18,9 @@ PendingActions.init(
     },
     type: {
       type: Sequelize.STRING
+    },
+    recurrenceType: {
+      type: Sequelize.STRING
     }
   },
   {

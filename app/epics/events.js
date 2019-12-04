@@ -410,7 +410,6 @@ const createEventDb = (data, auth) => {
   };
 
   if (data.isRecurring) {
-    // data.start.dateTime = data.start.dateTime.unix();
     // eslint-disable-next-line no-underscore-dangle
     const rrule = ICAL.Recur._stringToData(data.rrule);
     let untilJson;
@@ -1211,12 +1210,14 @@ const handlePendingActions = async (actions) => {
 
   // Promises array for each of our async action.
   const promisesArr = actions.map(async (action) => {
+    debugger;
     // Find the corresponding item in our database that is in the pending action.
     const rxDbObj = docs.filter((obj) => obj.id === action.eventId)[0].toJSON();
     // Find the correct user credentials.
     const user = users.filter(
       (indivAcc) =>
-        indivAcc.providerType === rxDbObj.providerType && indivAcc.owner === rxDbObj.email
+        indivAcc.providerType === rxDbObj.providerType && indivAcc.email === rxDbObj.owner
+      // indivAcc.providerType === rxDbObj.providerType && indivAcc.owner === rxDbObj.email
     )[0];
 
     debugger;
@@ -1248,7 +1249,13 @@ const handlePendingActions = async (actions) => {
       }
 
       // Get a resulting action from the merge function.
-      const resultingAction = await handleMergeEvents(rxDbObj, serverObj, action.type, user);
+      const resultingAction = await handleMergeEvents(
+        rxDbObj,
+        serverObj,
+        action.type,
+        action.recurrenceType,
+        user
+      );
 
       // Return object to be reduced down later on, with the proper user information.
       return { result: resultingAction, user };
@@ -1293,7 +1300,7 @@ const handlePendingActions = async (actions) => {
   return resultingAction;
 };
 
-const handleMergeEvents = async (localObj, serverObj, type, user) => {
+const handleMergeEvents = async (localObj, serverObj, type, recurrenceType, user) => {
   let result = '';
 
   // Create is a specific type, as it assumes local is the source of truth.
@@ -1344,6 +1351,8 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
   const dateIsAfter = localUpdatedTime.isAfter(serverUpdatedTime);
   const dateIsBefore = localUpdatedTime.isBefore(serverUpdatedTime);
 
+  debugger;
+
   // Local means changes has been made to it. So if it is new, then compare.
   // Else, take the server always.
   if (localObj.local) {
@@ -1364,21 +1373,41 @@ const handleMergeEvents = async (localObj, serverObj, type, user) => {
               serverObj.Subject = localObj.summary;
               serverObj.Location = localObj.location;
 
-              result = await asyncUpdateExchangeEvent(serverObj, user, () => {
-                console.log('conflict solved exchange');
-              });
+              switch (recurrenceType) {
+                case 'single':
+                  result = await asyncUpdateExchangeEvent(serverObj, user, () => {
+                    console.log('Pending Action Edited Single Exchange Event');
+                  });
+                  break;
+                case 'all':
+                  break;
+                case 'future':
+                  break;
+                default:
+                  break;
+              }
 
               if (result.type === 'EDIT_EVENT_SUCCESS') {
-                await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
+                await dbPendingActionActions.deletePendingActionById(localObj.id);
               }
               return result;
             case 'delete':
-              result = await asyncDeleteExchangeEvent(serverObj, user, () => {
-                console.log('deleted exchange event');
-              });
+              switch (recurrenceType) {
+                case 'single':
+                  result = await asyncDeleteExchangeEvent(serverObj, user, () => {
+                    console.log('Pending Action Deleted Single Exchange Event');
+                  });
+                  break;
+                case 'all':
+                  break;
+                case 'future':
+                  break;
+                default:
+                  break;
+              }
 
               if (result.type === 'DELETE_EVENT_SUCCESS') {
-                await dbPendingActionActions.deletePendingActionById(filteredServerObj.originalId);
+                await dbPendingActionActions.deletePendingActionById(localObj.id);
               }
               return result;
             default:

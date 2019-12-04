@@ -199,6 +199,7 @@ const deleteSingleEvent = async (id) => {
     console.log(data, user);
   }
   // #endregion
+  debugger;
 
   // Edge case, means user created an event offline, and is yet to upload it to service.
   // In that case, we shuld remove it from pending action if it exists.
@@ -242,7 +243,6 @@ const deleteSingleEvent = async (id) => {
     data: data.toJSON(),
     user: user.toJSON()
   };
-  const d = performance.now();
 
   // Based off which provider, we will have different delete functions.
   switch (data.providerType) {
@@ -602,17 +602,17 @@ const editSingleEvent = async (payload) => {
         // // Handle this differently.
         // if (exchangeError.ErrorCode === 249) {
         //   // Just remove it from database instead, and break;
-        //   await dbEventActions.deleteEventById(data.id);
+        //   await dbEventActions.deleteEventById(payload.id);
         //   break;
         // }
         // // Upsert it to the pending action, let pending action automatically handle it.
         // await dbPendingActionActions.insertPendingActionIntoDatabase({
         //   uniqueId: uuidv4(),
-        //   eventId: data.originalId,
+        //   eventId: payload.id,
         //   status: 'pending',
-        //   type: 'delete'
+        //   type: 'update'
         // });
-        // await dbEventActions.updateEventById(data.id, {
+        // await dbEventActions.updateEventById(payload.id, {
         //   hide: true,
         //   local: true
         // });

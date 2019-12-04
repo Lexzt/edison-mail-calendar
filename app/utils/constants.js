@@ -48,7 +48,6 @@ const convertHour = (i) => {
 
 export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurrence) => {
   const schemaCastedDbObject = {};
-  debugger;
   switch (type) {
     case GOOGLE: {
       [
