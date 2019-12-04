@@ -1351,6 +1351,7 @@ const handleMergeEvents = async (localObj, serverObj, type, recurrenceType, user
   const dateIsAfter = localUpdatedTime.isAfter(serverUpdatedTime);
   const dateIsBefore = localUpdatedTime.isBefore(serverUpdatedTime);
 
+  console.log(localObj);
   debugger;
 
   // Local means changes has been made to it. So if it is new, then compare.
@@ -1399,6 +1400,17 @@ const handleMergeEvents = async (localObj, serverObj, type, recurrenceType, user
                   });
                   break;
                 case 'all':
+                  // asyncGetSingleExchangeEvent will throw error when no internet or event missing.
+                  const recurringMasterObj = await asyncGetSingleExchangeEvent(
+                    user.email,
+                    user.password,
+                    'https://outlook.office365.com/Ews/Exchange.asmx',
+                    localObj.recurringEventId
+                  );
+                  await dbEventActions.deleteAllEventByRecurringEventId(localObj.recurringEventId);
+                  result = await asyncDeleteExchangeEvent(recurringMasterObj, user, () => {
+                    console.log('Pending Action Deleted All Exchange Event');
+                  });
                   break;
                 case 'future':
                   break;
