@@ -284,12 +284,14 @@ const createEvent = async (payload) => {
   // Create the event, be it recurrence or what and insert.
   const tempEventAndRp = createEventDb(payload.data, payload.auth);
   const dbEvents = tempEventAndRp.events;
-  const dbRp = tempEventAndRp.rp;
+  if (payload.data.isRecurring) {
+    const dbRp = tempEventAndRp.rp;
+    await dbRpActions.insertOrUpdateRp(dbRp);
+    payload.tempRp = dbRp;
+  }
 
   await Promise.all(dbEvents.map((event) => dbEventActions.insertEventsIntoDatabase(event)));
-  await dbRpActions.insertOrUpdateRp(dbRp);
   payload.tempEvents = dbEvents;
-  payload.tempRp = dbRp;
 
   // Based off which provider, we will have different delete functions.
   switch (payload.providerType) {
@@ -442,7 +444,7 @@ const createEventDb = (data, auth) => {
     rp[0].originalId = events[0].iCalUID;
     return { events, rp: rp[0] };
   }
-  return { events: basicEvent };
+  return { events: [basicEvent] };
 };
 
 const createEventExchange = (data, user) => {
