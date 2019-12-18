@@ -34,6 +34,5 @@ Calendars.init(
     modelName: 'calendars'
   }
 );
-// Calendars.sync().then(tableCompletedSync);
 Calendars.sync();
 db.calendars = Calendars;

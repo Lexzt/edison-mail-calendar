@@ -37,15 +37,7 @@ const configureStore = (initialState?: counterStateType) => {
   /* eslint-enable no-underscore-dangle */
 
   // Apply Middleware & Compose Enhancers
-  enhancers.push(
-    applyMiddleware(
-      ...middleware,
-      // authBeginMiddleware,
-      // authSuccessMiddleware,
-      epicMiddleware,
-      loggerMiddleware
-    )
-  );
+  enhancers.push(applyMiddleware(...middleware, epicMiddleware, loggerMiddleware));
   const enhancer = composeEnhancers(...enhancers);
 
   // Create Store

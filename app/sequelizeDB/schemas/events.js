@@ -6,7 +6,6 @@ const db = getDb();
 export default class Events extends Model {}
 Events.init(
   {
-    // ----------------------------------------------- //
     id: {
       type: Sequelize.STRING,
       primaryKey: true
@@ -14,7 +13,6 @@ Events.init(
     originalId: {
       type: Sequelize.STRING
     },
-    // ----------------------------------------------- //
     htmlLink: {
       type: Sequelize.STRING
     },
@@ -48,29 +46,6 @@ Events.init(
     organizer: {
       type: Sequelize.STRING
     },
-    // ----------------------------------------------- //
-    // start: {
-    //   type: 'object',
-    //   properties: {
-    //     dateTime: {
-    //       type: 'string'
-    //     },
-    //     timezone: {
-    //       type: 'string'
-    //     }
-    //   }
-    // },
-    // end: {
-    //   type: 'object',
-    //   properties: {
-    //     dateTime: {
-    //       type: 'string'
-    //     },
-    //     timezone: {
-    //       type: 'string'
-    //     }
-    //   }
-    // },
     start: {
       type: Sequelize.JSON
     },
@@ -81,53 +56,30 @@ Events.init(
       type: Sequelize.BOOLEAN,
       defaultValue: false
     },
-    // ----------------------------------------------- //
-    // recurrence: {
-    //   type: 'array',
-    //   item: {
-    //     type: 'string'
-    //   }
-    // },
     recurrence: {
       type: Sequelize.ARRAY(Sequelize.RANGE(Sequelize.STRING))
     },
     recurringEventId: {
       type: Sequelize.STRING
     },
-    // originalStartTime: {
-    //   type: 'object',
-    //   properties: {
-    //     dateTime: {
-    //       type: 'string'
-    //     },
-    //     timezone: {
-    //       type: 'string'
-    //     }
-    //   }
-    // },
-
     originalStartTime: {
       type: Sequelize.JSON
     },
-    // ----------------------------------------------- //
     transparency: {
       type: Sequelize.STRING
     },
     visibility: {
       type: Sequelize.STRING
     },
-    // ----------------------------------------------- //
     iCalUID: {
       type: Sequelize.STRING
     },
     sequence: {
       type: Sequelize.INTEGER
     },
-    // ----------------------------------------------- //
     attendee: {
-      type: Sequelize.ARRAY(Sequelize.RANGE(Sequelize.JSON))
+      type: Sequelize.STRING
     },
-    // ----------------------------------------------- //
     anyoneCanAddSelf: {
       type: Sequelize.BOOLEAN
     },
@@ -149,24 +101,12 @@ Events.init(
     allDay: {
       type: Sequelize.BOOLEAN
     },
-    // ----------------------------------------------- //
     calendarId: {
       type: Sequelize.STRING
     },
     hangoutLink: {
       type: Sequelize.STRING
     },
-    // source: {
-    //   type: 'object',
-    //   properties: {
-    //     url: {
-    //       type: 'string'
-    //     },
-    //     title: {
-    //       type: 'string'
-    //     }
-    //   }
-    // },
     source: {
       type: Sequelize.JSON
     },
@@ -176,7 +116,6 @@ Events.init(
     caldavType: {
       type: Sequelize.STRING
     },
-    // ----------------------------------------------- //
     owner: {
       // email that it belongs to as exchange users might not have email
       type: Sequelize.STRING
@@ -222,6 +161,5 @@ Events.init(
     modelName: 'events'
   }
 );
-// Events.sync().then(tableCompletedSync);
 Events.sync();
 db.events = Events;

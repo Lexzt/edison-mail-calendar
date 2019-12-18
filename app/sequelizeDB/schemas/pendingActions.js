@@ -28,6 +28,5 @@ PendingActions.init(
     modelName: 'pendingactions'
   }
 );
-// PendingActions.sync().then(tableCompletedSync);
 PendingActions.sync();
 db.pendingactions = PendingActions;

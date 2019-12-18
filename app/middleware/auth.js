@@ -23,7 +23,6 @@ const dav = require('dav');
 let GoogleAuth = '';
 
 const handleAuthClick = (auth) => {
-  console.log(auth);
   if (auth.isSignedIn.get()) {
     console.log('Signed In to Google!');
   } else {
@@ -155,7 +154,6 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
     // console.log("here");
     // testFunc();
   } else if (action.type === AuthActionTypes.BEGIN_EXCHANGE_AUTH) {
-    console.log(action);
     const exch = new ExchangeService();
     exch.Credentials = new WebCredentials(action.payload.username, action.payload.password);
     exch.Url = new Uri('https://outlook.office365.com/Ews/Exchange.asmx');
@@ -186,7 +184,6 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
         }
       );
   } else if (action.type === AuthActionTypes.BEGIN_CALDAV_AUTH) {
-    console.log(action.payload);
     const caldavPayload = {
       server: action.payload.url,
       xhr: new dav.transport.Basic(
@@ -198,10 +195,11 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
       loadObjects: true
     };
 
-    dav.createAccount(caldavPayload).then(
-      (caldavData) => {
-        console.log(caldavData);
-        debugger;
+    dav
+      .createAccount(caldavPayload)
+      .then((caldavData) => {
+        // console.log(caldavData);
+        // debugger;
         next({
           type: AuthActionTypes.SUCCESS_CALDAV_AUTH,
           payload: {
@@ -209,42 +207,41 @@ export const authBeginMiddleware = (store) => (next) => (action) => {
             data: caldavData
           }
         });
-      }
-      // (error) => {
-      //   console.log(error);
-      //   next({
-      //     type: AuthActionTypes.FAIL_CALDAV_AUTH
-      //   });
-      // }
-    );
+      })
+      .catch((error) => {
+        console.log(error);
+        next({
+          type: AuthActionTypes.FAIL_CALDAV_AUTH
+        });
+      });
   }
   return next(action);
 };
 
 export const authSuccessMiddleware = (store) => (next) => (action) => {
-  /* if(action.type === AuthActionTypes.SUCCESS_GOOGLE_AUTH) {
-    next({
-      type: DbActionTypes.RETRIEVE_STORED_EVENTS,
-      payload: { providerType: Providers.GOOGLE, user: action.payload.user }
-    });
-  } */
-  if (action.type === AuthActionTypes.FAIL_GOOGLE_AUTH) {
-    next({
-      type: AuthActionTypes.RETRY_GOOGLE_AUTH
-    });
-  }
+  // if(action.type === AuthActionTypes.SUCCESS_GOOGLE_AUTH) {
+  //   next({
+  //     type: DbActionTypes.RETRIEVE_STORED_EVENTS,
+  //     payload: { providerType: Providers.GOOGLE, user: action.payload.user }
+  //   });
+  // }
+  // if (action.type === AuthActionTypes.FAIL_GOOGLE_AUTH) {
+  //   next({
+  //     type: AuthActionTypes.RETRY_GOOGLE_AUTH
+  //   });
+  // }
 
-  if (action.type === AuthActionTypes.SUCCESS_OUTLOOK_AUTH) {
-    next({
-      type: DbActionTypes.RETRIEVE_STORED_EVENTS,
-      payload: { providerType: action.payload.user.providerType, user: action.payload.user }
-    });
-  }
-  if (action.type === AuthActionTypes.FAIL_OUTLOOK_AUTH) {
-    next({
-      type: AuthActionTypes.RETRY_OUTLOOK_AUTH
-    });
-  }
+  // if (action.type === AuthActionTypes.SUCCESS_OUTLOOK_AUTH) {
+  //   next({
+  //     type: DbActionTypes.RETRIEVE_STORED_EVENTS,
+  //     payload: { providerType: action.payload.user.providerType, user: action.payload.user }
+  //   });
+  // }
+  // if (action.type === AuthActionTypes.FAIL_OUTLOOK_AUTH) {
+  //   next({
+  //     type: AuthActionTypes.RETRY_OUTLOOK_AUTH
+  //   });
+  // }
 
   if (action.type === AuthActionTypes.SUCCESS_EXCHANGE_AUTH) {
     next({

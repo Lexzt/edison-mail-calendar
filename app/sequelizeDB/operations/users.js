@@ -3,10 +3,6 @@ import UserBlock from '../schemas/users';
 
 export const insertUserIntoDatabase = async (user) => {
   const debug = false;
-
-  // As we are inserting a new user into the database, and personId being the priamry key
-  // that is uuidv4 generated, meaning unique each time, we need to check based off the
-  // user information before we decide to upsert or update accrordingly.
   const dbUser = await UserBlock.findAll({
     where: {
       email: user.email,

@@ -9,7 +9,6 @@ const getFilteredEvents = createSelector(
   (normalizedData) => {
     const data = Object.values(normalizedData);
     const flatData = data.reduce((acc, val) => acc.concat(val), []);
-    // console.log(flatData);
     const formatedEvents = flatData
       .filter((eachEvent) => !eachEvent.hide)
       .map((eachEvent) => ({

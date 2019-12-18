@@ -125,7 +125,8 @@ export default function authReducer(state = initialState, action) {
         expiredProviders: {
           ...state.expiredProviders,
           [ProviderTypes.EXCHANGE]: state.expiredProviders[ProviderTypes.EXCHANGE]
-          // [ProviderTypes.EXCHANGE]: state.expiredProviders[ProviderTypes.EXCHANGE].filter(user => user.originalId !== action.payload.user.originalId)  // Don't need this as exchange users never expire due to no oauth yet
+          // Don't need this as exchange users never expire due to no oauth yet
+          // [ProviderTypes.EXCHANGE]: state.expiredProviders[ProviderTypes.EXCHANGE].filter(user => user.originalId !== action.payload.user.originalId)
         }
       });
     case AuthActionTypes.FAIL_EXCHANGE_AUTH:
@@ -152,7 +153,8 @@ export default function authReducer(state = initialState, action) {
         expiredProviders: {
           ...state.expiredProviders,
           [ProviderTypes.CALDAV]: state.expiredProviders[ProviderTypes.CALDAV]
-          // [ProviderTypes.EXCHANGE]: state.expiredProviders[ProviderTypes.EXCHANGE].filter(user => user.originalId !== action.payload.user.originalId)  // Don't need this as exchange users never expire due to no oauth yet
+          // Don't need this as exchange users never expire due to no oauth yet
+          // [ProviderTypes.EXCHANGE]: state.expiredProviders[ProviderTypes.EXCHANGE].filter(user => user.originalId !== action.payload.user.originalId)
         }
       });
     case AuthActionTypes.FAIL_CALDAV_AUTH:

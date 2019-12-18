@@ -199,13 +199,9 @@ export const updateRpByiCalUID = async (iCalUID, data) => {
 
 export const insertOrUpdateRp = async (rp) => {
   const debug = false;
-
   if (debug) {
     console.log(rp);
   }
-  // As we are inserting a new user into the database, and personId being the priamry key
-  // that is uuidv4 generated, meaning unique each time, we need to check based off the
-  // user information before we decide to upsert or update accrordingly.
   const dbRps = await RecurrencePatternsBlock.findAll({
     where: {
       iCalUID: {

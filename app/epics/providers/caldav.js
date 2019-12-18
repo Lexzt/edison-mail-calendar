@@ -188,7 +188,6 @@ const createCalDavEvent = async (payload) => {
   // ICloud Calendar link
   const caldavUrl =
     'https://caldav.icloud.com/10224008189/calendars/D5E32586-F354-485D-9A85-4B290CB8E47B/';
-  // 'https://caldav.icloud.com/10224008189/calendars/AA1658A8-DBA1-4587-AE22-9451C6212C85/';
 
   // // Yahoo Calendar Link
   // const caldavUrl =
@@ -319,10 +318,7 @@ const createCalDavEvent = async (payload) => {
 };
 
 const editCalDavSingle = async (payload) => {
-  const debug = true;
-  if (debug) {
-    console.log(payload);
-  }
+  const debug = false;
   try {
     let iCalString;
 
@@ -370,7 +366,9 @@ const editCalDavSingle = async (payload) => {
         data,
         payload
       );
-      console.log(iCalString);
+      if (debug) {
+        console.log(iCalString);
+      }
 
       // Due to how there is no master,
       // We need to ensure all events that are part of the series
@@ -403,7 +401,9 @@ const editCalDavSingle = async (payload) => {
 
     // Result will throw error, we can do a seperate check here if needed.
     const result = await dav.updateCalendarObject(calendarObject, option);
-    console.log(result);
+    if (debug) {
+      console.log(result);
+    }
     // #endregion
   } catch (error) {
     console.log('(editCalDavSingle) Error, retrying with pending action!', error, payload.id);
@@ -416,14 +416,11 @@ const editCalDavSingle = async (payload) => {
 };
 
 const editCalDavAllRecurrenceEvents = async (payload) => {
-  const debug = true;
-  console.log(payload);
-  // debugger;
+  const debug = false;
   try {
     // #region Getting information
     // Get Information (Sequlize)
     const data = await dbEventActions.getOneEventById(payload.id);
-
     const { user } = payload;
     // #endregion
 
@@ -464,8 +461,9 @@ const editCalDavAllRecurrenceEvents = async (payload) => {
       data,
       payload
     );
-    console.log(iCalString);
-    // debugger;
+    if (debug) {
+      console.log(iCalString);
+    }
 
     // Due to how there is no master,
     // We need to ensure all events that are part of the series
@@ -522,8 +520,9 @@ const editCalDavAllRecurrenceEvents = async (payload) => {
 
     const allEvents = await dbEventActions.getAllEvents();
     const allRp = await dbRpActions.getAllRp();
-    console.log(allEvents, allRp);
-    // debugger;
+    if (debug) {
+      console.log(allEvents, allRp);
+    }
   } catch (error) {
     console.log(
       '(editCalDavAllRecurrenceEvents) Error, retrying with pending action!',
@@ -540,17 +539,12 @@ const editCalDavAllRecurrenceEvents = async (payload) => {
 
 const editCalDavAllFutureRecurrenceEvents = async (payload) => {
   const debug = false;
-  console.log(payload);
-
   try {
     // #region Getting information
     // Get Information (Sequlize)
     const data = await dbEventActions.getOneEventById(payload.id);
-
     const { user } = payload;
     // #endregion
-
-    // debugger;
 
     // #region CalDav sending details
     // Needed information for deleting of Caldav information.
@@ -589,16 +583,8 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       id: updatedId,
       originalId: updatedUid,
       // // Temp take from the recurrence master first, will take from the UI in future.
-      // freq: payload.options.rrule.freq,
-      // interval: payload.options.rrule.interval,
       freq: pattern.freq,
       interval: pattern.interval,
-      // exDates: pattern.exDates.filter((exDate) =>
-      //   moment(exDate).isAfter(moment(data.start.dateTime))
-      // ),
-      // recurrenceIds: pattern.recurrenceIds.filter((recurrId) =>
-      //   moment(recurrId).isAfter(moment(data.start.dateTime))
-      // ),
       exDates: pattern.exDates
         .split(',')
         .map((str) => parseInt(str, 10))
@@ -686,8 +672,6 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       Object.assign(oldRecurringPattern, {
         id: pattern.id,
         originalId: pattern.originalId,
-        // freq: payload.options.rrule.freq,
-        // interval: payload.options.rrule.interval,
         freq: pattern.freq,
         interval: pattern.interval,
         exDates: exDates.join(','),
@@ -727,49 +711,11 @@ const editCalDavAllFutureRecurrenceEvents = async (payload) => {
       Object.assign(oldRecurringPattern, {
         numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
         isCount: true
-        // exDates: pattern.exDates
-        //   .split(',')
-        //   .map((str) => parseInt(str, 10))
-        //   .filter((exDate) =>
-        //     moment
-        //       .tz(exDate * 1000, data.start.timezone)
-        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
-        //   )
-        //   .join(','),
-        // recurrenceIds: pattern.recurrenceIds
-        //   .split(',')
-        //   .map((str) => parseInt(str, 10))
-        //   .filter((rpDate) =>
-        //     moment
-        //       .tz(rpDate * 1000, data.start.timezone)
-        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
-        //   )
-        //   .join(',')
       });
 
       await dbRpActions.updateRpByOid(data.iCalUID, {
         numberOfRepeats: recurDates.length + oldRecurringPattern.recurrenceIds.length, // Old RP needs to repeat till the selected event minus one.
         isCount: true
-        // exDates: pattern.exDates
-        //   .split(',')
-        //   .map((str) => parseInt(str, 10))
-        //   .filter((exDate) =>
-        //     moment
-        //       .tz(exDate * 1000, data.start.timezone)
-        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
-        //   )
-        //   // .filter((exDate) => moment(exDate).isBefore(moment(data.start.dateTime)))
-        //   .join(','),
-        // recurrenceIds: pattern.recurrenceIds
-        //   .split(',')
-        //   .map((str) => parseInt(str, 10))
-        //   .filter((rpDate) =>
-        //     moment
-        //       .tz(rpDate * 1000, data.start.timezone)
-        //       .isBefore(moment.tz(data.start.dateTime * 1000, data.start.timezone))
-        //   )
-        //   // .filter((rpDate) => moment(rpDate).isBefore(moment(data.start.dateTime)))
-        //   .join(',')
       });
     } else {
       // Here, we assign the end condition for our recurrence pattern.
@@ -1046,7 +992,6 @@ const deleteCalDavSingle = async (payload) => {
         url: caldavUrl,
         calendarData
       };
-      // debugger;
       // Result will throw error, we can do a seperate check here if needed.
       result = await dav.updateCalendarObject(calendarObject, option);
     } else {
@@ -1109,7 +1054,6 @@ const deleteCalDavAllRecurrenceEvents = async (payload) => {
 
     // Remove all the recurring events accordingly.
     await dbEventActions.deleteEventByOriginalId(data.iCalUID);
-
     return { user };
   } catch (caldavError) {
     console.log('Handle Caldav pending action here', caldavError);
@@ -1119,8 +1063,6 @@ const deleteCalDavAllRecurrenceEvents = async (payload) => {
 const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
   const { data, user } = payload;
   const debug = false;
-
-  // debugger;
 
   try {
     // Needed information for deleting of Caldav information.
@@ -1154,7 +1096,6 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
     const recurrencePattern = recurrence.toJSON();
     if (debug) {
       console.log(recurrencePattern);
-      // debugger;
     }
 
     // Problem here is that updating the rp based on the exDates and recurringIds.
@@ -1254,10 +1195,9 @@ const deleteCalDavAllFutureRecurrenceEvents = async (payload) => {
       const result = await dav.updateCalendarObject(calendarObject, option);
       if (debug) {
         console.log(result);
+        const allevents = await dbEventActions.getAllEvents();
+        console.log(allevents);
       }
-
-      const allevents = await dbEventActions.getAllEvents();
-      console.log(allevents);
 
       const deletingEvents = await Promise.all(
         recurrAfterDates.map((date) => {

@@ -159,7 +159,6 @@ const storeEvents = async (payload) => {
     console.log('something is wrong');
     return [];
   }
-  // debugger;
 
   try {
     for (let i = 0; i < data.length; i += 1) {
@@ -177,9 +176,7 @@ const storeEvents = async (payload) => {
     console.log(e);
     debugger;
   }
-  // debugger;
   const insertResults = await Promise.all(allPromises);
-  // debugger;
   return insertResults;
 };
 
@@ -540,10 +537,9 @@ const editSingleEvent = async (payload) => {
   // #endregion
 
   // // Edge case, means user created an event offline, and is yet to upload it to service.
-  // // In that case, we shuld remove it from pending action if it exists.
+  // // In that case, we shuld edit it from pending action if it exists.
   // if (data.local === true) {
-  //   await dbPendingActionActions.deletePendingActionById(data.originalId);
-  //   await dbEventActions.deleteEventById(id);
+  //   // DO SOME EDITING OF THE DATABASE, EVERYTHING ELSE IS AUTOMATIC
 
   //   return {
   //     providerType: data.providerType,
@@ -658,10 +654,9 @@ const editAllReccurenceEvent = async (payload) => {
   // #endregion
 
   // // Edge case, means user created an event offline, and is yet to upload it to service.
-  // // In that case, we shuld remove it from pending action if it exists.
+  // // In that case, we shuld edit it from pending action if it exists.
   // if (data.local === true) {
-  //   await dbPendingActionActions.deletePendingActionById(data.originalId);
-  //   await dbEventActions.deleteEventById(data.id);
+  //   // DO SOME EDITING OF THE DATABASE, EVERYTHING ELSE IS AUTOMATIC
 
   //   return {
   //     providerType: data.providerType,
@@ -669,7 +664,7 @@ const editAllReccurenceEvent = async (payload) => {
   //   };
   // }
 
-  // // As we are deleting a series, we need to delete the recurrence pattern from db to ensure our database does not blow up accordingly.
+  // // As we are editing a series, we need to edit the recurrence pattern to prevent side effects
   // if (payload.isRecurring) {
   //   switch (payload.providerType) {
   //     case Providers.GOOGLE:

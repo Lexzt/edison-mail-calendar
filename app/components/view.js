@@ -93,7 +93,7 @@ export default class View extends React.Component {
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
 
-    // dav.debug.enabled = true;
+    dav.debug.enabled = true;
   }
 
   componentWillMount() {
@@ -103,8 +103,9 @@ export default class View extends React.Component {
   async componentDidMount() {
     const { props } = this;
 
-    // const qwe = await UserBlock.findAll();
-    // console.log(qwe.map((e) => e.toJSON()));
+    // Debug check on loading of main UI
+    const users = await UserBlock.findAll();
+    console.log(users.map((e) => e.toJSON()));
     const eventData = await EventBlock.findAll();
     console.log(eventData.map((e) => e.toJSON()));
     const rpData = await RpBlock.findAll();
@@ -473,6 +474,7 @@ export default class View extends React.Component {
     // const results = await Promise.all(uploadRequest);
     // #endregion
 
+    // Automatic user login
     UserBlock.findAll().then((providerUserData) => {
       providerUserData.forEach((singleProviderUserData) => {
         if (singleProviderUserData.providerType === ProviderTypes.EXCHANGE) {
@@ -537,6 +539,7 @@ export default class View extends React.Component {
     return str;
   };
 
+  // #region Login Functions
   authorizeOutLookCodeRequest = () => {
     const { props } = this;
     props.beginOutlookAuth();
@@ -581,8 +584,9 @@ export default class View extends React.Component {
       url
     });
   };
+  // #endregion
 
-  // Calendar Event Functions
+  // #region Calendar Event Functions
   moveEventList = ({ event, start, end }) => {
     const { events } = this.props;
     const { props } = this;
@@ -604,7 +608,9 @@ export default class View extends React.Component {
     );
     props.updateEvents(nextEvents);
   };
+  // #endregion
 
+  // #region Router Functions
   addEvent = ({ start, end }) => {
     const { props } = this;
     props.history.push(`/${start}/${end}`);
@@ -614,7 +620,9 @@ export default class View extends React.Component {
     const { props, state } = this;
     props.history.push(`/${state.currentEvent.id}`);
   };
+  // #endregion
 
+  // #region On Event Clicks
   handleEventClick = (event) => {
     console.log(event);
     this.setState({
@@ -641,6 +649,7 @@ export default class View extends React.Component {
     // this.authorizeCaldavCodeRequest(ICLOUD_USERNAME, ICLOUD_PASSWORD, 'ICLOUD');
     // this.authorizeCaldavCodeRequest(YAHOO_USERNAME, YAHOO_PASSWORD, 'YAHOO');
   };
+  // #endregion
 
   // This filter user is used when the outlook first creates the object.
   // It takes the outlook user object, and map it to the common schema defined in db/person.js
@@ -664,6 +673,7 @@ export default class View extends React.Component {
     });
   };
 
+  // #region Delete functionality
   deleteEvent = () => {
     const { props, state } = this;
     props.beginDeleteEvent(state.currentEvent.id);
@@ -681,7 +691,9 @@ export default class View extends React.Component {
     props.beginDeleteFutureRecurrenceSeries(state.currentEvent.id);
     this.closeModal();
   };
+  // #endregion
 
+  // #region Styling
   getVisibleEvents = () => {
     const { props } = this;
     const { events } = props;
@@ -726,8 +738,9 @@ export default class View extends React.Component {
       style
     };
   };
+  // #endregion
 
-  /* Render functions */
+  // #region Render functionality
   renderCalendar = (props) => {
     const visibleEvents = this.getVisibleEvents();
     return (
@@ -954,4 +967,5 @@ export default class View extends React.Component {
     }
     return <div>Logging in...</div>;
   }
+  // #endregion
 }

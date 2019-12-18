@@ -108,38 +108,17 @@ export const asyncGetAllExchangeEvents = async (exch) => {
 */
 export const asyncGetExchangeBodyEvents = async (exch, arrayOfNonRecurrIds, exchangeEvents) => {
   const exchangeEventsWithBody = [];
-  // const additonalProps = new PropertySet(BasePropertySet.IdOnly, [
-  //   AppointmentSchema.Recurrence,
-  //   AppointmentSchema.Body,
-  //   AppointmentSchema.Subject,
-  //   AppointmentSchema.AppointmentType,
-  //   AppointmentSchema.IsRecurring,
-  //   AppointmentSchema.Start,
-  //   AppointmentSchema.StartTimeZone,
-  //   AppointmentSchema.TimeZone,
-  //   AppointmentSchema.EndTimeZone,
-  //   AppointmentSchema.End,
-  //   AppointmentSchema.ICalUid,
-  //   AppointmentSchema.ICalRecurrenceId,
-  //   AppointmentSchema.LastOccurrence,
-  //   AppointmentSchema.ModifiedOccurrences,
-  //   AppointmentSchema.DeletedOccurrences
-  // ]);
-  // additonalProps.RequestedBodyType = BodyType.Text;
 
   const additonalProps = new PropertySet(BasePropertySet.IdOnly, ItemSchema.Body);
   additonalProps.RequestedBodyType = BodyType.Text;
 
   await exch.BindToItems(arrayOfNonRecurrIds, additonalProps).then(
     (resp) => {
-      // debugger;
       resp.responses.forEach((singleAppointment) => {
         const fullSizeAppointment = exchangeEvents.filter(
           (event) => event.Id.UniqueId === singleAppointment.item.Id.UniqueId
         )[0];
         fullSizeAppointment.Body = singleAppointment.item.Body.text;
-        // debugger;
-        // fullSizeAppointment.TimeZone = singleAppointment.item.TimeZone;
         exchangeEventsWithBody.push(fullSizeAppointment);
       });
     },
@@ -185,12 +164,10 @@ export const asyncGetExchangeRecurrMasterEvents = async (exch) => {
     // I added 10 incase there are additional items, doesn't harm the api.
     await exch
       .FindItems(uploadingCalendar.Id, new ItemView(uploadingCalendar.TotalCount + 10))
-      // .FindItems(WellKnownFolderName.Calendar, new ItemView(100))
       .then((resp) => resp.Items.filter((item) => item.AppointmentType === 'RecurringMaster'))
       .then((recurringMasterEvents) => {
         const setKeyId = new Set();
         recurringMasterEvents.forEach((item) => setKeyId.add(new ItemId(item.Id.UniqueId)));
-        // debugger;
         const additonalProps = new PropertySet(BasePropertySet.IdOnly, [
           AppointmentSchema.Recurrence,
           AppointmentSchema.Body,

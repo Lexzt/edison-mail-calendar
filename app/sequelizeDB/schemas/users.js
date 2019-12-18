@@ -40,8 +40,5 @@ Users.init(
     modelName: 'users'
   }
 );
-// const data = Users.sync();
-// console.log(data);
-// Users.sync().then(tableCompletedSync);
 Users.sync();
 db.users = Users;

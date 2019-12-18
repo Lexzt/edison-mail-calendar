@@ -11,7 +11,6 @@ const TEMPORARY_RECURRENCE_END = new Date(2020, 12, 12);
 
 export const parseRecurrenceEvents = (calEvents) => {
   const recurringEvents = [];
-  // debugger;
   calEvents.forEach((calEvent) => {
     const { isRecurring } = calEvent.eventData;
     if (isRecurring && (calEvent.recurData !== undefined && calEvent.recurData !== null)) {
@@ -20,7 +19,7 @@ export const parseRecurrenceEvents = (calEvents) => {
       const rrule = new RRule(options);
       recurringEvents.push({
         id: uuidv4(),
-        recurringTypeId: calEvent.eventData.start.dateTime, // datetime here is alr unix
+        recurringTypeId: calEvent.eventData.start.dateTime,
         originalId: calEvent.eventData.originalId,
         freq: calEvent.recurData.rrule.freq,
         interval: calEvent.recurData.rrule.interval,
@@ -78,7 +77,6 @@ export const parseRecurrenceEvents = (calEvents) => {
 };
 
 export const convertiCalWeeklyPattern = (rrule) => {
-  // debugger;
   const weeklyPattern = [0, 0, 0, 0, 0, 0, 0];
   if (rrule.origOptions.byweekday) {
     rrule.origOptions.byweekday.forEach((e) => {
@@ -200,7 +198,6 @@ export const parseCalendarData = (calendarData, etag, url, calendarId) => {
   const results = [];
   const jCalData = ICAL.parse(calendarData);
   const comp = new ICAL.Component(jCalData);
-  // const modifiedEvents = comp.getAllSubcomponents('vevent');
   const vevents = comp.getAllSubcomponents('vevent');
   const modifiedEvents = vevents.filter((indivComp) => !indivComp.hasProperty('rrule'));
   let masterEvent;
@@ -215,7 +212,6 @@ export const parseCalendarData = (calendarData, etag, url, calendarId) => {
   if (masterEvent === undefined) {
     debugger;
   }
-  // const masterEvent = comp.getFirstSubcomponent('vevent');
   const icalMasterEvent = new ICAL.Event(masterEvent);
   const attendees = getAttendees(masterEvent);
 
@@ -309,15 +305,10 @@ export const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) =
       modifiedEvent.getFirstPropertyValue('created') !== null
         ? moment(modifiedEvent.getFirstPropertyValue('created')).unix()
         : 0,
-    // new Date(modifiedEvent.getFirstPropertyValue('created')).toISOString(),
     updated:
-      // modifiedEvent.getFirstPropertyValue('last-modified') !== null
-      //   ? moment(modifiedEvent.getFirstPropertyValue('last-modified').toJSDate()).unix()
-      //   : 0,
       modifiedEvent.getFirstPropertyValue('last-modified') !== null
         ? moment(modifiedEvent.getFirstPropertyValue('last-modified').toJSDate()).unix()
         : 0,
-    // updated: new Date(modifiedEvent.getFirstPropertyValue('last-modified')).toISOString(),
     summary: modifiedEvent.getFirstPropertyValue('summary'),
     description:
       modifiedEvent.getFirstPropertyValue('description') == null
@@ -327,19 +318,12 @@ export const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) =
       modifiedEvent.getFirstPropertyValue('location') == null
         ? ''
         : modifiedEvent.getFirstPropertyValue('location'),
-    // organizer:
-    //   modifiedEvent.getFirstPropertyValue('organizer') == null
-    //     ? modifiedEvent
-    //     : modifiedEvent.getFirstPropertyValue('organizer'),
     originalStartTime: {
       dateTime: moment(dtstart).unix(),
       timezone: 'America/Los_Angeles'
     },
-    // attendee: getAttendees(modifiedEvent),
-    // calendarId,
     providerType: 'CALDAV',
     isRecurring: true,
-    // isModifiedThenDeleted: mtd,
     etag,
     caldavUrl: url,
     calendarId,
@@ -348,14 +332,6 @@ export const parseModifiedEvent = (comp, etag, url, modifiedEvent, calendarId) =
 };
 
 export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMaster) => {
-  // const masterEvent = component.getFirstSubcomponent('vevent');
-
-  // const vevents = component.getAllSubcomponents('vevent');
-  // const masterEvent = vevents.filter((comp) => comp.hasProperty('rrule'))[0];
-  // if (masterEvent === undefined) {
-  //   debugger;
-  // }
-
   const vevents = component.getAllSubcomponents('vevent');
   let masterEvent;
   // This means it is recurring because there is more than one event per ics.
@@ -367,9 +343,6 @@ export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMa
   }
 
   const tz = component.getFirstSubcomponent('vtimezone').getFirstPropertyValue('tzid');
-  // if (masterEvent.getFirstPropertyValue('summary') === 'Recurring through DST') {
-  //   debugger;
-  // }
   const dtstart =
     masterEvent.getFirstPropertyValue('dtstart') == null
       ? ''
@@ -386,12 +359,10 @@ export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMa
       dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
     }
   } else if (masterEvent.hasProperty('duration')) {
-    // if (masterEvent.getFirstPropertyValue('duration').toSeconds() > 0) {
     dtend = masterEvent.getFirstPropertyValue('dtstart').clone();
     dtend.addDuration(masterEvent.getFirstPropertyValue('duration'));
     dtendMoment = moment.tz(dtend.toUnixTime() * 1000, tz);
     dtendMoment = dtendMoment.tz('GMT').tz(tz, true);
-    // }
   } else {
     // According to documentation, it ask me to add one day if both duration and dtend does not exist.
     dtend = masterEvent
@@ -422,12 +393,10 @@ export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMa
       masterEvent.getFirstPropertyValue('created') !== null
         ? moment(masterEvent.getFirstPropertyValue('created')).unix()
         : 0,
-    // created: new Date(masterEvent.getFirstPropertyValue('created')).toISOString(),
     updated:
       masterEvent.getFirstPropertyValue('last-modified') !== null
         ? moment(masterEvent.getFirstPropertyValue('last-modified').toJSDate()).unix()
         : 0,
-    // updated: new Date(masterEvent.getFirstPropertyValue('last-modified')).toISOString(),
     summary: masterEvent.getFirstPropertyValue('summary'),
     description:
       masterEvent.getFirstPropertyValue('description') == null
@@ -437,19 +406,12 @@ export const parseEvent = (component, isRecurring, etag, url, calendarId, cdIsMa
       masterEvent.getFirstPropertyValue('location') == null
         ? ''
         : masterEvent.getFirstPropertyValue('location'),
-    // organizer:
-    //   masterEvent.getFirstPropertyValue('organizer') == null
-    //     ? masterEvent
-    //     : masterEvent.getFirstPropertyValue('organizer'),
     originalStartTime: {
       dateTime: moment(dtstart).unix(),
-      // dateTime: new Date(dtstart).toISOString(),
       timezone: tz
     },
-    // attendee: getAttendees(masterEvent),
     providerType: 'CALDAV',
     isRecurring,
-    // isModifiedThenDeleted: mtd,
     etag,
     caldavUrl: url,
     calendarId,
@@ -603,13 +565,6 @@ export const parseRecurrence = (recurPattern, recurMasterEvent) => {
     // For e.g. another calendar app uploads an event with 0 events for some reason
     // Therefore, expansion fails, and we ignore.
     // We could help the user tidy up their events but I think that is a dangerous game to play.
-    // debugger;
-
-    // const test = buildRuleSet(
-    //   recurPattern,
-    //   recurMasterEvent.start.dateTime,
-    //   recurMasterEvent.start.timezone
-    // );
     console.log('(Error) 0 expanded event found', recurPattern, recurMasterEvent);
     return [];
   }
@@ -667,14 +622,10 @@ export const parseRecurrence = (recurPattern, recurMasterEvent) => {
         timezone: eventTz
       },
       summary: recurMasterEvent.summary,
-      // organizer: recurMasterEvent.organizer,
-      // recurrence: recurMasterEvent.recurrence,
       recurringEventId: recurMasterEvent.iCalUID,
       iCalUID: recurMasterEvent.iCalUID,
       iCALString: recurMasterEvent.iCALString,
-      // attendee: recurMasterEvent.attendee,
       originalId: recurMasterEvent.originalId,
-      // creator: recurMasterEvent.creator,
       owner: recurMasterEvent.owner,
       isRecurring: recurMasterEvent.isRecurring,
       providerType: recurMasterEvent.providerType,
@@ -803,7 +754,6 @@ export const buildRuleObject = (pattern, startTime, tz) => {
     case 'MONTHLY':
       {
         ruleObject.freq = RRule.MONTHLY;
-
         // Currently, I am facing a techincal limitation of the api.
         // But the idea here is there are different types of monthly events.
 
@@ -852,7 +802,6 @@ export const buildRuleObject = (pattern, startTime, tz) => {
     case 'WEEKLY':
       {
         ruleObject.freq = RRule.WEEKLY;
-
         ruleObject.byweekday =
           pattern.byWeekDay !== '()'
             ? pattern.byWeekDay
@@ -896,32 +845,6 @@ export const buildRuleObject = (pattern, startTime, tz) => {
       )
     );
   }
-
-  // switch (pattern.wkst) {
-  //   case 'MO':
-  //     ruleObject.wkst = 0;
-  //     break;
-  //   case 'TU':
-  //     ruleObject.wkst = 1;
-  //     break;
-  //   case 'WE':
-  //     ruleObject.wkst = 2;
-  //     break;
-  //   case 'TH':
-  //     ruleObject.wkst = 3;
-  //     break;
-  //   case 'FR':
-  //     ruleObject.wkst = 4;
-  //     break;
-  //   case 'SA':
-  //     ruleObject.wkst = 5;
-  //     break;
-  //   case 'SU':
-  //     ruleObject.wkst = 6;
-  //     break;
-  //   default:
-  //     ruleObject.wkst = null;
-  // }
   return ruleObject;
 };
 
@@ -940,10 +863,9 @@ export const getModifiedThenDeletedDates = (exDates, recurDates) => {
 export const buildRuleSet = (pattern, start, tz) => {
   // Create new ruleset based off the rule object.
   const rruleSet = new RRuleSet();
-  // debugger;
   const ruleObject = buildRuleObject(pattern, start, tz);
-  // console.log(ruleObject);
   rruleSet.rrule(new RRule(ruleObject));
+
   // Get the deleted and updated occurances from the recurrence pattern.
   const { exDates, recurrenceIds } = pattern;
 
@@ -970,7 +892,6 @@ export const buildRuleSet = (pattern, start, tz) => {
   }
 
   // const modifiedThenDeletedDates = getModifiedThenDeletedDates(exDates, recurrenceIds);
-  /* To remove start date duplicate */
   return rruleSet;
 };
 

@@ -180,7 +180,6 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurr
         mapZones = allMapZones.filter((zone) => zone._name === dbEvent.TimeZone)[0];
       }
 
-      // debugger;
       let tz;
       if (mapZones === undefined || mapZones === null) {
         tz = { _type: 'Atlantic/Reykjavik' }; // Assume default as UTC/GMT
@@ -200,7 +199,6 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurr
         // dateTime: dbEvent.Start.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
       };
       schemaCastedDbObject.end = {
-        // dateTime: dbEvent.End.getMomentDate().format('YYYY-MM-DDTHH:mm:ssZ')
         dateTime: dbEvent.End.getMomentDate().unix(),
         // eslint-disable-next-line no-underscore-dangle
         timezone: tz._type
@@ -332,15 +330,6 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurr
               objMightHaveNothing[key].func
             );
           } else if (objMightHaveNothing[key].type === 'needed') {
-            // if (key === 'iCalUID') {
-            // console.log(
-            //   schemaCastedDbObject,
-            //   key,
-            //   dbEvent,
-            //   objMightHaveNothing[key].value,
-            //   objMightHaveNothing[key].defaultValue
-            // );
-            // }
             exchangeTryCatchCannotBeNull(
               schemaCastedDbObject,
               key,
@@ -349,7 +338,6 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurr
               objMightHaveNothing[key].defaultValue
             );
           } else if (objMightHaveNothing[key].type === 'neededFunc') {
-            // debugger;
             exchangeTryCatchCannotBeNullFunc(
               schemaCastedDbObject,
               key,
@@ -410,8 +398,6 @@ export const filterIntoSchema = (dbEvent, type, owner, local, id, exchangeRecurr
       //   console.log("Exchange Object " + dbEvent.Subject + " is incomplete", schemaCastedDbObject);
       //   debugger;
       // }
-
-      // console.log(schemaCastedDbObject);
       return schemaCastedDbObject;
     }
     case CALDAV: {
@@ -431,14 +417,12 @@ const exchangeTryCatchCanBeNull = (
   defaultValue
 ) => {
   try {
-    // console.log(objectType + ": " + appointment[appointmentType]);
     if (appointment[appointmentType] == null) {
       object[objectType] = defaultValue;
     } else {
       object[objectType] = appointment[appointmentType];
     }
   } catch (e) {
-    // console.log(e, appointment, appointmentType);
     object[objectType] = defaultValue;
   }
 };
@@ -452,7 +436,6 @@ const exchangeTryCatchCanBeNullFunc = (
   func
 ) => {
   try {
-    // console.log(objectType + ": " + appointment[appointmentType]);
     const value = func();
     if (value == null) {
       object[objectType] = defaultValue;
@@ -460,7 +443,6 @@ const exchangeTryCatchCanBeNullFunc = (
       object[objectType] = value;
     }
   } catch (e) {
-    // console.log(e, appointment, appointmentType);
     object[objectType] = defaultValue;
   }
 };
@@ -473,11 +455,8 @@ const exchangeTryCatchCannotBeNull = (
   defaultValue
 ) => {
   try {
-    // console.log(objectType);
     object[objectType] = appointment[appointmentType];
   } catch (e) {
-    // console.log(e, appointment, appointmentType);
-    // debugger;
     object[objectType] = defaultValue;
     object.incomplete = true;
   }
@@ -495,8 +474,6 @@ const exchangeTryCatchCannotBeNullFunc = (
     const value = func();
     object[objectType] = value;
   } catch (e) {
-    // console.log("LETS GOOOOO!!", e, appointment, appointmentType);
-    // debugger;
     object[objectType] = defaultValue;
     object.incomplete = true;
   }

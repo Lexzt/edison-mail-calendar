@@ -16,13 +16,7 @@ export const findPendingActionById = async (eventId) =>
   });
 
 export const insertPendingActionIntoDatabase = async (pendingAction) => {
-  const debug = true;
-  // debugger;
-
-  console.log(pendingAction);
-  // As we are inserting a new user into the database, and personId being the priamry key
-  // that is uuidv4 generated, meaning unique each time, we need to check based off the
-  // user information before we decide to upsert or update accrordingly.
+  const debug = false;
   const dbPendingAction = await PendingActionBlock.findAll({
     where: {
       eventId: {
@@ -58,8 +52,7 @@ export const insertPendingActionIntoDatabase = async (pendingAction) => {
 };
 
 export const deletePendingActionById = async (eventId) => {
-  const debug = true;
-
+  const debug = false;
   await PendingActionBlock.destroy({
     where: {
       eventId: {

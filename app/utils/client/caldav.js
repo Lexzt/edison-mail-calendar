@@ -7,6 +7,8 @@ import * as PARSER from '../parser';
 import * as dbRpActions from '../../sequelizeDB/operations/recurrencepatterns';
 import * as caldavBasics from './caldavbasics';
 
+const fs = require('fs');
+
 const getCalDavTypeFromURL = (url) => {
   switch (url) {
     case ServerUrls.ICLOUD:
@@ -46,22 +48,37 @@ export const asyncGetAllCalDavEvents = async (username, password, url, caldavTyp
     const recurrencePattern = PARSER.parseRecurrenceEvents(flatFilteredEvents);
 
     // debugger;
+    // const a = new Map();
+    // flatEvents.forEach((data) => {
+    //   let tempData = a.get(data.eventData.originalId);
+    //   if (tempData === null || tempData === undefined) {
+    //     tempData = { events: [] };
+    //   }
+
+    //   tempData.events.push(data.eventData);
+    //   if (data.recurData) {
+    //     tempData.rp = data.recurData;
+    //   }
+    //   a.set(data.eventData.originalId, tempData);
+    // });
+    // const temp = Array.from(a.values()).filter((obj) => obj.events[0].isRecurring);
+    // for (let i = 0; i < temp.length; i += 1) {
+    //   const masterEvent = temp[i].events.filter((e) => e.isMaster)[0];
+    //   const fileName = masterEvent.summary
+    //     .replace(/\(.*?\)/, '')
+    //     .trim()
+    //     .replace(/\//g, ',');
+
+    //   fs.writeFileSync(
+    //     'testinput/' + fileName + '.json',
+    //     JSON.stringify(temp[i], null, '\t'),
+    //     (err) => {
+    //       console.log(err);
+    //     }
+    //   );
+    // }
 
     const promises = [];
-    // This is broke, upsert makes no sense atm.
-    // calendars.forEach((calendar) => {
-    //   promises.push(db.calendars.upsert(calendar));
-    // });
-    // Do not upsert here, let the get event success upsert. But handle the rest.
-    // flatFilteredEvents.forEach((calEvent) => {
-    //   promises.push(db.events.upsert(calEvent.eventData));
-    // });
-
-    // // This has no use atm, upsert makes no sense atm.
-    // eventPersons.forEach((eventPerson) => {
-    //   promises.push(db.eventpersons.upsert(eventPerson));
-    // });
-
     const prevRPs = await Promise.all(
       recurrencePattern.map((recurrenceEvent) =>
         dbRpActions.getOneRpByOId(recurrenceEvent.originalId)

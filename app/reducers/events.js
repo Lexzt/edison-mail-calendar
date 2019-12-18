@@ -10,13 +10,6 @@ const initialState = {
   calEvents: []
 };
 
-// Merge events is a tricky function.
-// Currently, the goal of the function is to take two different providers,
-// and append the events together.
-// HOWEVER, when I delete an event, merge event is called, with the new items
-// having one or more less element.
-// Therefore, I need the function to remove from the new payload if it is missing
-// from the newItems.
 const mergeEvents = (oldEvents, newEvents, user) => {
   const nonUserEvents = oldEvents.filter(
     (e) =>
@@ -38,7 +31,6 @@ const storeEvents = (oldEvents, payload) => {
   const newEvents = payload.resp;
   const { tempEvents } = payload;
   const { users } = payload;
-  // debugger;
 
   users.forEach((user) => {
     nonUserEvents.push(
@@ -86,21 +78,16 @@ const storeEvents = (oldEvents, payload) => {
     //  it is an old event
     oldUserEventsId.forEach((id) => {
       if (!newEventsId.includes(id) && oldUserEventsId.includes(id) && !tempEventsId.includes(id)) {
-        // if (oldUserEventsId.includes(id) && !tempEventsId.includes(id)) {
         newPayload.push(v.filter((e) => e.id === id)[0]);
-        // }
       }
     });
   });
 
-  console.log(newPayload);
   return newPayload;
 };
 
 const syncEvents = (oldEvents, newEvents) => {
-  // debugger;
   const newPayload = [...oldEvents];
-  console.log(oldEvents, newEvents);
   for (const newEvent of newEvents) {
     const pos = newPayload.map((object) => object.id).indexOf(newEvent.event.id);
     switch (newEvent.type) {
@@ -141,7 +128,6 @@ export default function eventsReducer(state = initialState, action) {
     // It is currently syncing for one user only.
     // I need it to sync for every user that is valid.
     case SYNC_STORED_EVENTS: {
-      console.log('SYNC_STORED_EVENTS', state.calEvents, action.payload);
       const newEvents = syncEvents(state.calEvents, action.payload);
       return Object.assign({}, state, { calEvents: newEvents });
     }

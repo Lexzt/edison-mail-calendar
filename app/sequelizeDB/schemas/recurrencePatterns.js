@@ -109,6 +109,5 @@ RecurrencePatterns.init(
     modelName: 'recurrencepatterns'
   }
 );
-// RecurrencePatterns.sync().then(tableCompletedSync);
 RecurrencePatterns.sync();
 db.recurrencepatterns = RecurrencePatterns;

@@ -294,7 +294,6 @@ const createEwsEvent = (payload) =>
                 );
                 resolve([item]);
               } else if (item.AppointmentType === 'RecurringMaster') {
-                debugger;
                 // If it is a recurring master event, we need to rely on ews to expand our events.
                 const allExchangeEvents = await asyncGetAllExchangeEvents(exch);
                 const newRecurrExpandedEvents = allExchangeEvents
@@ -311,8 +310,6 @@ const createEwsEvent = (payload) =>
                     const prevRp = rpList.filter(
                       (rp) => rp.iCalUID === oldExpandedSingleEvent.ICalUid
                     );
-                    console.log(prevRp, oldExpandedSingleEvent);
-                    // debugger;
                     if (oldExpandedSingleEvent.IsRecurring && prevRp.length > 0) {
                       oldExpandedSingleEvent.RecurrenceMasterId = {
                         UniqueId: prevRp[0].originalId
@@ -366,12 +363,9 @@ const createEwsEvent = (payload) =>
             // Storing it in iCALString is kinda dangerous as its not a legit iCALString.
             // Wait, I can just retrieve it from the rp in runtime right? NOPE
             // I am so lazy rn and I cannot figure out the best solution.
-            debugger;
-            console.log(payload);
             const sorted = payload.tempEvents.sort(
               (first, second) => first.start.dateTime > second.start.dateTime
             );
-            console.log(sorted);
             const masterEvent = sorted[0];
             const obj = {
               uniqueId: uuidv4(),

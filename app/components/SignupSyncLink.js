@@ -27,23 +27,6 @@ export default class signupSyncLink extends React.Component {
       );
     }
 
-    return (
-      <div>{renderArray}</div>
-      // <div>
-      //   <a>
-      //     <button className="btn btn-block btn-social"
-      //       onClick={() => this.authorizeGoogleCodeRequest()}>
-      //       <span className="fa fa-outlook"></span>
-      //         Sign in with {this.capitalize(this.props.providerType)}
-      //     </button>
-      //   </a>
-
-      //   <button className="btn btn-block btn-social"
-      //     onClick={() => {console.log(this.state.temp_outlookUser); this.props.beginGetOutlookEvents(this.state.temp_outlookUser);}}>
-      //     <span className="fa fa-google"></span>
-      //     Get {this.capitalize(this.props.providerType)} Events
-      //   </button>
-      // </div>
-    );
+    return <div>{renderArray}</div>;
   }
 }

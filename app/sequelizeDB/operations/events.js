@@ -66,14 +66,9 @@ export const getAllEventsByRecurringEventId = async (recurringEventId) => {
 // #region Inserting Events
 export const insertEventsIntoDatabase = async (event) => {
   const debug = false;
-
   if (debug) {
     console.log(event);
   }
-
-  // As we are inserting a new user into the database, and personId being the priamry key
-  // that is uuidv4 generated, meaning unique each time, we need to check based off the
-  // user information before we decide to upsert or update accrordingly.
   const dbEvent = await EventsBlock.findAll({
     where: {
       iCalUID: {
@@ -114,7 +109,6 @@ export const insertEventsIntoDatabase = async (event) => {
 // #region Delete Event
 export const deleteEventById = async (id) => {
   const debug = false;
-
   if (debug) {
     const event = await EventsBlock.findOne({
       where: {
@@ -126,7 +120,6 @@ export const deleteEventById = async (id) => {
     console.log(event);
     debugger;
   }
-
   const test = await EventsBlock.destroy({
     where: {
       id: {
@@ -134,14 +127,13 @@ export const deleteEventById = async (id) => {
       }
     }
   });
-
   if (debug) {
     console.log('Deleted ', test);
   }
 };
 
 export const deleteEventByOriginalId = async (originalId) => {
-  const debug = true;
+  const debug = false;
   await EventsBlock.destroy({
     where: {
       originalId: {
@@ -152,7 +144,7 @@ export const deleteEventByOriginalId = async (originalId) => {
 };
 
 export const deleteEventByOriginaliCalUID = async (iCalUID) => {
-  const debug = true;
+  const debug = false;
   await EventsBlock.destroy({
     where: {
       iCalUID: {
@@ -163,7 +155,7 @@ export const deleteEventByOriginaliCalUID = async (iCalUID) => {
 };
 
 export const deleteEventByiCalUIDandStartDateTime = async (iCalUid, startDateTime) => {
-  const debug = true;
+  const debug = false;
   await EventsBlock.destroy({
     where: {
       iCalUid: {
@@ -177,7 +169,7 @@ export const deleteEventByiCalUIDandStartDateTime = async (iCalUid, startDateTim
 };
 
 export const deleteEventEqiCalUidGteStartDateTime = async (iCalUid, startDateTime, event) => {
-  const debug = true;
+  const debug = false;
   await EventsBlock.destroy({
     where: {
       iCalUid: {
@@ -191,7 +183,7 @@ export const deleteEventEqiCalUidGteStartDateTime = async (iCalUid, startDateTim
 };
 
 export const deleteAllEventByRecurringEventId = async (recurringEventId) => {
-  const debug = true;
+  const debug = false;
   await EventsBlock.destroy({
     where: {
       recurringEventId: {
@@ -205,7 +197,7 @@ export const deleteAllEventByRecurringEventId = async (recurringEventId) => {
 
 // #region Update Event
 export const updateEventById = async (id, data) => {
-  const debug = true;
+  const debug = false;
   await EventsBlock.update(data, {
     where: {
       id: {
@@ -216,8 +208,7 @@ export const updateEventById = async (id, data) => {
 };
 
 export const updateEventByOriginalId = async (originalId, event) => {
-  const debug = true;
-
+  const debug = false;
   await EventsBlock.update(event, {
     where: {
       originalId: {
@@ -228,8 +219,7 @@ export const updateEventByOriginalId = async (originalId, event) => {
 };
 
 export const updateEventByiCalUIDandStartDateTime = async (iCalUid, startDateTime, event) => {
-  const debug = true;
-
+  const debug = false;
   await EventsBlock.update(event, {
     where: {
       iCalUid: {
@@ -243,21 +233,7 @@ export const updateEventByiCalUIDandStartDateTime = async (iCalUid, startDateTim
 };
 
 export const updateEventEqiCalUidGteStartDateTime = async (iCalUid, startDateTime, event) => {
-  const debug = true;
-
-  // const testitems = await EventsBlock.findAll({
-  //   where: {
-  //     iCalUid: {
-  //       [Op.eq]: iCalUid
-  //     },
-  //     'start.dateTime': {
-  //       [Op.gte]: startDateTime
-  //     }
-  //   }
-  // });
-  // console.log(testitems);
-  // debugger;
-
+  const debug = false;
   await EventsBlock.update(event, {
     where: {
       iCalUid: {
@@ -271,8 +247,7 @@ export const updateEventEqiCalUidGteStartDateTime = async (iCalUid, startDateTim
 };
 
 export const updateEventiCalString = async (iCalUid, iCALString) => {
-  const debug = true;
-
+  const debug = false;
   await EventsBlock.update(
     {
       iCALString

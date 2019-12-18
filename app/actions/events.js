@@ -114,15 +114,6 @@ export const getEventsSuccess = (response, providerType, users) => ({
 // #endregion
 
 // #region Edit Event
-// export const editEventBegin = (id, eventObject, providerType) => ({
-//   type: EDIT_EVENT_BEGIN,
-//   payload: {
-//     id,
-//     data: eventObject,
-//     providerType
-//   }
-// });
-
 export const beginEditEvent = (payload) => ({
   type: EDIT_EVENT_BEGIN,
   payload

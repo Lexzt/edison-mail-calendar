@@ -22,6 +22,5 @@ EventPersons.init(
     modelName: 'eventpersons'
   }
 );
-// EventPersons.sync().then(tableCompletedSync);
 EventPersons.sync();
 db.eventPersons = EventPersons;
